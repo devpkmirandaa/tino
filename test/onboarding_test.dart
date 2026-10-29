@@ -234,7 +234,7 @@ void interactionTests() {
     final title = find.text('Comprar bem começa antes.');
     expect(find.text('Próximo'), findsNothing);
     expect(find.text('Voltar aos Ajustes'), findsNothing);
-    expect(find.text('Começar'), findsNothing);
+    expect(find.text('Começar').hitTestable(), findsNothing);
     expect(find.text('Deslize para continuar'), findsOneWidget);
     expect(tester.widget<TinoWordmark>(find.byType(TinoWordmark)).width, 96);
     final startX = tester.getTopLeft(title).dx;
@@ -249,18 +249,18 @@ void interactionTests() {
     expectSelected(tester, 0);
     await swipe(tester);
     expectSelected(tester, 1);
-    expect(find.text('Deslize para continuar'), findsNothing);
+    expect(find.text('Deslize para continuar').hitTestable(), findsNothing);
     expect(find.byType(TinoWordmark).hitTestable(), findsNothing);
     await tester.tap(find.byKey(const ValueKey('intro-indicator-2')));
     await tester.pumpAndSettle();
     expectSelected(tester, 2);
-    expect(find.text('Pular'), findsNothing);
+    expect(find.text('Pular').hitTestable(), findsNothing);
     expect(find.text('Começar'), findsOneWidget);
     await swipe(tester, back: true);
     expectSelected(tester, 1);
     await swipe(tester, back: true);
     expectSelected(tester, 0);
-    expect(find.text('Deslize para continuar'), findsNothing);
+    expect(find.text('Deslize para continuar').hitTestable(), findsNothing);
   });
 
   testWidgets(

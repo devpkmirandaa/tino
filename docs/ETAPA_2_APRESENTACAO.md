@@ -115,7 +115,7 @@ Os testes de widgets simulam apenas a fronteira do plugin. Recriam ProviderScope
 app e roteador para testar uma nova abertura, mantendo ou apagando o mapa que
 representa o disco. A persistência nativa exige conferência no aparelho.
 
-## Validação do refinamento atual
+## Validação do refinamento anterior (17 testes)
 
 - `dart format` nos arquivos Dart alterados e `flutter analyze`: sem problemas.
 - `flutter test`: 17 testes aprovados. Incluem movimento durante o arraste,
@@ -161,3 +161,8 @@ representa o disco. A persistência nativa exige conferência no aparelho.
 
 A etapa termina aqui. Scanner, compras, cálculos, banco local, preferências de
 aparência e demais funções do MVP continuam fora deste incremento.
+
+## Movimento e transições
+
+Contrato de movimento, preservação das áreas e validação em profile:
+ver [MOVIMENTO_INTERFACE.md](MOVIMENTO_INTERFACE.md).

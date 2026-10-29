@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,7 +9,23 @@ import '../features/onboarding/data/onboarding_preference.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/settings/presentation/settings_page.dart';
 import '../features/shopping/presentation/shopping_page.dart';
+import 'area_content.dart';
 import 'tino_shell.dart';
+
+CustomTransitionPage<void> _fadePage(GoRouterState state, Widget child) =>
+    CustomTransitionPage<void>(
+      key: state.pageKey,
+      transitionDuration: const Duration(milliseconds: 180),
+      reverseTransitionDuration: const Duration(milliseconds: 180),
+      child: child,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          MediaQuery.disableAnimationsOf(context)
+          ? child
+          : FadeTransition(
+              opacity: animation.drive(CurveTween(curve: Curves.easeOutCubic)),
+              child: child,
+            ),
+    );
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -19,34 +36,69 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/apresentacao',
-        builder: (context, state) => OnboardingPage(
-          review: state.uri.queryParameters['rever'] == 'true',
+        pageBuilder: (context, state) => _fadePage(
+          state,
+          OnboardingPage(review: state.uri.queryParameters['rever'] == 'true'),
         ),
       ),
-      ShellRoute(
-        builder: (context, state, child) =>
-            TinoShell(path: state.uri.path, child: child),
-        routes: [
-          GoRoute(
-            path: '/',
-            builder: (context, state) => const HomePage(),
-            // Voltar retorna ao Início antes de sair do aplicativo.
+      StatefulShellRoute(
+        pageBuilder: (context, state, shell) =>
+            _fadePage(state, TinoShell(navigationShell: shell)),
+        navigatorContainerBuilder: (context, shell, children) =>
+            AreaContent(index: shell.currentIndex, children: children),
+        branches: [
+          StatefulShellBranch(
             routes: [
               GoRoute(
-                path: 'listas',
-                builder: (context, state) => const ListsPage(),
+                path: '/',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const HomePage(),
+                ),
               ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
               GoRoute(
-                path: 'comprar',
-                builder: (context, state) => const ShoppingPage(),
+                path: '/listas',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const ListsPage(),
+                ),
               ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
               GoRoute(
-                path: 'historico',
-                builder: (context, state) => const HistoryPage(),
+                path: '/comprar',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const ShoppingPage(),
+                ),
               ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
               GoRoute(
-                path: 'ajustes',
-                builder: (context, state) => const SettingsPage(),
+                path: '/historico',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const HistoryPage(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/ajustes',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const SettingsPage(),
+                ),
               ),
             ],
           ),

@@ -16,9 +16,12 @@ Os recursos posteriores são indicados como indisponíveis, sem dados fictícios
 Organização por funcionalidades em `lib/features/`, composição e rotas em
 `lib/app/`, tema e componentes compartilhados em `lib/core/`.
 Riverpod gerencia o ciclo de vida do GoRouter; a seleção da barra deriva da rota,
-sem manter outro estado de navegação. As outras áreas são rotas filhas do Início:
-o botão/gesto Voltar retorna ao Início; no Início, permite sair do aplicativo.
+sem manter outro estado de navegação. As cinco áreas usam ramificações persistentes
+do GoRouter: trocar de área preserva sua rolagem e mantém a barra estável.
+O botão/gesto Voltar retorna ao Início; no Início, permite sair do aplicativo.
 Essa política de retorno é uma escolha de implementação desta etapa.
+
+Movimentos e validação em profile: [contrato da interface](docs/MOVIMENTO_INTERFACE.md).
 
 Ainda não implementados: scanner, cálculos, persistência de compras, edição de
 listas, histórico de compras e preferências de ajustes, incluindo modo escuro.

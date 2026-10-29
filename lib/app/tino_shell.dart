@@ -5,9 +5,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/theme/tino_theme.dart';
 
 class TinoShell extends StatelessWidget {
-  const TinoShell({super.key, required this.path, required this.child});
-  final String path;
-  final Widget child;
+  const TinoShell({super.key, required this.navigationShell});
+  final StatefulNavigationShell navigationShell;
 
   static const _destinations = [
     (path: '/', label: 'Início', icon: LucideIcons.house),
@@ -18,31 +17,39 @@ class TinoShell extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(bottom: false, child: child),
-    bottomNavigationBar: DecoratedBox(
-      decoration: const BoxDecoration(
-        color: TinoColors.offWhite,
-        border: Border(top: BorderSide(color: TinoColors.lightJade)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final destination in _destinations)
-                Expanded(
-                  child: _NavigationItem(
-                    label: destination.label,
-                    icon: destination.icon,
-                    selected: path == destination.path,
-                    central: destination.path == '/comprar',
-                    onTap: () => context.go(destination.path),
+  Widget build(BuildContext context) => PopScope(
+    canPop: navigationShell.currentIndex == 0,
+    onPopInvokedWithResult: (didPop, result) {
+      if (!didPop && navigationShell.currentIndex != 0) {
+        navigationShell.goBranch(0);
+      }
+    },
+    child: Scaffold(
+      body: SafeArea(bottom: false, child: navigationShell),
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: TinoColors.offWhite,
+          border: Border(top: BorderSide(color: TinoColors.lightJade)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var index = 0; index < _destinations.length; index++)
+                  Expanded(
+                    child: _NavigationItem(
+                      label: _destinations[index].label,
+                      icon: _destinations[index].icon,
+                      selected: navigationShell.currentIndex == index,
+                      central: index == 2,
+                      onTap: () => navigationShell.goBranch(index),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -73,39 +80,48 @@ class _NavigationItem extends StatelessWidget {
       button: true,
       selected: selected,
       onTap: onTap,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: ValueKey('nav-$label'),
-          onTap: onTap,
-          excludeFromSemantics: true,
-          borderRadius: BorderRadius.circular(16),
-          child: ExcludeSemantics(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: central
-                          ? Border.all(color: TinoColors.jade)
-                          : null,
+      child: TweenAnimationBuilder<Color?>(
+        tween: ColorTween(begin: color, end: color),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        builder: (context, animatedColor, child) => Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: ValueKey('nav-$label'),
+            onTap: onTap,
+            excludeFromSemantics: true,
+            borderRadius: BorderRadius.circular(16),
+            child: ExcludeSemantics(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: central
+                            ? Border.all(color: TinoColors.jade)
+                            : null,
+                      ),
+                      child: Icon(icon, size: 24, color: animatedColor),
                     ),
-                    child: Icon(icon, size: 24, color: color),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    softWrap: true,
-                    style: Theme.of(context).textTheme.labelSmall
-                        ?.copyWith(color: color, fontWeight: FontWeight.w600),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: animatedColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
