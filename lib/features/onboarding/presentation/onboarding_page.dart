@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -120,6 +121,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   duration: const Duration(milliseconds: 180),
                   child: AreaPage(
                     key: ValueKey(_step),
+                    branding: SvgPicture.asset(
+                      'assets/branding/tino-wordmark.svg',
+                      width: 88,
+                      height: 34,
+                      fit: BoxFit.contain,
+                      semanticsLabel: 'Tino',
+                    ),
                     title: step.title,
                     description: step.description,
                     icon: step.icon,

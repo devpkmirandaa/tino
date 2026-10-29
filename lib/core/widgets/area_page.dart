@@ -11,6 +11,7 @@ class AreaPage extends StatelessWidget {
     required this.icon,
     required this.message,
     required this.detail,
+    this.branding,
     this.footer,
   });
   final String title;
@@ -18,6 +19,7 @@ class AreaPage extends StatelessWidget {
   final IconData icon;
   final String message;
   final String detail;
+  final Widget? branding;
   final Widget? footer;
 
   @override
@@ -33,10 +35,11 @@ class AreaPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              Text(
-                'TINO',
-                style: text.labelLarge?.copyWith(color: TinoColors.jade),
-              ),
+              branding ??
+                  Text(
+                    'TINO',
+                    style: text.labelLarge?.copyWith(color: TinoColors.jade),
+                  ),
               const SizedBox(height: 20),
               Semantics(
                 header: true,
