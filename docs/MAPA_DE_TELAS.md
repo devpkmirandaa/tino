@@ -93,8 +93,9 @@ etapas, cujo detalhamento deve ser tratado separadamente.
 
 ### Etapa 2 — apresentação e primeiro acesso
 
-Solicitada separadamente pelo usuário: três telas de apresentação, Pular,
-Próximo e Começar; lembrar localmente a conclusão ou o pulo e permitir rever em
-Ajustes → Sobre o Tino, com saída para Ajustes. Sem permissões, login ou banco de
+Solicitada separadamente pelo usuário: três páginas de apresentação, com
+deslize horizontal e indicadores tocáveis no refinamento posterior. Pular nas
+duas primeiras páginas e Começar na última; lembrar localmente a conclusão ou o
+pulo e permitir rever em Ajustes → Sobre o Tino, com saída para Ajustes. Sem permissões, login ou banco de
 compras. Comportamento, persistência e validação registrados em
 `ETAPA_2_APRESENTACAO.md`.

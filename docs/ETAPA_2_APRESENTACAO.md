@@ -5,12 +5,30 @@ sem antecipar banco de compras, câmera, permissões ou login.
 
 ## Comportamento implementado
 
-- Três telas curtas: conhecer o Tino, acompanhar a compra e controlar o orçamento.
-  Os textos foram escritos nesta implementação; não são textos recuperados do
-  briefing. Recursos ainda indisponíveis são identificados como em preparação.
-- Reutiliza `AreaPage`, tema claro, fonte local, botões outline e Lucide da etapa 1.
-- “Pular” está disponível nas três telas, “Próximo” nas duas primeiras e “Começar”
-  na última. A barra das cinco áreas só aparece após sair da apresentação.
+- Três páginas horizontais em `PageView`: o conteúdo acompanha o dedo e encaixa
+  ao soltar. Deslizar para a esquerda avança; para a direita retorna. Os três
+  indicadores inferiores também permitem escolher uma página, sem Próximo/Voltar.
+- Textos fornecidos diretamente pelo usuário no refinamento:
+
+  | Página | Título | Apoio |
+  | --- | --- | --- |
+  | 1 | Comprar bem começa antes. | Acompanhe quanto vai gastar antes de chegar ao caixa. |
+  | 2 | Aponte. Confira. Adicione. | Leia a etiqueta com a câmera e confirme o produto para somar à compra. |
+  | 3 | Seu limite, sempre à vista. | Defina um orçamento e acompanhe o que ainda pode gastar. |
+
+- Reutiliza tema claro, Plus Jakarta Sans, wordmark original e botão outline.
+  Sem cartões ou informações extras. Título 28 sp/600, apoio 16 sp/400 e margens
+  de 24 dp, reduzidas a 16 dp somente em larguras menores que 320 dp.
+- “Pular” aparece somente nas duas primeiras páginas; o único botão principal,
+  “Começar”, aparece na última. “Deslize para continuar” aparece apenas na primeira
+  e desaparece após o primeiro avanço, mesmo ao retornar a ela nesta exibição.
+  A barra das cinco áreas só aparece após sair da apresentação.
+- Indicadores com alvos de 48 × 48 dp, rótulos “Página N de 3”, estado selecionado
+  e ação de toque no mesmo nó acessível. Conteúdo de páginas inativas não é
+  anunciado. Títulos são cabeçalhos semânticos; o PageView permite navegação
+  acessível. Mudanças de página pelos indicadores respeitam a redução de movimento.
+- Texto ampliado e telas baixas têm rolagem vertical no conteúdo e nos controles,
+  sem reduzir o tamanho de fonte escolhido pelo usuário ou causar overflow.
 - Concluir e pular aguardam a gravação antes de abrir o Início. Durante a gravação,
   os controles são desabilitados para evitar ações duplicadas. Se falhar, a tela
   informa o erro e permite tentar novamente.
@@ -20,7 +38,7 @@ sem antecipar banco de compras, câmera, permissões ou login.
   a primeira tela na próxima abertura. No primeiro acesso, Voltar nas telas 2 e 3
   retorna à anterior; na tela 1 permite sair do app sem marcar como vista.
 - Ajustes → Sobre o Tino abre a mesma apresentação em modo de revisão.
-  “Voltar aos Ajustes”, Voltar do Android, “Pular” ou “Começar” encerram a revisão
+  O ícone de fechar (“Fechar apresentação”), Voltar do Android, “Pular” ou “Começar” encerram a revisão
   nos Ajustes. Rever não apaga nem regrava a escolha de primeiro acesso.
 
 ## Marca no aplicativo
@@ -28,7 +46,8 @@ sem antecipar banco de compras, câmera, permissões ou login.
 Os logos textuais das telas foram substituídos pelo asset fornecido pelo usuário,
 `assets/branding/tino-wordmark.svg`, registrado no `pubspec.yaml` e renderizado
 por `flutter_svg` 2.3.2. O componente compartilhado `TinoWordmark` é usado no Início,
-Listas, Comprar, Histórico, Ajustes, nas três telas de apresentação e na revisão;
+Listas, Comprar, Histórico e Ajustes. Na introdução e na revisão, o wordmark aparece
+somente na primeira página, com largura de 96 dp e altura proporcional;
 menções ao nome Tino nos textos permanecem como texto. O `viewBox` e os caminhos
 originais foram preservados. Para compatibilidade, a cor `#16221F` foi movida da
 classe CSS para o preenchimento herdado do grupo SVG, sem filtro de cor no app.
@@ -81,9 +100,9 @@ nativa de dependências. Os arquivos do projeto não alteram versões de Gradle,
 Java, NDK ou SDK; não foram acrescentados requisitos de emulador ou serviços.
 
 1. Sem a preferência salva, confira as três telas e a ausência de pedidos de
-   permissão. Toque em Próximo duas vezes e em Começar; deve abrir o Início.
+   permissão. Deslize para a esquerda duas vezes e toque em Começar; deve abrir o Início.
 2. Encerre o processo e reabra: deve entrar diretamente no Início.
-3. Em Ajustes → Sobre o Tino, reveja e use a saída para Ajustes. Confira também
+3. Em Ajustes → Sobre o Tino, reveja e use o ícone de fechar para retornar aos Ajustes. Confira também
    Pular, concluir a revisão e o gesto Voltar. Reabrir continua levando ao Início.
 4. Para testar um novo primeiro acesso, apague os dados **do Tino** pelas
    configurações Android (isso remove todos os dados locais do aplicativo).
@@ -96,7 +115,27 @@ Os testes de widgets simulam apenas a fronteira do plugin. Recriam ProviderScope
 app e roteador para testar uma nova abertura, mantendo ou apagando o mapa que
 representa o disco. A persistência nativa exige conferência no aparelho.
 
-## Validação executada
+## Validação do refinamento atual
+
+- `dart format` nos arquivos Dart alterados e `flutter analyze`: sem problemas.
+- `flutter test`: 17 testes aprovados. Incluem movimento durante o arraste,
+  encaixe, avanço e retorno por deslize, indicadores tocáveis e semântica para
+  leitor de tela, dica que não reaparece após avançar, wordmark somente na primeira
+  página, persistência, falhas de gravação/leitura e revisão pelos Ajustes.
+- Retrato 320 × 640 e paisagem 640 × 320 com texto em 3×: sem overflow nos testes.
+  O conteúdo e os controles podem rolar verticalmente quando necessário.
+- `flutter devices`: Moto G54 `ZF524K6WC6` conectado.
+- `flutter run -d ZF524K6WC6 --no-resident`: compilou, instalou e iniciou o APK
+  mantendo os dados existentes.
+- No aparelho, via ADB: revisão aberta pelos Ajustes, deslize para avançar e
+  retornar, salto pelo indicador da página 3 e Começar retornando aos Ajustes.
+  Primeira e última páginas conferidas por captura em retrato.
+- Rótulos, seleção e ação de toque dos indicadores foram verificados em testes
+  de semântica. A leitura falada com TalkBack e texto ampliado no aparelho ainda
+  precisam de revisão manual; não foram apresentados como testes executados.
+- Sem dependências novas, solicitações de permissão ou mudanças no armazenamento.
+
+## Validação inicial da etapa 2 (histórico anterior ao refinamento)
 
 - `dart format lib test`: arquivos formatados.
 - `flutter analyze`: sem problemas.

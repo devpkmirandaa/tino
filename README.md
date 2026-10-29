@@ -27,11 +27,12 @@ Nenhuma permissão de câmera é solicitada nesta etapa.
 ## Etapa 2 — apresentação e primeiro acesso
 
 Na primeira abertura, três telas apresentam o Tino, o acompanhamento da compra
-e o orçamento. “Pular” aparece desde a primeira tela, “Próximo” nas duas primeiras
-e “Começar” na última. Concluir ou pular grava a preferência local antes de abrir
-o Início. Nas próximas aberturas, o app vai direto ao Início.
+e o orçamento. Deslize para a esquerda para avançar e para a direita para retornar,
+ou toque nos três indicadores inferiores. “Pular” aparece nas duas primeiras
+páginas e “Começar” somente na última. Concluir ou pular grava a preferência local
+antes de abrir o Início. Nas próximas aberturas, o app vai direto ao Início.
 
-Em Ajustes → Sobre o Tino, a apresentação pode ser revista. “Voltar aos Ajustes”,
+Em Ajustes → Sobre o Tino, a apresentação pode ser revista. O ícone de fechar,
 Voltar do Android, “Pular” e “Começar” retornam aos Ajustes durante essa revisão,
 sem modificar a preferência. Nenhuma permissão ou login é solicitado.
 
