@@ -23,20 +23,25 @@ sem antecipar banco de compras, câmera, permissões ou login.
   “Voltar aos Ajustes”, Voltar do Android, “Pular” ou “Começar” encerram a revisão
   nos Ajustes. Rever não apaga nem regrava a escolha de primeiro acesso.
 
-## Marca no onboarding
+## Marca no aplicativo
 
-O logo textual do onboarding foi substituído pelo asset fornecido pelo usuário,
+Os logos textuais das telas foram substituídos pelo asset fornecido pelo usuário,
 `assets/branding/tino-wordmark.svg`, registrado no `pubspec.yaml` e renderizado
-por `flutter_svg` 2.3.2. O ajuste se aplica às três telas e à revisão pelos Ajustes;
+por `flutter_svg` 2.3.2. O componente compartilhado `TinoWordmark` é usado no Início,
+Listas, Comprar, Histórico, Ajustes, nas três telas de apresentação e na revisão;
 menções ao nome Tino nos textos permanecem como texto. O `viewBox` e os caminhos
 originais foram preservados. Para compatibilidade, a cor `#16221F` foi movida da
 classe CSS para o preenchimento herdado do grupo SVG, sem filtro de cor no app.
 
-Validação desta integração: análise sem problemas, 14 testes aprovados,
+Validação da integração inicial no onboarding: análise sem problemas, 14 testes aprovados,
 verificação pontual da renderização com dimensões e pixels opacos em `#16221F`,
 APK compilado e instalado via `flutter run` no Moto G54. O logo foi conferido
 por captura na revisão da apresentação. Arquivos temporários de verificação
 e capturas permanecem fora do Git.
+
+A padronização posterior nas demais telas reutiliza o mesmo SVG, sem novas
+dependências. Foi validada com `flutter analyze` sem problemas e `flutter test`
+com 14 testes aprovados, incluindo navegação e layout com texto ampliado.
 
 ## Persistência mínima
 

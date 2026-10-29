@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
+import '../../../core/widgets/tino_wordmark.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -20,10 +21,7 @@ class HomePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 12),
-              Text(
-                'tino',
-                style: text.headlineMedium?.copyWith(color: TinoColors.jade),
-              ),
+              const TinoWordmark(),
               const SizedBox(height: 36),
               Text('ANTES DO CAIXA', style: text.labelLarge),
               const SizedBox(height: 12),
