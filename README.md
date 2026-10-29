@@ -43,6 +43,18 @@ restauração de backup. Detalhes e roteiro em
 
 ## Desenvolvimento e validação
 
+Para ver alterações Dart no celular ao salvar, inicie a depuração pelo VS Code
+com **F5**, mantendo o Moto G54 conectado. Ative
+`dart.flutterHotReloadOnSave: "allIfDirty"`; para arquivos salvos por ferramentas
+externas, a extensão também oferece `dart.previewHotReloadOnSaveWatcher: true`.
+As configurações locais de `.vscode/` não são versionadas neste projeto.
+
+No terminal, mantenha `flutter run -d ZF524K6WC6` aberto e use `r` para hot reload
+ou `R` para hot restart. `--no-resident` encerra a sessão e não permite esse ciclo.
+Hot reload preserva o estado atual; mudanças em inicialização podem exigir hot
+restart, e mudanças em dependências ou código nativo podem exigir nova compilação.
+Referência: [hot reload do Flutter](https://docs.flutter.dev/tools/hot-reload).
+
 Ambiente usado: Flutter 3.47.8 e Dart 3.13.7. Não requer emulador.
 
 ```powershell
