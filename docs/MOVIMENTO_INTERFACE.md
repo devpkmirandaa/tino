@@ -42,11 +42,44 @@ dependências, permissões, dados simulados ou funcionalidades de compras.
   movimento reduzido, barra estável, preservação da rolagem entre áreas e saída
   da revisão com toques duplicados.
 - APK profile compilado e instalado no Moto G54 5G (`ZF524K6WC6`, Android 15).
-  A avaliação das interações/fluidez ficou bloqueada pela tela de bloqueio do
-  aparelho. Não foi feita medição válida de frames nem afirmado desempenho
-  a partir de debug; a validação em profile permanece pendente.
+  Após o desbloqueio, a validação foi retomada com a mesma compilação, sem
+  alterações Dart nem repetição desnecessária de análise/testes.
+- No aparelho, via ADB: avanço/retorno e arraste parcial, indicadores, dica que
+  não reaparece ao retornar à primeira página, Pular e Começar voltando aos
+  Ajustes; saída pelo ícone de fechar e pelo Voltar do Android. As cinco áreas
+  foram alternadas, inclusive rapidamente. Capturas e árvore de acessibilidade
+  confirmaram os estados finais; os gestos automatizados não substituem a
+  avaliação tátil nem a leitura falada com TalkBack.
 - A fala e o foco reais do TalkBack precisam de revisão manual. Testes de
-  widgets não substituem essa verificação nem comprovam fluidez no aparelho.
+  widgets não substituem essa verificação.
+
+### Medição em profile no Moto G54
+
+Timeline do Dart VM Service, streams `Dart` e `Embedder`, com durações dos pares
+de eventos `Frame` (UI) e `Rasterizer::DoDraw` (raster), em milissegundos.
+Sem usar debug como evidência de desempenho. As amostras controladas coletam
+somente uma sequência curta por vez para evitar perda pelo buffer da timeline.
+
+| Amostra | Pares UI/raster | UI p95 | Raster p95 | Raster máximo | Raster > 8,33 ms / > 16,67 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Tutorial, amostra inicial | 158/158 | 3,91 | 8,38 | 35,67 | 8 / 1 |
+| Tutorial, repetição controlada 1 | 175/175 | 2,19 | 7,52 | 9,78 | 5 / 0 |
+| Tutorial, repetição controlada 2 | 164/164 | 2,53 | 7,69 | 11,76 | 2 / 0 |
+| Cinco áreas, sequência controlada | 57/57 | 1,26 | 4,30 | 5,67 | 0 / 0 |
+
+No tutorial controlado: deslize de ida e volta e salto pelo indicador da última
+página. Nas áreas: Início → Listas → Comprar → Histórico → Ajustes, com 220 ms
+entre os comandos de toque. São amostras pequenas do aplicativo já aberto.
+O pico inicial de 35,67 ms não reapareceu nessas duas repetições; a causa não foi
+determinada. Há frames acima do orçamento de 8,33 ms no tutorial, portanto não
+se afirma 120 fps constantes nem ausência de engasgos em todas as condições.
+Também não se mediu latência completa entre toque e apresentação na tela.
+
+O log do motor registrou três mensagens `Reported frame time is older than
+the last one; clamping`. Não foram observadas exceções Dart nesse log nem
+encerramento do app durante a validação. A origem dos avisos não foi investigada
+neste recorte; nenhuma versão de Flutter/Android foi alterada para ocultá-los.
+Capturas, traces e auxiliares de medição ficam em `build/`, fora do Git.
 
 Para repetir a avaliação, desbloqueie o aparelho e execute:
 
