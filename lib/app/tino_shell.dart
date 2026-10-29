@@ -1,0 +1,116 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../core/theme/tino_theme.dart';
+
+class TinoShell extends StatelessWidget {
+  const TinoShell({super.key, required this.path, required this.child});
+  final String path;
+  final Widget child;
+
+  static const _destinations = [
+    (path: '/', label: 'Início', icon: LucideIcons.house),
+    (path: '/listas', label: 'Listas', icon: LucideIcons.listChecks),
+    (path: '/comprar', label: 'Comprar', icon: LucideIcons.scanLine),
+    (path: '/historico', label: 'Histórico', icon: LucideIcons.history),
+    (path: '/ajustes', label: 'Ajustes', icon: LucideIcons.settings2),
+  ];
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(bottom: false, child: child),
+    bottomNavigationBar: DecoratedBox(
+      decoration: const BoxDecoration(
+        color: TinoColors.offWhite,
+        border: Border(top: BorderSide(color: TinoColors.lightJade)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final destination in _destinations)
+                Expanded(
+                  child: _NavigationItem(
+                    label: destination.label,
+                    icon: destination.icon,
+                    selected: path == destination.path,
+                    central: destination.path == '/comprar',
+                    onTap: () => context.go(destination.path),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _NavigationItem extends StatelessWidget {
+  const _NavigationItem({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.central,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final bool central;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? TinoColors.jade : TinoColors.ink;
+    return Semantics(
+      key: ValueKey('destination-$label'),
+      label: label,
+      button: true,
+      selected: selected,
+      onTap: onTap,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: ValueKey('nav-$label'),
+          onTap: onTap,
+          excludeFromSemantics: true,
+          borderRadius: BorderRadius.circular(16),
+          child: ExcludeSemantics(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: central
+                          ? Border.all(color: TinoColors.jade)
+                          : null,
+                    ),
+                    child: Icon(icon, size: 24, color: color),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    softWrap: true,
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: color, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

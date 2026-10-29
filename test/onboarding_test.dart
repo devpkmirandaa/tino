@@ -1,0 +1,205 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tino/app/tino_app.dart';
+import 'package:tino/features/home/presentation/home_page.dart';
+import 'package:tino/features/onboarding/data/onboarding_preference.dart';
+import 'package:tino/features/onboarding/presentation/onboarding_page.dart';
+import 'package:tino/features/settings/presentation/settings_page.dart';
+
+import 'support/memory_preferences.dart';
+
+Future<void> launch(WidgetTester tester, MemoryPreferences preferences) async {
+  // Desmonta todo o app: outro ProviderScope e outro roteador, como nova abertura.
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pumpWidget(
+    ProviderScope(
+      key: UniqueKey(),
+      overrides: [preferencesProvider.overrideWithValue(preferences)],
+      child: const TinoApp(),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> tap(WidgetTester tester, String text) async {
+  await tester.ensureVisible(find.text(text));
+  await tester.tap(find.text(text));
+  await tester.pumpAndSettle();
+}
+
+Future<void> review(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('nav-Ajustes')));
+  await tester.pumpAndSettle();
+  await tap(tester, 'Sobre o Tino');
+}
+
+void main() {
+  testWidgets('Primeiro acesso apresenta três telas e só grava ao concluir', (
+    tester,
+  ) async {
+    final disk = <String, bool>{};
+    final preferences = MemoryPreferences(disk);
+    await launch(tester, preferences);
+    expect(find.text('Conheça o Tino'), findsOneWidget);
+    expect(find.text('Pular'), findsOneWidget);
+    expect(find.text('1 de 3'), findsOneWidget);
+    expect(find.byKey(const ValueKey('nav-Início')), findsNothing);
+    expect(disk, isEmpty);
+
+    await tap(tester, 'Próximo');
+    expect(find.text('Acompanhe a compra'), findsOneWidget);
+    expect(find.text('2 de 3'), findsOneWidget);
+    await tap(tester, 'Próximo');
+    expect(find.text('Controle o orçamento'), findsOneWidget);
+    expect(find.text('3 de 3'), findsOneWidget);
+    expect(find.text('Próximo'), findsNothing);
+    expect(disk, isEmpty);
+    await tap(tester, 'Começar');
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(disk[OnboardingPreference.seenKey], isTrue);
+
+    await launch(tester, MemoryPreferences(disk));
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(find.byType(OnboardingPage), findsNothing);
+
+    disk.clear(); // Equivale à ausência da preferência após limpar dados.
+    await launch(tester, MemoryPreferences(disk));
+    expect(find.text('Conheça o Tino'), findsOneWidget);
+  });
+
+  for (var step = 0; step < 3; step++) {
+    testWidgets('Pular na tela ${step + 1} persiste ao reabrir', (
+      tester,
+    ) async {
+      final disk = <String, bool>{};
+      await launch(tester, MemoryPreferences(disk));
+      for (var i = 0; i < step; i++) {
+        await tap(tester, 'Próximo');
+      }
+      await tap(tester, 'Pular');
+      expect(find.byType(HomePage), findsOneWidget);
+      expect(disk[OnboardingPreference.seenKey], isTrue);
+      await launch(tester, MemoryPreferences(disk));
+      expect(find.byType(HomePage), findsOneWidget);
+    });
+  }
+
+  testWidgets(
+    'Interromper não grava; Voltar na apresentação retorna uma tela',
+    (tester) async {
+      final preferences = MemoryPreferences();
+      await launch(tester, preferences);
+      await tap(tester, 'Próximo');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Conheça o Tino'), findsOneWidget);
+      await tap(tester, 'Próximo');
+      await launch(tester, MemoryPreferences(preferences.disk));
+      expect(find.text('Conheça o Tino'), findsOneWidget);
+      expect(preferences.disk, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'Ajustes permite rever, sair, pular e concluir sem mudar preferência',
+    (tester) async {
+      final preferences = MemoryPreferences({
+        OnboardingPreference.seenKey: true,
+      });
+      await launch(tester, preferences);
+      await review(tester);
+      expect(find.text('Conheça o Tino'), findsOneWidget);
+      await tap(tester, 'Próximo');
+      await tap(tester, 'Voltar aos Ajustes');
+      expect(find.byType(SettingsPage), findsOneWidget);
+
+      await tap(tester, 'Sobre o Tino');
+      await tap(tester, 'Próximo');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(SettingsPage), findsOneWidget);
+
+      await tap(tester, 'Sobre o Tino');
+      await tap(tester, 'Pular');
+      expect(find.byType(SettingsPage), findsOneWidget);
+
+      await tap(tester, 'Sobre o Tino');
+      await tap(tester, 'Próximo');
+      await tap(tester, 'Próximo');
+      await tap(tester, 'Começar');
+      expect(find.byType(SettingsPage), findsOneWidget);
+      expect(preferences.writes, 0);
+      expect(preferences.disk[OnboardingPreference.seenKey], isTrue);
+      await launch(tester, MemoryPreferences(preferences.disk));
+      expect(find.byType(HomePage), findsOneWidget);
+    },
+  );
+
+  testWidgets('Aguarda gravação e permite tentar novamente se ela falhar', (
+    tester,
+  ) async {
+    final preferences = MemoryPreferences()
+      ..pendingWrite = Completer<void>()
+      ..failWrite = true;
+    await launch(tester, preferences);
+    await tap(tester, 'Pular');
+    expect(find.text('Salvando…'), findsOneWidget);
+    expect(find.byType(HomePage), findsNothing);
+    expect(preferences.disk, isEmpty);
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Pular'))
+          .onPressed,
+      isNull,
+    );
+    preferences.pendingWrite!.complete();
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Não foi possível salvar sua escolha. Tente novamente.'),
+      findsOneWidget,
+    );
+    expect(find.byType(HomePage), findsNothing);
+    preferences.failWrite = false;
+    await tap(tester, 'Pular');
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(preferences.disk[OnboardingPreference.seenKey], isTrue);
+  });
+
+  testWidgets(
+    'Falha de leitura não presume primeiro acesso e permite repetir',
+    (tester) async {
+      final preferences = MemoryPreferences({
+        OnboardingPreference.seenKey: true,
+      })..failRead = true;
+      await launch(tester, preferences);
+      expect(find.text('Tentar novamente'), findsOneWidget);
+      expect(find.byType(OnboardingPage), findsNothing);
+      preferences.failRead = false;
+      await tap(tester, 'Tentar novamente');
+      expect(find.byType(HomePage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Apresentação e revisão cabem com texto ampliado em tela estreita',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await launch(tester, MemoryPreferences());
+      await tap(tester, 'Próximo');
+      await tap(tester, 'Próximo');
+      await tap(tester, 'Começar');
+      await review(tester);
+      await tap(tester, 'Voltar aos Ajustes');
+      expect(find.byType(SettingsPage), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+}
