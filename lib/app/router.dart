@@ -9,6 +9,7 @@ import '../features/lists/presentation/lists_page.dart';
 import '../features/onboarding/data/onboarding_preference.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/settings/presentation/settings_page.dart';
+import '../features/shopping/presentation/scanner_page.dart';
 import '../features/shopping/presentation/shopping_page.dart';
 import 'area_content.dart';
 import 'tino_shell.dart';
@@ -41,6 +42,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           state,
           OnboardingPage(review: state.uri.queryParameters['rever'] == 'true'),
         ),
+      ),
+      GoRoute(
+        path: '/escanear',
+        pageBuilder: (context, state) => _fadePage(state, const ScannerPage()),
       ),
       StatefulShellRoute(
         pageBuilder: (context, state, shell) =>

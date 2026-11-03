@@ -6,9 +6,14 @@ import '../application/shopping_controller.dart';
 import '../domain/cart.dart';
 import '../domain/decimal_input.dart';
 import '../domain/money.dart';
+import '../domain/tag_reader.dart';
 
-Future<void> showItemSheet(BuildContext context, {CartItem? item}) =>
-    _sheet(context, _ItemSheet(item: item));
+/// [draft] pré-preenche um produto novo (ex.: leitura do scanner).
+Future<void> showItemSheet(
+  BuildContext context, {
+  CartItem? item,
+  TagReading? draft,
+}) => _sheet(context, _ItemSheet(item: item, draft: draft));
 
 Future<void> showBudgetSheet(BuildContext context) =>
     _sheet(context, const _BudgetSheet());
@@ -38,8 +43,9 @@ String _plain(int value, int scale) {
 enum _Conflict { update, separate }
 
 class _ItemSheet extends ConsumerStatefulWidget {
-  const _ItemSheet({this.item});
+  const _ItemSheet({this.item, this.draft});
   final CartItem? item;
+  final TagReading? draft;
 
   @override
   ConsumerState<_ItemSheet> createState() => _ItemSheetState();
@@ -48,20 +54,24 @@ class _ItemSheet extends ConsumerStatefulWidget {
 class _ItemSheetState extends ConsumerState<_ItemSheet> {
   late final CartItem? _item = widget.item;
   late final _id = _item?.id ?? ref.read(shoppingProvider.notifier).newId();
-  late bool _byWeight = _item is WeightItem;
-  late final _name = TextEditingController(text: _item?.name);
+  late final _draft = widget.draft;
+  late bool _byWeight = _item is WeightItem || (_draft?.perKg ?? false);
+  late final _name = TextEditingController(text: _item?.name ?? _draft?.name);
   late final _price = TextEditingController(
     text: switch (_item) {
       UnitItem(:final price) => _plain(price.cents, 2),
       WeightItem(:final pricePerKg) => _plain(pricePerKg.cents, 2),
-      null => '',
+      null => switch (_draft?.price) {
+        final p? => _plain(p.cents, 2),
+        null => '',
+      },
     },
   );
   late final _amount = TextEditingController(
     text: switch (_item) {
       UnitItem(:final quantity) => '$quantity',
       WeightItem(:final grams) => _plain(grams, 3),
-      null => '1',
+      null => _byWeight ? '' : '1',
     },
   );
   String? _error;

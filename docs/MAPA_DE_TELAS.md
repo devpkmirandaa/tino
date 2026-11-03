@@ -63,4 +63,8 @@ mínimo de interações.
   Após mudar tabelas, rode `dart run build_runner build`.
 - Etapa 5 (feita): finalizar compra (painel de confirmação) e Histórico com
   detalhe somente leitura em `/historico/:id`. Sem apagar/editar compras.
+- Etapa 6 (feita): scanner ao vivo com ML Kit (texto latino, local). Lê só
+  dentro da moldura, confirma o preço em dois quadros seguidos e sugere nome
+  e preço/kg; o usuário toca em Usar e confirma no painel. Câmera pedida no
+  primeiro uso. Validado no Moto G54.
 - Próximas: definir com o usuário, uma por vez.

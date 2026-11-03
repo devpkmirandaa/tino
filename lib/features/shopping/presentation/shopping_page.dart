@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
 import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
 import 'cart_item_row.dart';
+import 'scanner_page.dart';
 import 'shopping_sheets.dart';
 
 class ShoppingPage extends StatelessWidget {
@@ -83,6 +85,11 @@ class ShoppingPage extends StatelessWidget {
                           ],
                         ),
                       ),
+                      const SizedBox(height: TinoSpace.s16),
+                      OutlinedButton(
+                        onPressed: () => showFinishSheet(context),
+                        child: const Text('Finalizar compra'),
+                      ),
                     ],
                   ],
                 ),
@@ -99,23 +106,20 @@ class ShoppingPage extends StatelessWidget {
             child: _Width(
               child: Row(
                 children: [
-                  if (items.isNotEmpty) ...[
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => showFinishSheet(context),
-                        child: const Text('Finalizar compra'),
-                      ),
-                    ),
-                    const SizedBox(width: TinoSpace.s12),
-                  ],
                   Expanded(
-                    child: FilledButton.icon(
+                    child: OutlinedButton.icon(
                       key: const ValueKey('add-product'),
                       onPressed: loading ? null : () => showItemSheet(context),
-                      icon: const Icon(LucideIcons.plus, size: 20),
-                      label: Text(
-                        items.isEmpty ? 'Adicionar produto' : 'Adicionar',
-                      ),
+                      icon: const Icon(LucideIcons.keyboard, size: 20),
+                      label: const Text('Digitar'),
+                    ),
+                  ),
+                  const SizedBox(width: TinoSpace.s12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: loading ? null : () => _scan(context),
+                      icon: const Icon(LucideIcons.scanLine, size: 20),
+                      label: const Text('Escanear'),
                     ),
                   ),
                 ],
@@ -126,6 +130,20 @@ class ShoppingPage extends StatelessWidget {
       );
     },
   );
+}
+
+/// Abre o scanner e leva a leitura (ou um pedido para digitar) ao painel.
+Future<void> _scan(BuildContext context) async {
+  final result = await context.push<ScanResult>('/escanear');
+  if (!context.mounted) return;
+  switch (result) {
+    case ScanRead(:final reading):
+      await showItemSheet(context, draft: reading);
+    case ScanTypeInstead():
+      await showItemSheet(context);
+    case null:
+      break;
+  }
 }
 
 class _Width extends StatelessWidget {
@@ -285,8 +303,8 @@ class _EmptyCart extends StatelessWidget {
           Text('Carrinho vazio', style: text.titleMedium),
           const SizedBox(height: TinoSpace.s4),
           Text(
-            'Adicione o primeiro produto para acompanhar o total. '
-            'A leitura pela câmera chega em uma próxima etapa.',
+            'Escaneie a etiqueta ou digite o primeiro produto '
+            'para acompanhar o total.',
             style: text.bodyMedium,
             textAlign: TextAlign.center,
           ),

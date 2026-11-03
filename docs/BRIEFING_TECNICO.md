@@ -61,7 +61,8 @@ Feitas: etapa 1 (base visual e navegação das cinco áreas), etapa 2
 salva em Drift/SQLite: `lib/core/database/`, Drift 2.35.3, drift_flutter 0.3.1;
 uma compra sem `finishedAt` é a ativa; cada alteração regrava seus itens).
 Etapa 5: finalizar compra e Histórico com detalhe.
-Não implementados: câmera/OCR, listas, apagar compras, resumo no Início.
+Etapa 6: scanner ao vivo (camera 0.12.2, google_mlkit_text_recognition 0.17.1).
+Não implementados: listas, apagar compras, resumo no Início.
 Ver `../README.md` para o comportamento atual.
 
 ## Regras de cálculo (etapa 3)
@@ -83,7 +84,8 @@ Dart puro em `lib/features/shopping/domain/`, testado em
 
 - Texto integral do briefing original.
 - Versões exatas dos pacotes de câmera, OCR e demais dependências.
-- Confiança mínima do OCR; conferir o arredondamento real das balanças.
+- Conferir o arredondamento real das balanças; centavos em fonte separada
+  ("12" grande e "90" pequeno) ainda não são lidos.
 - Promoções, preço por unidade/kg, múltiplos preços na mesma etiqueta.
 - Migrações futuras do banco; aviso visível se a gravação falhar (hoje só log).
 - Textos finais do onboarding e das telas, tokens escuros definitivos.
