@@ -55,4 +55,5 @@ mínimo de interações.
 - Etapa 1 (feita): base visual e navegação das cinco áreas, sem Drift, câmera,
   OCR, cálculos nem modo escuro (tokens escuros ainda indefinidos).
 - Etapa 2 (feita): apresentação e primeiro acesso. Ver `ETAPA_2_APRESENTACAO.md`.
+- Etapa 3 (feita): regras de cálculo, sem interface. Ver `BRIEFING_TECNICO.md`.
 - Próximas: definir com o usuário, uma por vez.

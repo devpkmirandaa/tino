@@ -55,17 +55,32 @@ do scanner.
 ## Estado atual
 
 Repositório: https://github.com/devpkmirandaa/tino · local: `C:\Projetos\tino`.
-Feitas: etapa 1 (base visual e navegação das cinco áreas) e etapa 2
-(apresentação e primeiro acesso, ver `ETAPA_2_APRESENTACAO.md`).
-Não implementados: compras, cálculos, persistência de compras, câmera/OCR.
+Feitas: etapa 1 (base visual e navegação das cinco áreas), etapa 2
+(apresentação e primeiro acesso, ver `ETAPA_2_APRESENTACAO.md`) e etapa 3
+(regras de cálculo, sem interface).
+Não implementados: telas de compra, persistência de compras, câmera/OCR.
 Ver `../README.md` para o comportamento atual.
+
+## Regras de cálculo (etapa 3)
+
+Dart puro em `lib/features/shopping/domain/`, testado em
+`test/shopping_domain_test.dart`.
+
+- Dinheiro em centavos inteiros (`Money`), nunca `double`; formato R$ 1.234,56.
+- Peso em gramas inteiras; preço por kg em centavos. Item por peso arredondado
+  meio para cima no centavo (0,347 kg × R$ 39,90/kg = R$ 13,85).
+- Total da compra = soma exata dos itens já arredondados.
+- Duplicata (mesmo nome normalizado): mesmo preço soma a quantidade; preço
+  diferente devolve conflito sem alterar o carrinho, para o usuário decidir.
+  Itens por peso nunca são mesclados (cada pesagem é uma embalagem).
+- Orçamento opcional e positivo: dentro; perto a partir de 90% (inclusive o
+  valor exato); estourado acima dele.
 
 ## Pendências (não tratar como decisões)
 
 - Texto integral do briefing original.
 - Versões exatas dos pacotes de câmera, OCR e demais dependências.
-- Precisão monetária, arredondamento e representação de pesos.
-- Limites dos alertas de orçamento, política de duplicatas, confiança mínima do OCR.
+- Confiança mínima do OCR; conferir o arredondamento real das balanças.
 - Promoções, preço por unidade/kg, múltiplos preços na mesma etiqueta.
 - Modelo de dados, migrações, edição/remoção e recuperação de compra ativa.
 - Textos finais do onboarding e das telas, tokens escuros definitivos.
