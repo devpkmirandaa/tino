@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
-import '../../../core/widgets/tino_wordmark.dart';
 import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
 import '../domain/cart.dart';
@@ -19,57 +18,104 @@ class ShoppingPage extends StatelessWidget {
       final session = ref.watch(shoppingProvider);
       final items = session.cart.items;
       final text = Theme.of(context).textTheme;
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 16),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: TinoWordmark(),
+      return Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                TinoSpace.s16,
+                TinoSpace.s24,
+                TinoSpace.s16,
+                TinoSpace.s16,
+              ),
+              child: _Width(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Semantics(
+                      header: true,
+                      child: Text('Comprar', style: text.headlineLarge),
+                    ),
+                    const SizedBox(height: TinoSpace.s16),
+                    _TotalCard(session),
+                    const SizedBox(height: TinoSpace.s24),
+                    if (items.isEmpty)
+                      const _EmptyCart()
+                    else ...[
+                      Text(
+                        items.length == 1 ? '1 item' : '${items.length} itens',
+                        style: text.titleLarge,
+                      ),
+                      const SizedBox(height: TinoSpace.s12),
+                      _Card(
+                        padding: EdgeInsets.zero,
+                        child: Column(
+                          children: [
+                            for (final (i, item) in items.reversed.indexed) ...[
+                              if (i > 0) const Divider(indent: TinoSpace.s16),
+                              _ItemTile(item),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 20),
-                Semantics(
-                  header: true,
-                  child: Text('Comprar', style: text.headlineLarge),
-                ),
-                const SizedBox(height: 24),
-                _TotalCard(session),
-                const SizedBox(height: 20),
-                OutlinedButton.icon(
-                  onPressed: () => showItemSheet(context),
-                  icon: const Icon(LucideIcons.plus, size: 20),
-                  label: const Text('Adicionar produto'),
-                ),
-                const SizedBox(height: 28),
-                if (items.isEmpty) ...[
-                  Text('Carrinho vazio', style: text.titleLarge),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Adicione produtos manualmente. A leitura de etiquetas '
-                    'pela câmera chega em uma próxima etapa.',
-                    style: text.bodyLarge,
-                  ),
-                ] else ...[
-                  Text(
-                    items.length == 1 ? '1 item' : '${items.length} itens',
-                    style: text.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  for (final item in items.reversed) _ItemTile(item),
-                ],
-                const SizedBox(height: 20),
-              ],
+              ),
             ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              TinoSpace.s16,
+              TinoSpace.s8,
+              TinoSpace.s16,
+              TinoSpace.s16,
+            ),
+            child: _Width(
+              child: FilledButton.icon(
+                onPressed: () => showItemSheet(context),
+                icon: const Icon(LucideIcons.plus, size: 20),
+                label: const Text('Adicionar produto'),
+              ),
+            ),
+          ),
+        ],
       );
     },
+  );
+}
+
+class _Width extends StatelessWidget {
+  const _Width({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 640),
+      child: SizedBox(width: double.infinity, child: child),
+    ),
+  );
+}
+
+class _Card extends StatelessWidget {
+  const _Card({
+    required this.child,
+    this.padding = const EdgeInsets.all(TinoSpace.s16),
+  });
+  final Widget child;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: padding,
+    clipBehavior: Clip.antiAlias,
+    decoration: BoxDecoration(
+      color: TinoTokens.surface,
+      border: Border.all(color: TinoTokens.border),
+      borderRadius: BorderRadius.circular(TinoRadius.card),
+    ),
+    child: child,
   );
 }
 
@@ -82,55 +128,37 @@ class _TotalCard extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final total = session.cart.total;
     final budget = session.budget;
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: TinoColors.softWhite,
-        border: Border.all(color: TinoColors.lightJade),
-        borderRadius: BorderRadius.circular(24),
-      ),
+    return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Total no carrinho', style: text.bodyMedium),
-          const SizedBox(height: 4),
+          const SizedBox(height: TinoSpace.s4),
           Text(
             total.format(),
             key: const ValueKey('cart-total'),
-            style: text.headlineLarge,
+            style: text.displaySmall,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: TinoSpace.s12),
           if (budget == null)
-            OutlinedButton.icon(
-              onPressed: () => showBudgetSheet(context),
-              icon: const Icon(LucideIcons.wallet, size: 20),
-              label: const Text('Definir orçamento'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => showBudgetSheet(context),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: TinoSpace.s8),
+                ),
+                icon: const Icon(LucideIcons.wallet, size: 20),
+                label: const Text('Definir orçamento'),
+              ),
             )
           else ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: (total.cents / budget.cents).clamp(0, 1).toDouble(),
-                minHeight: 8,
-                color: TinoColors.jade,
-                backgroundColor: TinoColors.offWhite,
-              ),
-            ),
-            const SizedBox(height: 12),
             Row(
               children: [
-                if (session.status != BudgetStatus.within) ...[
-                  const Icon(LucideIcons.triangleAlert, size: 20),
-                  const SizedBox(width: 8),
-                ],
                 Expanded(
                   child: Text(
-                    _budgetLine(session),
-                    style: session.status == BudgetStatus.within
-                        ? text.bodyMedium
-                        : text.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                    'Orçamento ${budget.format()}',
+                    style: text.bodyMedium,
                   ),
                 ),
                 IconButton(
@@ -140,23 +168,88 @@ class _TotalCard extends StatelessWidget {
                 ),
               ],
             ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(TinoRadius.chip),
+              child: LinearProgressIndicator(
+                value: (total.cents / budget.cents).clamp(0, 1).toDouble(),
+                minHeight: 8,
+              ),
+            ),
+            const SizedBox(height: TinoSpace.s12),
+            _BudgetStatus(session),
           ],
         ],
       ),
     );
   }
+}
 
-  static String _budgetLine(ShoppingSession s) {
-    final budget = s.budget!;
-    final left = (budget - s.cart.total).format();
-    return switch (s.status) {
-      BudgetStatus.over =>
-        'Passou ${(s.cart.total - budget).format()} do orçamento de '
-            '${budget.format()}',
-      BudgetStatus.near =>
-        'Perto do limite: restam $left de ${budget.format()}',
-      _ => 'Restam $left de ${budget.format()}',
+class _BudgetStatus extends StatelessWidget {
+  const _BudgetStatus(this.session);
+  final ShoppingSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final budget = session.budget!;
+    final total = session.cart.total;
+    final left = (budget - total).format();
+    final message = switch (session.status) {
+      BudgetStatus.over => 'Passou ${(total - budget).format()} do orçamento.',
+      BudgetStatus.near => 'Perto do limite. Faltam $left.',
+      _ => 'Faltam $left do orçamento.',
     };
+    if (session.status == BudgetStatus.within) {
+      return Text(message, style: text.bodyMedium);
+    }
+    return Container(
+      padding: const EdgeInsets.all(TinoSpace.s12),
+      decoration: BoxDecoration(
+        color: TinoTokens.info,
+        borderRadius: BorderRadius.circular(TinoRadius.control),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            LucideIcons.triangleAlert,
+            size: 20,
+            color: TinoTokens.textPrimary,
+          ),
+          const SizedBox(width: TinoSpace.s8),
+          Expanded(child: Text(message, style: text.labelLarge)),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyCart extends StatelessWidget {
+  const _EmptyCart();
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(TinoSpace.s24),
+      decoration: BoxDecoration(
+        color: TinoTokens.surfaceSoft,
+        borderRadius: BorderRadius.circular(TinoRadius.card),
+      ),
+      child: Column(
+        children: [
+          const Icon(LucideIcons.shoppingCart, color: TinoTokens.textSecondary),
+          const SizedBox(height: TinoSpace.s12),
+          Text('Carrinho vazio', style: text.titleMedium),
+          const SizedBox(height: TinoSpace.s4),
+          Text(
+            'Adicione o primeiro produto para acompanhar o total. '
+            'A leitura pela câmera chega em uma próxima etapa.',
+            style: text.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -175,27 +268,39 @@ class _ItemTile extends StatelessWidget {
     };
     return InkWell(
       onTap: () => showItemSheet(context, item: item),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(item.name, style: text.titleMedium),
-                  const SizedBox(height: 2),
-                  Text(detail, style: text.bodyMedium),
-                ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 64),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: TinoSpace.s16,
+            vertical: TinoSpace.s12,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.name,
+                      style: text.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      style: text.bodySmall?.money.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              item.total.format(),
-              style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ],
+              const SizedBox(width: TinoSpace.s12),
+              Text(item.total.format(), style: text.bodyLarge?.money),
+            ],
+          ),
         ),
       ),
     );

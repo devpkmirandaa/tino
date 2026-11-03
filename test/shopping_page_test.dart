@@ -40,7 +40,7 @@ Future<void> addItem(
     );
   }
   await tester.pump();
-  await tester.tap(find.widgetWithText(OutlinedButton, 'Adicionar'));
+  await tester.tap(find.widgetWithText(FilledButton, 'Adicionar'));
   await tester.pumpAndSettle();
 }
 
@@ -97,7 +97,7 @@ void main() {
     await tester.tap(find.text('Pão'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Preço'), '1,50');
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Salvar'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
     await tester.pumpAndSettle();
     expect(total(tester), r'R$ 4,50');
 
@@ -113,21 +113,15 @@ void main() {
     await tester.tap(find.text('Definir orçamento'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Valor'), '100');
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Salvar'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
     await tester.pumpAndSettle();
-    expect(find.text('Restam R\$ 100,00 de R\$ 100,00'), findsOneWidget);
+    expect(find.text('Faltam R\$ 100,00 do orçamento.'), findsOneWidget);
 
     await addItem(tester, 'Carne', '95,00');
-    expect(
-      find.text('Perto do limite: restam R\$ 5,00 de R\$ 100,00'),
-      findsOneWidget,
-    );
+    expect(find.text('Perto do limite. Faltam R\$ 5,00.'), findsOneWidget);
 
     await addItem(tester, 'Queijo', '10,00');
-    expect(
-      find.text('Passou R\$ 5,00 do orçamento de R\$ 100,00'),
-      findsOneWidget,
-    );
+    expect(find.text('Passou R\$ 5,00 do orçamento.'), findsOneWidget);
   });
 
   testWidgets('dados inválidos mostram orientação sem adicionar', (

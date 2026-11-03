@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../core/theme/tino_theme.dart';
 import '../application/shopping_controller.dart';
 import '../domain/cart.dart';
 import '../domain/decimal_input.dart';
@@ -19,13 +18,12 @@ Future<void> _sheet(BuildContext context, Widget child) => showModalBottomSheet(
   isScrollControlled: true,
   useSafeArea: true,
   showDragHandle: true,
-  backgroundColor: TinoColors.offWhite,
   builder: (context) => SingleChildScrollView(
     padding: EdgeInsets.fromLTRB(
-      20,
+      16,
       0,
-      20,
-      20 + MediaQuery.viewInsetsOf(context).bottom,
+      16,
+      16 + MediaQuery.viewInsetsOf(context).bottom,
     ),
     child: child,
   ),
@@ -128,7 +126,6 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
       showDialog<_Conflict>(
         context: context,
         builder: (context) => AlertDialog(
-          backgroundColor: TinoColors.offWhite,
           title: Text('${existing.name} já está no carrinho'),
           content: Text(
             'Preço anterior: ${existing.price.format()}\n'
@@ -165,7 +162,7 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
           item == null ? 'Adicionar produto' : 'Editar produto',
           style: text.titleLarge,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         TextField(
           controller: _name,
           autofocus: item == null,
@@ -237,7 +234,7 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
             fontWeight: _error == null ? null : FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         Row(
           children: [
             if (item != null) ...[
@@ -254,7 +251,7 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
               const SizedBox(width: 12),
             ],
             Expanded(
-              child: OutlinedButton(
+              child: FilledButton(
                 onPressed: _save,
                 child: Text(item == null ? 'Adicionar' : 'Salvar'),
               ),
@@ -311,7 +308,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
           'Opcional. O Tino avisa ao chegar a 90% e ao passar do valor.',
           style: text.bodyMedium,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         TextField(
           controller: _value,
           autofocus: true,
@@ -323,7 +320,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
           ),
           onSubmitted: (_) => _save(),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         Row(
           children: [
             if (_budget != null) ...[
@@ -339,7 +336,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
               const SizedBox(width: 12),
             ],
             Expanded(
-              child: OutlinedButton(
+              child: FilledButton(
                 onPressed: _save,
                 child: const Text('Salvar'),
               ),
