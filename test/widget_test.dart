@@ -12,11 +12,13 @@ import 'package:tino/features/history/presentation/history_page.dart';
 import 'package:tino/features/settings/presentation/settings_page.dart';
 
 import 'support/memory_preferences.dart';
+import 'support/memory_database.dart';
 
 Future<void> openApp(WidgetTester tester) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        memoryDatabase,
         preferencesProvider.overrideWithValue(
           MemoryPreferences({OnboardingPreference.seenKey: true}),
         ),

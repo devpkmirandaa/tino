@@ -15,7 +15,30 @@ class ShoppingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Consumer(
     builder: (context, ref, _) {
-      final session = ref.watch(shoppingProvider);
+      final session = switch (ref.watch(shoppingProvider)) {
+        AsyncData(:final value) => value,
+        AsyncError() => null,
+        _ => const ShoppingSession(),
+      };
+      if (session == null) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(TinoSpace.s16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Não deu pra abrir a compra salva.'),
+                const SizedBox(height: TinoSpace.s12),
+                OutlinedButton(
+                  onPressed: () => ref.invalidate(shoppingProvider),
+                  child: const Text('Tentar de novo'),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      final loading = !ref.watch(shoppingProvider).hasValue;
       final items = session.cart.items;
       final text = Theme.of(context).textTheme;
       return Column(
@@ -73,7 +96,7 @@ class ShoppingPage extends StatelessWidget {
             ),
             child: _Width(
               child: FilledButton.icon(
-                onPressed: () => showItemSheet(context),
+                onPressed: loading ? null : () => showItemSheet(context),
                 icon: const Icon(LucideIcons.plus, size: 20),
                 label: const Text('Adicionar produto'),
               ),

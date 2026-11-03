@@ -57,8 +57,10 @@ do scanner.
 Repositório: https://github.com/devpkmirandaa/tino · local: `C:\Projetos\tino`.
 Feitas: etapa 1 (base visual e navegação das cinco áreas), etapa 2
 (apresentação e primeiro acesso, ver `ETAPA_2_APRESENTACAO.md`), etapa 3
-(regras de cálculo) e etapa 4a (carrinho manual em memória na área Comprar).
-Não implementados: persistência de compras, finalizar/histórico, câmera/OCR.
+(regras de cálculo), etapa 4a (carrinho manual em Comprar) e 4b (compra ativa
+salva em Drift/SQLite: `lib/core/database/`, Drift 2.35.3, drift_flutter 0.3.1;
+uma compra sem `finishedAt` é a ativa; cada alteração regrava seus itens).
+Não implementados: finalizar/histórico, câmera/OCR.
 Ver `../README.md` para o comportamento atual.
 
 ## Regras de cálculo (etapa 3)
@@ -82,6 +84,6 @@ Dart puro em `lib/features/shopping/domain/`, testado em
 - Versões exatas dos pacotes de câmera, OCR e demais dependências.
 - Confiança mínima do OCR; conferir o arredondamento real das balanças.
 - Promoções, preço por unidade/kg, múltiplos preços na mesma etiqueta.
-- Modelo de dados, migrações, edição/remoção e recuperação de compra ativa.
+- Migrações futuras do banco; aviso visível se a gravação falhar (hoje só log).
 - Textos finais do onboarding e das telas, tokens escuros definitivos.
 - Licença do código e política de privacidade.

@@ -271,7 +271,7 @@ class _BudgetSheet extends ConsumerStatefulWidget {
 }
 
 class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
-  late final Money? _budget = ref.read(shoppingProvider).budget;
+  late final Money? _budget = ref.read(shoppingProvider).value?.budget;
   late final _value = TextEditingController(
     text: switch (_budget) {
       final b? => _plain(b.cents, 2),

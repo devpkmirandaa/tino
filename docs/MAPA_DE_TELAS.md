@@ -57,7 +57,8 @@ mínimo de interações.
 - Etapa 2 (feita): apresentação e primeiro acesso. Ver `ETAPA_2_APRESENTACAO.md`.
 - Etapa 3 (feita): regras de cálculo, sem interface. Ver `BRIEFING_TECNICO.md`.
 - Etapa 4a (feita): carrinho manual em Comprar (adicionar por unidade ou peso,
-  editar, remover, conflito de preço, orçamento). Em memória: fechar o app
-  perde a compra. Painéis inferiores, sem rotas novas.
-- Etapa 4b: persistir a compra ativa em Drift.
+  editar, remover, conflito de preço, orçamento).
+  Painéis inferiores, sem rotas novas.
+- Etapa 4b (feita): compra ativa salva em Drift; fechar o app não perde a compra.
+  Após mudar tabelas, rode `dart run build_runner build`.
 - Próximas: definir com o usuário, uma por vez.

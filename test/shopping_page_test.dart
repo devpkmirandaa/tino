@@ -2,17 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tino/core/theme/tino_theme.dart';
+import 'package:tino/features/shopping/application/shopping_controller.dart';
 import 'package:tino/features/shopping/domain/decimal_input.dart';
 import 'package:tino/features/shopping/presentation/shopping_page.dart';
 
-Future<void> openPage(WidgetTester tester) => tester.pumpWidget(
-  ProviderScope(
-    child: MaterialApp(
-      theme: buildTinoLightTheme(),
-      home: const Scaffold(body: ShoppingPage()),
+import 'support/memory_database.dart';
+
+Future<void> openPage(WidgetTester tester) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [memoryDatabase],
+      child: MaterialApp(
+        theme: buildTinoLightTheme(),
+        home: const Scaffold(body: ShoppingPage()),
+      ),
     ),
-  ),
-);
+  );
+  final container = ProviderScope.containerOf(
+    tester.element(find.byType(ShoppingPage)),
+  );
+  await tester.runAsync(() => container.read(shoppingProvider.future));
+  await tester.pump();
+}
 
 Future<void> addItem(
   WidgetTester tester,
