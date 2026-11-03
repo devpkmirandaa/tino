@@ -61,4 +61,6 @@ mínimo de interações.
   Painéis inferiores, sem rotas novas.
 - Etapa 4b (feita): compra ativa salva em Drift; fechar o app não perde a compra.
   Após mudar tabelas, rode `dart run build_runner build`.
+- Etapa 5 (feita): finalizar compra (painel de confirmação) e Histórico com
+  detalhe somente leitura em `/historico/:id`. Sem apagar/editar compras.
 - Próximas: definir com o usuário, uma por vez.

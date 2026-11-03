@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/shopping_repository.dart';
 import '../domain/budget.dart';
 import '../domain/cart.dart';
+import '../domain/finished_purchase.dart';
 import '../domain/money.dart';
 
 /// Compra em andamento.
@@ -20,6 +21,11 @@ final shoppingProvider =
     AsyncNotifierProvider<ShoppingController, ShoppingSession>(
       ShoppingController.new,
     );
+
+/// Compras finalizadas; recarregado ao finalizar uma compra.
+final historyProvider = FutureProvider<List<FinishedPurchase>>(
+  (ref) => ref.watch(shoppingRepositoryProvider).history(),
+);
 
 /// Carrega a compra ativa do banco; cada alteração aparece na hora e é
 /// gravada em seguida, em ordem.
@@ -48,6 +54,14 @@ class ShoppingController extends AsyncNotifier<ShoppingSession> {
   void remove(String id) => _set(_session.cart.remove(id), _session.budget);
 
   void setBudget(Money? budget) => _set(_session.cart, budget);
+
+  /// Grava o que falta, finaliza a compra ativa e começa uma nova, vazia.
+  Future<void> finish() async {
+    await _saving;
+    await ref.read(shoppingRepositoryProvider).finishActive();
+    state = const AsyncData(ShoppingSession());
+    ref.invalidate(historyProvider);
+  }
 
   /// Aguarda as gravações pendentes (usado em testes).
   Future<void> flush() => _saving;

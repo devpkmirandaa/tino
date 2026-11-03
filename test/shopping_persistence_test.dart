@@ -64,4 +64,27 @@ void main() {
     expect(reopened.budget, isNull);
     expect(await db.select(db.purchases).get(), hasLength(1));
   });
+
+  test("finalizar move a compra para o histórico e abre uma nova", () async {
+    final c = container();
+    await c.read(shoppingProvider.future);
+    final ctrl = c.read(shoppingProvider.notifier)
+      ..add(UnitItem(id: "a", name: "Café", price: Money(1890)))
+      ..setBudget(Money(5000));
+    await ctrl.finish();
+    expect(c.read(shoppingProvider).requireValue.cart.items, isEmpty);
+
+    ctrl.add(UnitItem(id: "b", name: "Leite", price: Money(549)));
+    await ctrl.flush();
+    await ctrl.finish();
+
+    final history = await c.read(historyProvider.future);
+    expect(history.map((p) => p.cart.items.single.name), ["Leite", "Café"]);
+    expect(history.last.budget, Money(5000));
+    expect(history.last.cart.total, Money(1890));
+
+    final reopened = await container().read(shoppingProvider.future);
+    expect(reopened.cart.items, isEmpty);
+    expect(reopened.budget, isNull);
+  });
 }

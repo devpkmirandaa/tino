@@ -32,8 +32,7 @@ Future<void> addItem(
   String? amount,
   bool weight = false,
 }) async {
-  await tester.ensureVisible(find.text('Adicionar produto'));
-  await tester.tap(find.text('Adicionar produto'));
+  await tester.tap(find.byKey(const ValueKey('add-product')));
   await tester.pumpAndSettle();
   await tester.enterText(find.widgetWithText(TextField, 'Produto'), name);
   if (weight) {
@@ -51,7 +50,7 @@ Future<void> addItem(
     );
   }
   await tester.pump();
-  await tester.tap(find.widgetWithText(FilledButton, 'Adicionar'));
+  await tester.tap(find.widgetWithText(FilledButton, 'Adicionar').last);
   await tester.pumpAndSettle();
 }
 

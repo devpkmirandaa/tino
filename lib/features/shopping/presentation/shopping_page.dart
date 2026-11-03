@@ -5,8 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/tino_theme.dart';
 import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
-import '../domain/cart.dart';
-import '../domain/decimal_input.dart';
+import 'cart_item_row.dart';
 import 'shopping_sheets.dart';
 
 class ShoppingPage extends StatelessWidget {
@@ -76,7 +75,10 @@ class ShoppingPage extends StatelessWidget {
                           children: [
                             for (final (i, item) in items.reversed.indexed) ...[
                               if (i > 0) const Divider(indent: TinoSpace.s16),
-                              _ItemTile(item),
+                              CartItemRow(
+                                item,
+                                onTap: () => showItemSheet(context, item: item),
+                              ),
                             ],
                           ],
                         ),
@@ -95,10 +97,28 @@ class ShoppingPage extends StatelessWidget {
               TinoSpace.s16,
             ),
             child: _Width(
-              child: FilledButton.icon(
-                onPressed: loading ? null : () => showItemSheet(context),
-                icon: const Icon(LucideIcons.plus, size: 20),
-                label: const Text('Adicionar produto'),
+              child: Row(
+                children: [
+                  if (items.isNotEmpty) ...[
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => showFinishSheet(context),
+                        child: const Text('Finalizar compra'),
+                      ),
+                    ),
+                    const SizedBox(width: TinoSpace.s12),
+                  ],
+                  Expanded(
+                    child: FilledButton.icon(
+                      key: const ValueKey('add-product'),
+                      onPressed: loading ? null : () => showItemSheet(context),
+                      icon: const Icon(LucideIcons.plus, size: 20),
+                      label: Text(
+                        items.isEmpty ? 'Adicionar produto' : 'Adicionar',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -271,60 +291,6 @@ class _EmptyCart extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ItemTile extends StatelessWidget {
-  const _ItemTile(this.item);
-  final CartItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final detail = switch (item) {
-      UnitItem(:final quantity, :final price) =>
-        '$quantity × ${price.format()}',
-      WeightItem(:final grams, :final pricePerKg) =>
-        '${formatKg(grams)} × ${pricePerKg.format()}/kg',
-    };
-    return InkWell(
-      onTap: () => showItemSheet(context, item: item),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 64),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: TinoSpace.s16,
-            vertical: TinoSpace.s12,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      style: text.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      detail,
-                      style: text.bodySmall?.money.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: TinoSpace.s12),
-              Text(item.total.format(), style: text.bodyLarge?.money),
-            ],
-          ),
-        ),
       ),
     );
   }

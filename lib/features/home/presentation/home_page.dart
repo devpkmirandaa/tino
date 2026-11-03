@@ -53,8 +53,8 @@ class HomePage extends StatelessWidget {
                     Text('Sua compra, com mais tino.', style: text.titleLarge),
                     const SizedBox(height: 12),
                     Text(
-                      'Conheça o espaço onde você poderá acompanhar sua compra. '
-                      'O registro de produtos ainda não está disponível.',
+                      'Adicione produtos e acompanhe o total e o orçamento '
+                      'antes do caixa. A compra fica salva no aparelho.',
                       style: text.bodyLarge,
                     ),
                     const SizedBox(height: 20),
@@ -69,8 +69,8 @@ class HomePage extends StatelessWidget {
               Text('Antes de começar', style: text.titleLarge),
               const SizedBox(height: 12),
               Text(
-                'O resumo do orçamento e da compra em andamento ficará aqui '
-                'quando o registro de compras estiver disponível.',
+                'O resumo da compra em andamento ainda não aparece aqui. '
+                'Compras finalizadas ficam no Histórico.',
                 style: text.bodyLarge,
               ),
               const SizedBox(height: 20),

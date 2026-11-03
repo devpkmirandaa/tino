@@ -60,7 +60,8 @@ Feitas: etapa 1 (base visual e navegação das cinco áreas), etapa 2
 (regras de cálculo), etapa 4a (carrinho manual em Comprar) e 4b (compra ativa
 salva em Drift/SQLite: `lib/core/database/`, Drift 2.35.3, drift_flutter 0.3.1;
 uma compra sem `finishedAt` é a ativa; cada alteração regrava seus itens).
-Não implementados: finalizar/histórico, câmera/OCR.
+Etapa 5: finalizar compra e Histórico com detalhe.
+Não implementados: câmera/OCR, listas, apagar compras, resumo no Início.
 Ver `../README.md` para o comportamento atual.
 
 ## Regras de cálculo (etapa 3)

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/tino_database.dart';
 import '../application/shopping_controller.dart';
 import '../domain/cart.dart';
+import '../domain/finished_purchase.dart';
 import '../domain/money.dart';
 
 final shoppingRepositoryProvider = Provider<ShoppingRepository>(
@@ -31,10 +32,7 @@ class ShoppingRepository {
             .get();
     return ShoppingSession(
       cart: Cart([for (final r in rows) _toItem(r)]),
-      budget: switch (purchase.budgetCents) {
-        final c? => Money(c),
-        null => null,
-      },
+      budget: _budget(purchase.budgetCents),
     );
   }
 
@@ -56,6 +54,45 @@ class ShoppingRepository {
       ]),
     );
   });
+
+  /// Marca a compra ativa como finalizada agora.
+  Future<void> finishActive() =>
+      (_db.update(_db.purchases)..where((p) => p.finishedAt.isNull())).write(
+        PurchasesCompanion(finishedAt: Value(DateTime.now())),
+      );
+
+  /// Compras finalizadas, da mais recente para a mais antiga.
+  Future<List<FinishedPurchase>> history() async {
+    final purchases =
+        await (_db.select(_db.purchases)
+              ..where((p) => p.finishedAt.isNotNull())
+              ..orderBy([
+                (p) => OrderingTerm.desc(p.finishedAt),
+                (p) => OrderingTerm.desc(p.id),
+              ]))
+            .get();
+    if (purchases.isEmpty) return const [];
+    final rows =
+        await (_db.select(_db.purchaseItems)
+              ..where((i) => i.purchaseId.isIn(purchases.map((p) => p.id)))
+              ..orderBy([(i) => OrderingTerm(expression: i.position)]))
+            .get();
+    final items = <int, List<CartItem>>{};
+    for (final r in rows) {
+      items.putIfAbsent(r.purchaseId, () => []).add(_toItem(r));
+    }
+    return [
+      for (final p in purchases)
+        FinishedPurchase(
+          id: p.id,
+          finishedAt: p.finishedAt!,
+          cart: Cart(items[p.id] ?? const []),
+          budget: _budget(p.budgetCents),
+        ),
+    ];
+  }
+
+  static Money? _budget(int? cents) => cents == null ? null : Money(cents);
 
   static CartItem _toItem(PurchaseItem r) => r.kind == 1
       ? WeightItem(

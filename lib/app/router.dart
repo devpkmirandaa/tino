@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/history/presentation/history_page.dart';
+import '../features/history/presentation/purchase_detail_page.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/lists/presentation/lists_page.dart';
 import '../features/onboarding/data/onboarding_preference.dart';
@@ -88,6 +89,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                   key: state.pageKey,
                   child: const HistoryPage(),
                 ),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    pageBuilder: (context, state) => NoTransitionPage(
+                      key: state.pageKey,
+                      child: PurchaseDetailPage(
+                        id: int.tryParse(state.pathParameters['id']!) ?? -1,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
