@@ -50,6 +50,17 @@ ThemeData buildTinoLightTheme() {
       bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.5),
     ),
     iconTheme: const IconThemeData(size: 24, color: TinoColors.jade),
+    inputDecorationTheme: InputDecorationTheme(
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: TinoColors.lightJade),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: TinoColors.jade, width: 2),
+      ),
+    ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: TinoColors.jade,

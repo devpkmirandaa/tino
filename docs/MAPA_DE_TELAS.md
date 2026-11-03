@@ -56,4 +56,8 @@ mínimo de interações.
   OCR, cálculos nem modo escuro (tokens escuros ainda indefinidos).
 - Etapa 2 (feita): apresentação e primeiro acesso. Ver `ETAPA_2_APRESENTACAO.md`.
 - Etapa 3 (feita): regras de cálculo, sem interface. Ver `BRIEFING_TECNICO.md`.
+- Etapa 4a (feita): carrinho manual em Comprar (adicionar por unidade ou peso,
+  editar, remover, conflito de preço, orçamento). Em memória: fechar o app
+  perde a compra. Painéis inferiores, sem rotas novas.
+- Etapa 4b: persistir a compra ativa em Drift.
 - Próximas: definir com o usuário, uma por vez.

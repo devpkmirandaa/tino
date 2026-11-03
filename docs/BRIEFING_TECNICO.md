@@ -56,9 +56,9 @@ do scanner.
 
 Repositório: https://github.com/devpkmirandaa/tino · local: `C:\Projetos\tino`.
 Feitas: etapa 1 (base visual e navegação das cinco áreas), etapa 2
-(apresentação e primeiro acesso, ver `ETAPA_2_APRESENTACAO.md`) e etapa 3
-(regras de cálculo, sem interface).
-Não implementados: telas de compra, persistência de compras, câmera/OCR.
+(apresentação e primeiro acesso, ver `ETAPA_2_APRESENTACAO.md`), etapa 3
+(regras de cálculo) e etapa 4a (carrinho manual em memória na área Comprar).
+Não implementados: persistência de compras, finalizar/histórico, câmera/OCR.
 Ver `../README.md` para o comportamento atual.
 
 ## Regras de cálculo (etapa 3)
