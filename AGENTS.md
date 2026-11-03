@@ -72,5 +72,8 @@ justificar.
   com `flutter run -d ZF524K6WC6`.
 - No PowerShell deste Windows, use `$env:FLUTTER_WINDOWS='false'` no processo
   (evita erro de link simbólico dos plugins desktop).
+- O usuário acompanha pelo app aberto (F5 ou `flutter run`): mudanças visuais
+  devem aparecer por hot reload. Avise quando exigirem hot restart (`R`) ou
+  nova compilação (dependência, código nativo, inicialização, assets novos).
 - Câmera, permissões e OCR só se validam no aparelho real; teste de widget não
   substitui. Se o ambiente não permitir um teste, relate a limitação.
