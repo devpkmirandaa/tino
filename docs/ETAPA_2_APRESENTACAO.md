@@ -1,166 +1,66 @@
-# Etapa 2 — apresentação e primeiro acesso
+# Etapa 2 — apresentação e primeiro acesso (concluída)
 
-Recorte solicitado pelo usuário: apresentação inicial e uma preferência local,
-sem antecipar banco de compras, câmera, permissões ou login.
+Escopo: apresentação inicial e uma preferência local. Sem banco de compras,
+câmera, permissões ou login.
 
-## Comportamento implementado
+## Comportamento
 
-- Três páginas horizontais em `PageView`: o conteúdo acompanha o dedo e encaixa
-  ao soltar. Deslizar para a esquerda avança; para a direita retorna. Os três
-  indicadores inferiores também permitem escolher uma página, sem Próximo/Voltar.
-- Textos fornecidos diretamente pelo usuário no refinamento:
+- Três páginas horizontais por deslize, com os textos fornecidos pelo usuário.
+  O conteúdo acompanha o dedo; indicadores inferiores também escolhem a página.
+- Sem botões Próximo/Voltar. "Pular" nas duas primeiras e "Começar" na última.
+  A barra das cinco áreas só aparece depois de sair da apresentação.
+- Concluir/pular aguarda a gravação (controles desabilitados enquanto grava).
+  Se falhar, mostra o erro e permite tentar de novo.
+- A abertura aguarda a leitura da preferência. Se falhar, oferece nova tentativa
+  sem presumir primeiro acesso.
+- Interrompida antes de concluir/pular, reaparece desde a primeira tela. Voltar
+  nas telas 2 e 3 retorna à anterior; na 1 sai do app sem marcar como vista.
+- Ajustes → Sobre o Tino reabre a apresentação em modo de revisão. Qualquer
+  saída (ícone de fechar, Voltar do Android, Pular, Começar) retorna aos
+  Ajustes, sem apagar nem regravar a preferência.
 
-  | Página | Título | Apoio |
-  | --- | --- | --- |
-  | 1 | Comprar bem começa antes. | Acompanhe quanto vai gastar antes de chegar ao caixa. |
-  | 2 | Aponte. Confira. Adicione. | Leia a etiqueta com a câmera e confirme o produto para somar à compra. |
-  | 3 | Seu limite, sempre à vista. | Defina um orçamento e acompanhe o que ainda pode gastar. |
+## Marca
 
-- Reutiliza tema claro, Plus Jakarta Sans, wordmark original e botão outline.
-  Sem cartões ou informações extras. Título 28 sp/600, apoio 16 sp/400 e margens
-  de 24 dp, reduzidas a 16 dp somente em larguras menores que 320 dp.
-- “Pular” aparece somente nas duas primeiras páginas; o único botão principal,
-  “Começar”, aparece na última. “Deslize para continuar” aparece apenas na primeira
-  e desaparece após o primeiro avanço, mesmo ao retornar a ela nesta exibição.
-  A barra das cinco áreas só aparece após sair da apresentação.
-- Indicadores com alvos de 48 × 48 dp, rótulos “Página N de 3”, estado selecionado
-  e ação de toque no mesmo nó acessível. Conteúdo de páginas inativas não é
-  anunciado. Títulos são cabeçalhos semânticos; o PageView permite navegação
-  acessível. Mudanças de página pelos indicadores respeitam a redução de movimento.
-- Texto ampliado e telas baixas têm rolagem vertical no conteúdo e nos controles,
-  sem reduzir o tamanho de fonte escolhido pelo usuário ou causar overflow.
-- Concluir e pular aguardam a gravação antes de abrir o Início. Durante a gravação,
-  os controles são desabilitados para evitar ações duplicadas. Se falhar, a tela
-  informa o erro e permite tentar novamente.
-- A abertura aguarda a leitura da preferência, sem mostrar o Início por um
-  instante. Falha de leitura oferece nova tentativa, sem presumir primeiro acesso.
-- Se a apresentação for interrompida antes de concluir/pular, ela reaparece desde
-  a primeira tela na próxima abertura. No primeiro acesso, Voltar nas telas 2 e 3
-  retorna à anterior; na tela 1 permite sair do app sem marcar como vista.
-- Ajustes → Sobre o Tino abre a mesma apresentação em modo de revisão.
-  O ícone de fechar (“Fechar apresentação”), Voltar do Android, “Pular” ou “Começar” encerram a revisão
-  nos Ajustes. Rever não apaga nem regrava a escolha de primeiro acesso.
+`TinoWordmark` renderiza `assets/branding/tino-wordmark.svg` (fornecido pelo
+usuário) via `flutter_svg` 2.3.2 nas cinco áreas. Na apresentação, aparece apenas
+na primeira página, com largura de 96 dp e altura proporcional.
+`viewBox` e caminhos originais preservados; a cor `#16221F` foi movida da classe
+CSS para o preenchimento do grupo SVG.
 
-## Marca no aplicativo
+## Persistência
 
-Os logos textuais das telas foram substituídos pelo asset fornecido pelo usuário,
-`assets/branding/tino-wordmark.svg`, registrado no `pubspec.yaml` e renderizado
-por `flutter_svg` 2.3.2. O componente compartilhado `TinoWordmark` é usado no Início,
-Listas, Comprar, Histórico e Ajustes. Na introdução e na revisão, o wordmark aparece
-somente na primeira página, com largura de 96 dp e altura proporcional;
-menções ao nome Tino nos textos permanecem como texto. O `viewBox` e os caminhos
-originais foram preservados. Para compatibilidade, a cor `#16221F` foi movida da
-classe CSS para o preenchimento herdado do grupo SVG, sem filtro de cor no app.
-
-Validação da integração inicial no onboarding: análise sem problemas, 14 testes aprovados,
-verificação pontual da renderização com dimensões e pixels opacos em `#16221F`,
-APK compilado e instalado via `flutter run` no Moto G54. O logo foi conferido
-por captura na revisão da apresentação. Arquivos temporários de verificação
-e capturas permanecem fora do Git.
-
-A padronização posterior nas demais telas reutiliza o mesmo SVG, sem novas
-dependências. Foi validada com `flutter analyze` sem problemas e `flutter test`
-com 14 testes aprovados, incluindo navegação e layout com texto ampliado.
-
-## Persistência mínima
-
-Nova dependência: `shared_preferences` 2.5.6, compatível com Flutter 3.47.8 e
-Dart 3.13.7. A API `SharedPreferencesAsync` guarda um único booleano
-`onboarding_seen`; chave ausente equivale a apresentação ainda não vista.
-No Android, usa o backend padrão DataStore Preferences do plugin.
-
-É uma preferência simples e não crítica, adequada ao armazenamento chave/valor;
-Drift/SQLite continua reservado para os dados de compras de etapas futuras.
-Não há associação com versão do aplicativo, limpeza automática nem migração que
-redefina esse valor em atualizações comuns. Apagar os dados do app remove também
-a preferência. Não foi implementado tratamento especial de restauração de backup;
-o comportamento de backup do sistema permanece sem personalização.
-
-Referência do pacote: [shared_preferences](https://pub.dev/packages/shared_preferences).
-Riverpod fornece a preferência e a leitura inicial; o roteador usa o resultado
-para escolher Início ou apresentação. O passo atual e o estado de gravação ficam
-apenas na apresentação; nenhuma entidade ou camada de compras foi adicionada.
+`shared_preferences` 2.5.6 (`SharedPreferencesAsync`), um booleano
+`onboarding_seen`; ausente = não visto. Sem associação com versão do app, sem
+migração e sem tratamento especial de backup. Apagar os dados do app remove a
+preferência. Drift/SQLite segue reservado para os dados de compras. Riverpod
+fornece a preferência e a leitura inicial; o roteador escolhe Início ou
+apresentação.
 
 ## Como validar no Moto G54
 
 ```powershell
+$env:FLUTTER_WINDOWS='false'
 flutter devices
 flutter run -d ZF524K6WC6
 ```
 
-Neste Windows, o Flutter encontrou restrição de links simbólicos dos plugins
-desktop. Para trabalhar apenas no alvo Android sem alterar configurações globais,
-os comandos desta etapa usam `$env:FLUTTER_WINDOWS='false'` no processo PowerShell.
-Se necessário, aplique essa variável em um terminal dedicado antes dos comandos.
-Ela não modifica a configuração do Flutter nem o aplicativo.
+1. Sem preferência salva: confira as três telas e a ausência de pedido de
+   permissão; deslizar duas vezes para a esquerda e tocar em Começar abre o Início.
+2. Encerre e reabra: entra direto no Início.
+3. Ajustes → Sobre o Tino: reveja e teste as saídas e o gesto Voltar.
+4. Novo primeiro acesso: apague os dados do Tino nas configurações do Android,
+   reabra e toque em Pular na primeira tela.
+5. Confira paisagem, rolagem, texto ampliado e TalkBack. Reinstalar o APK
+   mantendo os dados preserva a escolha.
 
-Na primeira compilação com esse plugin, o Gradle instalou automaticamente o
-Android SDK Platform 35, revisão 2, e o CMake 3.22.1, requeridos pela cadeia
-nativa de dependências. Os arquivos do projeto não alteram versões de Gradle,
-Java, NDK ou SDK; não foram acrescentados requisitos de emulador ou serviços.
+## Validação anterior ao ajuste de movimento
 
-1. Sem a preferência salva, confira as três telas e a ausência de pedidos de
-   permissão. Deslize para a esquerda duas vezes e toque em Começar; deve abrir o Início.
-2. Encerre o processo e reabra: deve entrar diretamente no Início.
-3. Em Ajustes → Sobre o Tino, reveja e use o ícone de fechar para retornar aos Ajustes. Confira também
-   Pular, concluir a revisão e o gesto Voltar. Reabrir continua levando ao Início.
-4. Para testar um novo primeiro acesso, apague os dados **do Tino** pelas
-   configurações Android (isso remove todos os dados locais do aplicativo).
-   Reabra e toque em Pular na primeira tela; deve entrar no Início e lembrar
-   dessa escolha na próxima abertura.
-5. Confira paisagem, rolagem, texto ampliado e TalkBack. Substituir o APK mantendo
-   os dados deve preservar a escolha; desinstalar não é um teste de atualização.
+`dart format`, `flutter analyze` sem problemas, `flutter test` com 14 testes
+aprovados, `flutter build apk --debug` e execução no Moto G54 (Android 15),
+incluindo persistência via ADB e substituição do APK com dados preservados.
 
-Os testes de widgets simulam apenas a fronteira do plugin. Recriam ProviderScope,
-app e roteador para testar uma nova abertura, mantendo ou apagando o mapa que
-representa o disco. A persistência nativa exige conferência no aparelho.
-
-## Validação do refinamento anterior (17 testes)
-
-- `dart format` nos arquivos Dart alterados e `flutter analyze`: sem problemas.
-- `flutter test`: 17 testes aprovados. Incluem movimento durante o arraste,
-  encaixe, avanço e retorno por deslize, indicadores tocáveis e semântica para
-  leitor de tela, dica que não reaparece após avançar, wordmark somente na primeira
-  página, persistência, falhas de gravação/leitura e revisão pelos Ajustes.
-- Retrato 320 × 640 e paisagem 640 × 320 com texto em 3×: sem overflow nos testes.
-  O conteúdo e os controles podem rolar verticalmente quando necessário.
-- `flutter devices`: Moto G54 `ZF524K6WC6` conectado.
-- `flutter run -d ZF524K6WC6 --no-resident`: compilou, instalou e iniciou o APK
-  mantendo os dados existentes.
-- No aparelho, via ADB: revisão aberta pelos Ajustes, deslize para avançar e
-  retornar, salto pelo indicador da página 3 e Começar retornando aos Ajustes.
-  Primeira e última páginas conferidas por captura em retrato.
-- Rótulos, seleção e ação de toque dos indicadores foram verificados em testes
-  de semântica. A leitura falada com TalkBack e texto ampliado no aparelho ainda
-  precisam de revisão manual; não foram apresentados como testes executados.
-- Sem dependências novas, solicitações de permissão ou mudanças no armazenamento.
-
-## Validação inicial da etapa 2 (histórico anterior ao refinamento)
-
-- `dart format lib test`: arquivos formatados.
-- `flutter analyze`: sem problemas.
-- `flutter test`: 14 testes aprovados, incluindo os cinco da etapa 1. Cobrem
-  primeiro acesso, concluir, pular em cada tela, interrupção, reabrir, preferência
-  ausente após limpeza, revisão e retorno pelos Ajustes, falhas de leitura e
-  gravação, espera pela gravação e layout com texto ampliado em tela estreita.
-- `flutter build apk --debug`: APK compilado com sucesso.
-- `flutter devices`: Moto G54 `ZF524K6WC6`, Android 15, conectado.
-- `flutter run -d ZF524K6WC6 --no-resident`: compilado, instalado e iniciado.
-- Via ADB no aparelho: dados somente do Tino apagados; três telas percorridas e
-  concluídas; processo encerrado e reaberto diretamente no Início. Em Ajustes →
-  Sobre o Tino, conferidos saída explícita, Voltar do Android e conclusão da
-  revisão retornando aos Ajustes. Após nova abertura, o app continuou no Início.
-- APK substituído com `adb install -r`, mantendo os dados: a escolha foi
-  preservada. Isso verifica substituição do pacote com preservação de dados;
-  não foi simulado incremento de versão nem restauração de backup.
-- Dados somente do Tino apagados novamente: a apresentação reapareceu. Pular na
-  primeira tela abriu o Início e a escolha persistiu após encerrar/reabrir.
-- Interface revisada por captura em retrato. Texto ampliado foi validado em
-  widgets; paisagem, TalkBack e gestos físicos/preditivos no celular continuam
-  para revisão manual. O comando Voltar via ADB foi validado.
-
-A etapa termina aqui. Scanner, compras, cálculos, banco local, preferências de
-aparência e demais funções do MVP continuam fora deste incremento.
+Pendente de revisão manual: paisagem, TalkBack e gestos físicos/preditivos.
+Não simulados: incremento de versão e restauração de backup.
 
 ## Movimento e transições
 
