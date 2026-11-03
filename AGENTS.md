@@ -21,11 +21,23 @@ repositório, não em conversas.
 
 ## Design system
 
-Referência da marca: https://claude.ai/artifact/BFnLRLhQYhhA9nrvtNNbx1 (leia o
-README dele antes de criar ou alterar telas, componentes ou assets visuais).
+Fonte da verdade: `docs/marca/` (manual provisório v0.2). Leia
+`docs/marca/README.md` antes de mexer em tela, componente ou asset visual;
+`tokens.json` traz cores claro/escuro, tipografia, espaçamento, raios e medidas.
+Vitrine: https://claude.ai/artifact/BFnLRLhQYhhA9nrvtNNbx1.
 
-- Não invente símbolo da saúva, lockup, ícone do app ou componente aprovado.
-- Antes de trocar token ou decisão definida, explique o motivo e peça aprovação.
+- No código, só tokens semânticos (`canvas`, `surface`, `text-primary`,
+  `action`…) via `lib/core/theme/`; nunca hex solto em widgets.
+- Plus Jakarta Sans só na escala do manual; preço em 700, numerais tabulares.
+- Lucide Outline, traço 2 px, 24/20 px; ativo muda só a cor. Nunca Filled.
+- Espaços 4, 8, 12, 16, 24, 32, 48. Raios: cartão 20, compacto 16,
+  botão/input 12, painel 24. Toque mínimo 48, input 52, contraste AA.
+- Wordmark sempre pelo SVG (positivo em fundo claro, negativo em escuro).
+- Não invente símbolo da saúva, lockup, ícone do app ou componente aprovado;
+  o UI Kit é exploratório.
+- Antes de trocar token ou decisão definida, explique o motivo e peça
+  aprovação. Se um token mudar, atualize `docs/marca/tokens.json` e avise que
+  a vitrine no Claude precisa ser atualizada.
 
 ## Stack
 
