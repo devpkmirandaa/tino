@@ -19,6 +19,14 @@ são futuros; compartilhamento futuro será voluntário e com aviso prévio.
 Lacunas são pendências, não decisões aprovadas. Decisões duradouras ficam no
 repositório, não em conversas.
 
+## Design system
+
+Referência da marca: https://claude.ai/artifact/BFnLRLhQYhhA9nrvtNNbx1 (leia o
+README dele antes de criar ou alterar telas, componentes ou assets visuais).
+
+- Não invente símbolo da saúva, lockup, ícone do app ou componente aprovado.
+- Antes de trocar token ou decisão definida, explique o motivo e peça aprovação.
+
 ## Stack
 
 Flutter + Dart; feature-first com Clean Architecture pragmática; Riverpod;
