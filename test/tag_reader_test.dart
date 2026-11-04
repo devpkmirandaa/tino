@@ -121,6 +121,16 @@ void main() {
     expect(r.priceFor(10), Money(649));
   });
 
+  test('preço de referência por kg não é preço nem marca peso', () {
+    final r = readTag([
+      l('ARROZ TIPO 1 5KG', 0, 24),
+      l(r'R$ 24,90', 40, 70),
+      l(r'Preço por kg R$ 4,98', 120, 14),
+    ]);
+    expect(r.price, Money(2490));
+    expect(r.perKg, isFalse);
+  });
+
   test('etiqueta dupla sem rótulo: o mais barato é o atacado', () {
     final r = readTag([
       l('IOGURTE NATURAL', 0, 24, width: 300),
@@ -153,11 +163,11 @@ void main() {
       expect(s.stable!.price, Money(649));
     });
 
-    test('leituras fracas precisam de mais quadros', () {
-      final s = ReadingConsensus();
-      for (var i = 0; i < 3; i++) {
-        s.add(t(649));
-      }
+    test('leituras fracas travam com 3 de 5', () {
+      final s = ReadingConsensus()
+        ..add(t(649))
+        ..add(t(null))
+        ..add(t(649));
       expect(s.stable, isNull);
       s.add(t(649));
       expect(s.stable!.price, Money(649));

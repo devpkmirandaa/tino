@@ -67,6 +67,8 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   var _busy = false;
   var _lastFrame = DateTime(0);
   var _quantity = 1;
+  var _torch = false;
+  DateTime? _firstSeen;
   String? _added;
 
   @override
@@ -104,6 +106,8 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         imageFormatGroup: ImageFormatGroup.nv21,
       );
       await camera.initialize();
+      // Foco e exposição ficam no automático contínuo: definir um ponto
+      // trava o foco naquela distância e desfoca ao mover o celular.
       if (!mounted) {
         await camera.dispose();
         return;
@@ -111,7 +115,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       await camera.startImageStream(
         (image) => _onFrame(image, back.sensorOrientation),
       );
-      setState(() => _camera = camera);
+      setState(() {
+        _camera = camera;
+        _torch = false;
+      });
     } on CameraException catch (e) {
       if (!mounted) return;
       setState(
@@ -201,7 +208,15 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       ];
       final reading = readTag(lines);
 
+      if (reading.price != null) _firstSeen ??= DateTime.now();
       if (_stabilizer.add(reading) && mounted) {
+        final first = _firstSeen;
+        if (_stabilizer.stable != null && first != null) {
+          debugPrint(
+            "tino-ocr travou em ${DateTime.now().difference(first).inMilliseconds}ms",
+          );
+          _firstSeen = null;
+        }
         // Diagnóstico local (logcat): o que o OCR leu dentro da moldura.
         debugPrint(
           "tino-ocr ${reading.price?.format()} bulk=${reading.bulkPrice?.format()} "
@@ -229,6 +244,17 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
   /// Por unidade e com nome lido: dá para adicionar sem sair da câmera.
   bool _direct(TagReading r) => !r.perKg && r.name != null;
+
+  Future<void> _toggleTorch() async {
+    final camera = _camera;
+    if (camera == null) return;
+    try {
+      await camera.setFlashMode(_torch ? FlashMode.off : FlashMode.torch);
+      if (mounted) setState(() => _torch = !_torch);
+    } on CameraException {
+      // Sem lanterna neste aparelho.
+    }
+  }
 
   PriceMode get _mode => ref.read(priceModeProvider);
 
@@ -268,6 +294,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       return;
     }
     _stabilizer.accept();
+    _firstSeen = null;
     setState(() {
       _added =
           '${r.name} × $_quantity adicionado. '
@@ -309,6 +336,17 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
                     style: text.bodyLarge?.copyWith(color: light),
                   ),
                 ),
+                if (camera != null)
+                  IconButton(
+                    tooltip: _torch ? 'Desligar lanterna' : 'Ligar lanterna',
+                    onPressed: _toggleTorch,
+                    icon: Icon(
+                      _torch
+                          ? LucideIcons.flashlightOff
+                          : LucideIcons.flashlight,
+                      color: light,
+                    ),
+                  ),
               ],
             ),
             Padding(

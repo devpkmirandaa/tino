@@ -61,6 +61,13 @@ final _cents = RegExp(r'''^[,.'’]?\s*(\d{2})$''');
 final _hasCurrency = RegExp(_currency);
 final _oldPrice = RegExp(r'^\s*de\b', caseSensitive: false);
 
+/// Preço de referência por unidade de medida ("Preço por kg R$ 4,98"),
+/// comum em etiquetas unitárias: não é o preço do produto.
+final _reference = RegExp(
+  r'pre[çc]o\s+(?:por|do|da)\b|/\s*(?:l|litro|100\s*g|100\s*ml)\b',
+  caseSensitive: false,
+);
+
 /// "/kg", "por kg", "por quilo" ou "kg" sozinho; "1 kg" (embalagem) não.
 final _perKg = RegExp(
   r'/\s*kg\b|\bpor\s+(?:kg|quilo)\b|^\s*kg\s*$|(?<![\d\s])\s*kg\b',
@@ -99,7 +106,9 @@ TagReading readTag(List<OcrLine> lines) {
   }
 
   for (final line in lines) {
-    if (_oldPrice.hasMatch(line.text)) continue;
+    if (_oldPrice.hasMatch(line.text) || _reference.hasMatch(line.text)) {
+      continue;
+    }
     for (final m in _price.allMatches(line.text)) {
       add(
         parseScaled('${m[1]},${m[2]}', 2),
@@ -158,7 +167,16 @@ TagReading readTag(List<OcrLine> lines) {
   return TagReading(
     name: _name(lines, retail.line),
     price: retail.price,
-    perKg: lines.any((l) => _perKg.hasMatch(l.text)),
+    // "kg" no próprio preço, ou em linha sem preço ("/ KG", "PREÇO POR
+    // QUILO"). Linha com outro preço e "kg" é referência, não conta.
+    perKg:
+        _perKg.hasMatch(retail.line.text) ||
+        lines.any(
+          (l) =>
+              _perKg.hasMatch(l.text) &&
+              !_price.hasMatch(l.text) &&
+              !_integer.hasMatch(l.text.trim()),
+        ),
     bulkPrice: bulk?.price,
     bulkMin: bulkMin,
     strength: _strength(retail, lines),
@@ -255,31 +273,26 @@ String _tidy(String text) {
   return lower[0].toUpperCase() + lower.substring(1);
 }
 
-/// Consenso ponderado entre os últimos quadros, com memória da etiqueta.
+/// Votação entre os últimos quadros, com memória da etiqueta.
 ///
-/// - Cada quadro vota com peso [TagReading.strength]; o preço aparece quando
-///   soma [threshold] (ex.: duas leituras fortes ou três fracas).
-/// - Ausência não é evidência: um quadro que não leu o atacado, o nome ou o
-///   "kg" não apaga o que já foi confirmado para o mesmo preço.
-/// - Um valor confirmado só é trocado se outro vencer com folga.
+/// - Trava quando [votes] dos últimos [window] quadros concordam (3 de 5),
+///   ou quando os dois últimos são leituras fortes e iguais.
+/// - Troca de preço só se o novo travar e o atual tiver no máximo 1 voto,
+///   para varejo/atacado não alternarem.
+/// - Ausência não é evidência: quadro sem atacado, nome ou "kg" não apaga o
+///   que já foi confirmado para o mesmo preço (2 votos confirmam).
 /// - A sugestão some só após [maxMisses] quadros seguidos sem preço.
 class ReadingConsensus {
-  ReadingConsensus({
-    this.window = 12,
-    this.threshold = 2.5,
-    this.margin = 2,
-    this.maxMisses = 8,
-  });
+  ReadingConsensus({this.window = 5, this.votes = 3, this.maxMisses = 8});
 
   final int window;
-  final double threshold;
-  final double margin;
+  final int votes;
   final int maxMisses;
   final _frames = <TagReading>[];
   Money? _accepted;
   var _misses = 0;
 
-  /// Leitura decidida, se houver.
+  /// Leitura travada, se houver.
   TagReading? stable;
 
   /// A leitura atual foi usada: recomeça e ignora o mesmo preço até a
@@ -296,14 +309,16 @@ class ReadingConsensus {
     if (price == null) {
       _misses++;
       if (_misses >= 4) _accepted = null;
-      if (_misses < maxMisses) return false;
-      _frames.clear();
-      final changed = stable != null;
-      stable = null;
-      return changed;
+      if (_misses >= maxMisses) {
+        _frames.clear();
+        final changed = stable != null;
+        stable = null;
+        return changed;
+      }
+    } else {
+      _misses = 0;
+      if (price != _accepted) _accepted = null;
     }
-    _misses = 0;
-    if (price != _accepted) _accepted = null;
     _frames.add(reading);
     if (_frames.length > window) _frames.removeAt(0);
 
@@ -313,82 +328,89 @@ class ReadingConsensus {
     return true;
   }
 
-  /// Peso de cada quadro: força da leitura com decaimento pela idade, para a
-  /// troca de etiqueta ser rápida e leituras soltas não mudarem nada.
-  static const decay = 0.75;
+  int _count(Money price) => _frames.where((f) => f.price == price).length;
+
+  Money? _locked() {
+    final counts = <Money, int>{};
+    for (final f in _frames) {
+      final p = f.price;
+      if (p != null && p != _accepted) counts[p] = (counts[p] ?? 0) + 1;
+    }
+    for (final e in counts.entries) {
+      if (e.value >= votes) return e.key;
+    }
+    if (_frames.length >= 2) {
+      final a = _frames[_frames.length - 2];
+      final b = _frames.last;
+      if (a.price != null &&
+          a.price == b.price &&
+          a.price != _accepted &&
+          a.strength >= 1.5 &&
+          b.strength >= 1.5) {
+        return a.price;
+      }
+    }
+    return null;
+  }
 
   TagReading? _decide() {
-    final frames = <(TagReading, double)>[];
-    var w = 1.0;
-    for (final f in _frames.reversed) {
-      if (f.price != _accepted) frames.add((f, f.strength * w));
-      w *= decay;
-    }
     final old = stable;
-    final price = _winner(frames, (f) => f.price, old?.price, threshold);
-    if (price == null) return null;
+    final lock = _locked();
+    final Money price;
+    if (old != null && (lock == null || _count(old.price!) > 1)) {
+      price = old.price!;
+    } else if (lock != null) {
+      price = lock;
+    } else {
+      return null;
+    }
     final mine = [
-      for (final e in frames)
-        if (e.$1.price == price) e,
+      for (final f in _frames)
+        if (f.price == price) f,
     ];
     final keep = old != null && old.price == price;
     final bulk =
-        _winner(mine, (f) => f.bulkPrice, keep ? old.bulkPrice : null, 2) ??
-        (keep ? old.bulkPrice : null);
-    final kg = mine.where((e) => e.$1.perKg).fold(0.0, (s, e) => s + e.$2);
+        _confirmed(mine, (f) => f.bulkPrice) ?? (keep ? old.bulkPrice : null);
     return TagReading(
       price: price,
-      name: _heaviest(mine, (f) => f.name) ?? (keep ? old.name : null),
-      perKg: kg >= 2 || (keep && old.perKg),
+      name: _mostCommon(mine, (f) => f.name) ?? (keep ? old.name : null),
+      perKg: mine.where((f) => f.perKg).length >= 2 || (keep && old.perKg),
       bulkPrice: bulk,
       bulkMin: bulk == null
           ? null
-          : _heaviest([
-                  for (final e in mine)
-                    if (e.$1.bulkPrice == bulk) e,
+          : _mostCommon([
+                  for (final f in mine)
+                    if (f.bulkPrice == bulk) f,
                 ], (f) => f.bulkMin) ??
                 (keep ? old.bulkMin : null),
       strength: 2,
     );
   }
 
-  static Map<T, double> _weights<T>(
-    List<(TagReading, double)> frames,
-    T? Function(TagReading) field,
-  ) {
-    final weights = <T, double>{};
-    for (final (f, w) in frames) {
-      final v = field(f);
-      if (v != null) weights[v] = (weights[v] ?? 0) + w;
-    }
-    return weights;
+  /// Valor visto em pelo menos 2 quadros (o mais frequente).
+  static T? _confirmed<T>(List<TagReading> frames, T? Function(TagReading) f) {
+    final counts = _counts(frames, f);
+    if (counts.isEmpty) return null;
+    final best = counts.entries.reduce((a, b) => b.value > a.value ? b : a);
+    return best.value >= 2 ? best.key : null;
   }
 
-  /// Valor com mais peso, se somar [need]; o [current] fica enquanto tiver
-  /// peso e não perder por mais de [margin].
-  T? _winner<T>(
-    List<(TagReading, double)> frames,
-    T? Function(TagReading) field,
-    T? current,
-    double need,
-  ) {
-    final weights = _weights(frames, field);
-    if (weights.isEmpty) return null;
-    final best = weights.entries.reduce((a, b) => b.value > a.value ? b : a);
-    final mine = current == null ? 0.0 : weights[current] ?? 0.0;
-    if (current != null && mine > 0 && best.value <= mine + margin) {
-      return current;
-    }
-    return best.value >= need ? best.key : null;
+  static T? _mostCommon<T>(List<TagReading> frames, T? Function(TagReading) f) {
+    final counts = _counts(frames, f);
+    if (counts.isEmpty) return null;
+    return counts.entries.reduce((a, b) => b.value > a.value ? b : a).key;
   }
 
-  static T? _heaviest<T>(
-    List<(TagReading, double)> frames,
-    T? Function(TagReading) field,
+  static Map<T, int> _counts<T>(
+    List<TagReading> frames,
+    T? Function(TagReading) f,
   ) {
-    final weights = _weights(frames, field);
-    if (weights.isEmpty) return null;
-    return weights.entries.reduce((a, b) => b.value > a.value ? b : a).key;
+    final counts = <T, int>{};
+    for (final r in frames) {
+      final v = f(r);
+      if (v != null) counts[v] = (counts[v] ?? 0) + 1;
+    }
+    return counts;
   }
 
   static bool _same(TagReading? a, TagReading? b) =>
