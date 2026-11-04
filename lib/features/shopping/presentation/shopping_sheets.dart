@@ -107,7 +107,7 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
       setState(
         () => _error = _byWeight
             ? 'Informe produto, preço por kg e peso (ex.: 0,350).'
-            : 'Informe produto, preço e quantidade inteira.',
+            : 'Informe produto e preço.',
       );
       return;
     }
@@ -175,7 +175,8 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
         const SizedBox(height: 24),
         TextField(
           controller: _name,
-          autofocus: item == null,
+          // Com nome lido pelo scanner, o painel abre pronto para confirmar.
+          autofocus: item == null && _draft?.name == null,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.next,
           decoration: const InputDecoration(labelText: 'Produto'),
@@ -221,20 +222,30 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _amount,
-                keyboardType: TextInputType.numberWithOptions(
-                  decimal: _byWeight,
+            if (_byWeight)
+              Expanded(
+                child: TextField(
+                  controller: _amount,
+                  autofocus: _item == null && _draft?.name != null,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Peso',
+                    suffixText: 'kg',
+                  ),
+                  onChanged: _changed,
+                  onSubmitted: (_) => _save(),
                 ),
-                decoration: InputDecoration(
-                  labelText: _byWeight ? 'Peso' : 'Quantidade',
-                  suffixText: _byWeight ? 'kg' : null,
-                ),
-                onChanged: _changed,
-                onSubmitted: (_) => _save(),
+              )
+            else
+              QuantityStepper(
+                value: int.tryParse(_amount.text) ?? 1,
+                onChanged: (q) => setState(() {
+                  _amount.text = '$q';
+                  _error = null;
+                }),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -440,6 +451,51 @@ class _FinishSheetState extends ConsumerState<_FinishSheet> {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Quantidade inteira com − e +, sem teclado. Mínimo 1.
+class QuantityStepper extends StatelessWidget {
+  const QuantityStepper({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton.outlined(
+          tooltip: 'Diminuir',
+          constraints: const BoxConstraints.tightFor(width: 52, height: 52),
+          onPressed: value > 1 ? () => onChanged(value - 1) : null,
+          icon: const Icon(LucideIcons.minus, size: 20),
+        ),
+        SizedBox(
+          width: 44,
+          child: Semantics(
+            label: 'Quantidade',
+            value: '$value',
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: text.titleLarge,
+            ),
+          ),
+        ),
+        IconButton.outlined(
+          tooltip: 'Aumentar',
+          constraints: const BoxConstraints.tightFor(width: 52, height: 52),
+          onPressed: value < 999 ? () => onChanged(value + 1) : null,
+          icon: const Icon(LucideIcons.plus, size: 20),
         ),
       ],
     );

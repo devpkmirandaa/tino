@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:tino/core/theme/tino_theme.dart';
 import 'package:tino/features/shopping/application/shopping_controller.dart';
 import 'package:tino/features/shopping/domain/decimal_input.dart';
@@ -43,11 +44,13 @@ Future<void> addItem(
     find.widgetWithText(TextField, weight ? 'Preço por kg' : 'Preço'),
     price,
   );
-  if (amount != null) {
-    await tester.enterText(
-      find.widgetWithText(TextField, weight ? 'Peso' : 'Quantidade'),
-      amount,
-    );
+  if (amount != null && weight) {
+    await tester.enterText(find.widgetWithText(TextField, 'Peso'), amount);
+  } else if (amount != null) {
+    for (var i = 1; i < int.parse(amount); i++) {
+      await tester.tap(find.byTooltip('Aumentar'));
+      await tester.pump();
+    }
   }
   await tester.pump();
   await tester.tap(find.widgetWithText(FilledButton, 'Adicionar').last);
@@ -139,10 +142,35 @@ void main() {
   ) async {
     await openPage(tester);
     await addItem(tester, 'Leite', 'abc');
-    expect(
-      find.text('Informe produto, preço e quantidade inteira.'),
-      findsOneWidget,
-    );
+    expect(find.text('Informe produto e preço.'), findsOneWidget);
     expect(total(tester), r'R$ 0,00');
+  });
+
+  testWidgets('quantidade usa − e + com mínimo 1', (tester) async {
+    await openPage(tester);
+    await tester.tap(find.byKey(const ValueKey('add-product')));
+    await tester.pumpAndSettle();
+    final minus = find.byTooltip('Diminuir');
+    expect(
+      tester
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byIcon(LucideIcons.minus),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+    for (var i = 0; i < 2; i++) {
+      await tester.tap(find.byTooltip('Aumentar'));
+      await tester.pump();
+    }
+    await tester.tap(minus);
+    await tester.pump();
+    await tester.enterText(find.widgetWithText(TextField, 'Produto'), 'Ovo');
+    await tester.enterText(find.widgetWithText(TextField, 'Preço'), '1,00');
+    await tester.pump();
+    expect(find.text(r'Total do item: R$ 2,00'), findsOneWidget);
   });
 }
