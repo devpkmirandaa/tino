@@ -63,6 +63,14 @@ class _Stats {
   var cropMs = 0;
   var sharpMs = 0;
   var ocrMs = 0;
+  var fullOcrMs = 0;
+  var fullOcr = 0;
+  var zoomOcrMs = 0;
+  var zoomOcr = 0;
+
+  String ocrSplit() =>
+      'inteiro=${fullOcr == 0 ? '-' : '${fullOcrMs ~/ fullOcr}ms'}($fullOcr) '
+      'recorte=${zoomOcr == 0 ? '-' : '${zoomOcrMs ~/ zoomOcr}ms'}($zoomOcr)';
   var parseMs = 0;
   final prices = <Money, int>{};
   var maxDiff = 0.0;
@@ -92,6 +100,9 @@ typedef _LabPending = ({
 
 /// Quadros seguidos sem preço que encerram a tentativa (etiqueta saiu).
 const _goneAfter = 8;
+
+/// A cada tantos quadros, um vai inteiro (moldura) para ler o nome.
+const _fullEvery = 4;
 
 /// Diferença média entre miniaturas (0 a 255) que indica mudança brusca.
 const _cutDiff = 18.0;
@@ -140,6 +151,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   var _spareSharpness = -1.0;
   var _stats = _Stats();
   var _missRun = 0;
+
+  // Região do preço (coordenadas da moldura) para recortar o próximo quadro.
+  Box? _region;
+  var _sinceFull = 0;
 
   // Troca de etiqueta: miniatura do quadro anterior e dados desde o corte.
   Uint8List? _lastThumb;
@@ -327,6 +342,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           : sharpness(crop.bytes, crop.width, crop.height, step: 3);
       final sharpMs = watch.elapsedMilliseconds - cropMs;
       _bestSharpness = math.max(sharp, _bestSharpness * 0.95);
+      var usedSpare = false;
       final moving = _turn > _maxTurn;
       if (moving || crop != null && sharp < _bestSharpness * _minSharpness) {
         moving ? stats.moving++ : stats.blurred++;
@@ -344,6 +360,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         );
         stats.fallback++;
         crop = _spare;
+        usedSpare = true;
       }
       _lastApproved = now;
       _spare = null;
@@ -360,28 +377,62 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           ),
         ),
       );
-      final text = await _recognizer.processImage(
-        InputImage.fromBytes(
-          bytes: crop?.bytes ?? plane.bytes,
-          metadata: InputImageMetadata(
-            size: Size(
-              (crop?.width ?? image.width).toDouble(),
-              (crop?.height ?? image.height).toDouble(),
-            ),
-            rotation: rotation,
-            format: format!,
-            bytesPerRow: crop?.width ?? plane.bytesPerRow,
-          ),
-        ),
-      );
-      final ocrMs = watch.elapsedMilliseconds - cropMs - sharpMs;
-      if (qr != null) _onQr(await qr);
-      // Sem recorte, filtra pela moldura na imagem inteira.
       final turned =
           rotation == InputImageRotation.rotation90deg ||
           rotation == InputImageRotation.rotation270deg;
       final w = (turned ? image.height : image.width).toDouble();
       final h = (turned ? image.width : image.height).toDouble();
+      // Depois da primeira leitura, só a região do preço vai para o OCR. A
+      // moldura inteira volta quando o preço some, há troca de etiqueta, o
+      // quadro é o reserva da saída de 300 ms, e a cada [_fullEvery]
+      // quadros, para ler o nome.
+      final region = usedSpare || _sinceFull >= _fullEvery - 1 ? null : _region;
+      final gx = _guide.left * w;
+      final gy = _guide.top * h;
+      _Crop? zoom;
+      if (region != null && crop != null) {
+        final a = sensorRect(
+          left: (gx + region.left) / w,
+          top: (gy + region.top) / h,
+          right: (gx + region.left + region.width) / w,
+          bottom: (gy + region.top + region.height) / h,
+          width: image.width,
+          height: image.height,
+          rotation: rotation.rawValue,
+        );
+        zoom = cropNv21(
+          plane.bytes,
+          width: image.width,
+          height: image.height,
+          stride: plane.bytesPerRow,
+          x: a.x,
+          y: a.y,
+          w: a.w,
+          h: a.h,
+        );
+      }
+      final input = zoom ?? crop;
+      final ocrStart = watch.elapsedMilliseconds;
+      final text = await _recognizer.processImage(
+        InputImage.fromBytes(
+          bytes: input?.bytes ?? plane.bytes,
+          metadata: InputImageMetadata(
+            size: Size(
+              (input?.width ?? image.width).toDouble(),
+              (input?.height ?? image.height).toDouble(),
+            ),
+            rotation: rotation,
+            format: format!,
+            bytesPerRow: input?.width ?? plane.bytesPerRow,
+          ),
+        ),
+      );
+      final ocrMs = watch.elapsedMilliseconds - ocrStart;
+      if (qr != null) _onQr(await qr);
+      // Linhas do recorte voltam para as coordenadas da moldura.
+      final ox = zoom != null ? region!.left : 0.0;
+      final oy = zoom != null ? region!.top : 0.0;
+      // Sem recorte, filtra pela moldura na imagem inteira.
       final guide = crop != null
           ? Rect.largest
           : Rect.fromLTRB(
@@ -396,22 +447,23 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             if (guide.contains(line.boundingBox.center))
               (
                 text: line.text,
-                left: line.boundingBox.left,
-                top: line.boundingBox.top,
+                left: line.boundingBox.left + ox,
+                top: line.boundingBox.top + oy,
                 width: line.boundingBox.width,
                 height: line.boundingBox.height,
                 glyphs: [
                   for (final element in line.elements)
                     for (final symbol in element.symbols)
                       (
-                        top: symbol.boundingBox.top,
-                        bottom: symbol.boundingBox.bottom,
+                        top: symbol.boundingBox.top + oy,
+                        bottom: symbol.boundingBox.bottom + oy,
                       ),
                 ],
               ),
       ];
-      final reading = readTag(lines);
-      final parseMs = watch.elapsedMilliseconds - cropMs - sharpMs - ocrMs;
+      final parseStart = watch.elapsedMilliseconds;
+      final reading = readTag(lines, region: zoom != null);
+      final parseMs = watch.elapsedMilliseconds - parseStart;
 
       // Mudança brusca na imagem: miniatura muito diferente da anterior.
       var diff = 0.0;
@@ -430,6 +482,17 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       }
       final before = _stabilizer.stable?.price;
       final changed = _stabilizer.add(reading, cut: diff >= _cutDiff);
+      // Próximo quadro: recorte só se o preço apareceu e não houve corte.
+      _sinceFull = zoom != null ? _sinceFull + 1 : 0;
+      if (reading.price == null || _stabilizer.cutSeen) {
+        _region = null;
+      } else if (zoom == null) {
+        _region = priceRegion(
+          reading,
+          (turned ? crop?.height : crop?.width)?.toDouble() ?? 0,
+          (turned ? crop?.width : crop?.height)?.toDouble() ?? 0,
+        );
+      }
       if (_stabilizer.cutSeen) {
         _cutAt = now;
         _cutStats = _Stats();
@@ -459,6 +522,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           ..cropMs += cropMs
           ..sharpMs += sharpMs
           ..ocrMs += ocrMs
+          ..fullOcrMs += zoom == null ? ocrMs : 0
+          ..fullOcr += zoom == null ? 1 : 0
+          ..zoomOcrMs += zoom != null ? ocrMs : 0
+          ..zoomOcr += zoom != null ? 1 : 0
           ..parseMs += parseMs
           ..maxDiff = math.max(s.maxDiff, diff);
       }
@@ -506,7 +573,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             "regra=${_stabilizer.rule?.name} | preços ${s.tally()} | quadros ocr=${s.ocr} "
             "votos=${s.voted} descartados borrado=${s.blurred} "
             "movimento=${s.moving} saída300=${s.fallback} | média ms recorte=${s.avg(s.cropMs)} "
-            "nitidez=${s.avg(s.sharpMs)} ocr=${s.avg(s.ocrMs)} "
+            "nitidez=${s.avg(s.sharpMs)} ocr ${s.ocrSplit()} "
             "leitura=${s.avg(s.parseMs)} | nitidez ${sharp.round()} "
             "melhor ${_bestSharpness.round()} | maior diferença ${s.maxDiff.toStringAsFixed(0)}",
           );
@@ -587,6 +654,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     }
     _labFinish();
     _stabilizer.accept();
+    _region = null;
     _firstSeen = null;
     setState(() {
       _added =

@@ -55,6 +55,9 @@ class ShoppingController extends AsyncNotifier<ShoppingSession> {
 
   void setBudget(Money? budget) => _set(_session.cart, budget);
 
+  /// Esvazia o carrinho da compra ativa; o orçamento continua.
+  void clear() => _set(const Cart(), _session.budget);
+
   /// Grava o que falta, finaliza a compra ativa e começa uma nova, vazia.
   Future<void> finish() async {
     await _saving;

@@ -129,6 +129,41 @@ void main() {
     expect(r.priceFor(10), Money(649));
   });
 
+  group('região do preço', () {
+    test('cobre preço e atacado com margem, dentro da moldura', () {
+      final r = readTag([
+        l('ARROZ', 0, 30, width: 200),
+        l(r'R$ 6,49', 100, 60, left: 20, width: 200),
+        l('ATACADO', 60, 20, left: 400, width: 150),
+        l(r'R$ 5,99', 100, 60, left: 400, width: 200),
+      ]);
+      final box = priceRegion(r, 700, 300)!;
+      expect(box.left, 0); // 20 - (60 + 72) passa da borda
+      expect(box.top, 70); // 100 - 30
+      expect(box.left + box.width, 700);
+      expect(box.top + box.height, 190); // 160 + 30
+    });
+
+    test(
+      'sem segundo preço numa etiqueta de atacado, lê a moldura inteira',
+      () {
+        final r = readTag([
+          l('ATACADO', 60, 20, left: 400, width: 150),
+          l(r'R$ 5,99', 100, 60, left: 400, width: 200),
+        ]);
+        expect(priceRegion(r, 700, 300), isNull);
+        expect(priceRegion(const TagReading(), 700, 300), isNull);
+      },
+    );
+
+    test('no recorte, número sem vírgula vale como voto de repetição', () {
+      final r = readTag([l('3511', 30, 70)], region: true);
+      expect(r.price, Money(3511));
+      expect(r.glued, isTrue);
+      expect(r.partial, isTrue);
+    });
+  });
+
   test('"ATACADO" escrito com um preço só marca cara de atacado', () {
     final r = readTag([
       l('ATACADO', 60, 20, left: 400, width: 150),
@@ -435,6 +470,13 @@ void main() {
       expect(s.stable, isNull);
       s.add(at(599, 400, hint: true));
       expect(s.stable!.price, Money(599));
+    });
+
+    test('recortes sem a linha do kg não apagam o kg do quadro inteiro', () {
+      final s = ReadingConsensus()
+        ..add(TagReading(price: Money(3511), perKg: true, strength: 2))
+        ..add(TagReading(price: Money(3511), strength: 2, partial: true));
+      expect(s.stable!.perKg, isTrue);
     });
 
     test('nome vence por votos entre quadros', () {

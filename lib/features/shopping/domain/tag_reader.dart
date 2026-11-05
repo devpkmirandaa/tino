@@ -14,6 +14,12 @@ typedef OcrLine = ({
   List<({double top, double bottom})> glyphs,
 });
 
+/// Retângulo na imagem lida pelo OCR.
+typedef Box = ({double left, double top, double width, double height});
+
+Box _box(OcrLine l) =>
+    (left: l.left, top: l.top, width: l.width, height: l.height);
+
 /// Sugestão extraída de uma etiqueta; sempre confirmada pelo usuário.
 final class TagReading {
   const TagReading({
@@ -27,6 +33,9 @@ final class TagReading {
     this.checked = false,
     this.glued = false,
     this.where,
+    this.priceBox,
+    this.bulkBox,
+    this.partial = false,
     this.bulkHint = false,
   });
 
@@ -54,6 +63,15 @@ final class TagReading {
 
   /// Centro e altura da linha do preço, na imagem da moldura.
   final ({double x, double y, double h})? where;
+
+  /// Caixas da linha do preço e da do atacado, para recortar só essas
+  /// regiões nos próximos quadros.
+  final Box? priceBox;
+  final Box? bulkBox;
+
+  /// Lido só na região do preço: nome, "kg" e mínimo podem ter ficado de
+  /// fora, e a ausência deles não é evidência.
+  final bool partial;
 
   /// Etiqueta com cara de atacado ("ATACADO" escrito ou duas colunas de
   /// preço): um preço sozinho pode ser só uma das colunas.
@@ -154,7 +172,10 @@ typedef _Reference = ({int cents, int base});
 ///   centavos pequenos ao lado ("6" + ",49"); ignora "DE R$ x" (preço
 ///   antigo). Preço de atacado ("a partir de N") fica à parte.
 /// - Nome: maior linha de texto acima do preço que não seja faixa/seção.
-TagReading readTag(List<OcrLine> lines) {
+///
+/// [region]: as linhas vêm só do recorte em volta do preço já visto; o
+/// número grande ali é o preço mesmo sem outras linhas para comparar.
+TagReading readTag(List<OcrLine> lines, {bool region = false}) {
   final candidates = <_Candidate>[];
   void add(
     int? cents,
@@ -228,7 +249,7 @@ TagReading readTag(List<OcrLine> lines) {
         _hasCurrency.hasMatch(alone) || _hasCurrencyBefore(line, lines);
     if (_superscriptCents(line, digits.length)) {
       add(_split(digits), line, true);
-    } else if (currency || line.height >= median * 1.6) {
+    } else if (currency || region || line.height >= median * 1.6) {
       add(_split(digits), line, currency, weak: true, glued: true);
     }
   }
@@ -285,6 +306,9 @@ TagReading readTag(List<OcrLine> lines) {
     strength: retail.weak ? 1 : _strength(retail, lines),
     weak: retail.weak,
     glued: retail.glued,
+    priceBox: _box(retail.line),
+    bulkBox: bulk == null ? null : _box(bulk.line),
+    partial: region,
     where: (
       x: retail.line.left + retail.line.width / 2,
       y: retail.line.top + retail.line.height / 2,
@@ -339,6 +363,33 @@ bool _checks(Money price, List<_Reference> refs, List<OcrLine> lines) {
     }
   }
   return false;
+}
+
+/// Região para os próximos quadros: caixa do preço (e a do atacado, se
+/// houver) com ~30% de margem, mais folga lateral de ~1 altura para "R$" e
+/// centavos pequenos ao lado, limitada a [width]×[height]. Nula quando não
+/// dá para confiar num recorte: sem preço, ou etiqueta com cara de atacado
+/// em que o segundo preço ainda não apareceu.
+Box? priceRegion(TagReading r, double width, double height) {
+  final p = r.priceBox;
+  if (r.price == null || p == null) return null;
+  if (r.bulkHint && r.bulkBox == null) return null;
+  var left = double.infinity, top = double.infinity;
+  var right = -double.infinity, bottom = -double.infinity;
+  for (final b in [p, ?r.bulkBox]) {
+    final dx = b.width * 0.3 + b.height * 1.2;
+    final dy = b.height * 0.5;
+    if (b.left - dx < left) left = b.left - dx;
+    if (b.top - dy < top) top = b.top - dy;
+    if (b.left + b.width + dx > right) right = b.left + b.width + dx;
+    if (b.top + b.height + dy > bottom) bottom = b.top + b.height + dy;
+  }
+  left = left.clamp(0, width);
+  top = top.clamp(0, height);
+  right = right.clamp(0, width);
+  bottom = bottom.clamp(0, height);
+  if (right - left < 8 || bottom - top < 8) return null;
+  return (left: left, top: top, width: right - left, height: bottom - top);
 }
 
 /// "3511" → 35,11.
@@ -675,7 +726,12 @@ class ReadingConsensus {
           _confirmed(mine, (f) => f.name) ??
           (keep ? old.name : null) ??
           _mostCommon(mine, (f) => f.name),
-      perKg: mine.where((f) => f.perKg).length >= 2 || (keep && old.perKg),
+      // "kg" visto em 2 quadros; se só 1 quadro inteiro foi lido (os outros
+      // eram recortes sem a linha do kg), 1 basta.
+      perKg:
+          mine.where((f) => f.perKg).length >=
+              (mine.where((f) => !f.partial).length >= 2 ? 2 : 1) ||
+          (keep && old.perKg),
       bulkPrice: bulk,
       bulkMin: bulk == null
           ? null

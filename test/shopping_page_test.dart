@@ -137,6 +137,37 @@ void main() {
     expect(find.text('Passou R\$ 5,00 do orçamento.'), findsOneWidget);
   });
 
+  testWidgets('limpar carrinho pede confirmação e mantém o orçamento', (
+    tester,
+  ) async {
+    await openPage(tester);
+    await tester.tap(find.text('Definir orçamento'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Valor'), '100');
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+    await tester.pumpAndSettle();
+    await addItem(tester, 'Pão', '1,00');
+    await addItem(tester, 'Leite', '5,00');
+
+    await tester.tap(find.byKey(const ValueKey('clear-cart')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 itens'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('clear-cart')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Os 2 itens saem do carrinho. O orçamento continua.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Limpar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Carrinho vazio'), findsOneWidget);
+    expect(total(tester), r'R$ 0,00');
+    expect(find.text('Faltam R\$ 100,00 do orçamento.'), findsOneWidget);
+  });
+
   testWidgets('dados inválidos mostram orientação sem adicionar', (
     tester,
   ) async {

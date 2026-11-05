@@ -66,9 +66,23 @@ class ShoppingPage extends StatelessWidget {
                     if (items.isEmpty)
                       const _EmptyCart()
                     else ...[
-                      Text(
-                        items.length == 1 ? '1 item' : '${items.length} itens',
-                        style: text.titleLarge,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              items.length == 1
+                                  ? '1 item'
+                                  : '${items.length} itens',
+                              style: text.titleLarge,
+                            ),
+                          ),
+                          TextButton.icon(
+                            key: const ValueKey('clear-cart'),
+                            onPressed: () => _confirmClear(context, ref),
+                            icon: const Icon(LucideIcons.trash2, size: 20),
+                            label: const Text('Limpar'),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: TinoSpace.s12),
                       _Card(
@@ -130,6 +144,32 @@ class ShoppingPage extends StatelessWidget {
       );
     },
   );
+}
+
+/// Pergunta antes de esvaziar o carrinho: não dá para desfazer.
+Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {
+  final count = ref.read(shoppingProvider).value?.cart.items.length ?? 0;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Limpar carrinho?'),
+      content: Text(
+        '${count == 1 ? 'O item sai' : 'Os $count itens saem'} do carrinho. '
+        'O orçamento continua.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Limpar'),
+        ),
+      ],
+    ),
+  );
+  if (ok == true) ref.read(shoppingProvider.notifier).clear();
 }
 
 /// Abre o scanner e leva a leitura (ou um pedido para digitar) ao painel.
