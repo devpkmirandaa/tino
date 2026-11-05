@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../features/history/presentation/history_page.dart';
 import '../features/history/presentation/purchase_detail_page.dart';
 import '../features/home/presentation/home_page.dart';
+import '../features/lists/presentation/list_detail_page.dart';
 import '../features/lists/presentation/lists_page.dart';
 import '../features/onboarding/data/onboarding_preference.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
@@ -72,6 +73,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                   key: state.pageKey,
                   child: const ListsPage(),
                 ),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    pageBuilder: (context, state) => NoTransitionPage(
+                      key: state.pageKey,
+                      child: ListDetailPage(
+                        id: int.tryParse(state.pathParameters['id']!) ?? -1,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

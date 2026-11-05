@@ -27,16 +27,64 @@ class PurchaseItems extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Purchases, PurchaseItems])
+/// Lista de compras. [sortMode]: `category`, `added` ou `manual`.
+/// [categoryOrder]: categorias separadas por vírgula, para o modo manual.
+@DataClassName('ShoppingListRow')
+class ShoppingLists extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get sortMode => text().withDefault(const Constant('category'))();
+  TextColumn get categoryOrder => text().nullable()();
+}
+
+/// Item da lista. [unit] guarda a unidade (`un` por enquanto; peso depois
+/// sem mudar o banco). [position] é a ordem manual dentro da categoria.
+@DataClassName('ListItemRow')
+class ListItems extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get listId =>
+      integer().references(ShoppingLists, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text()();
+  IntColumn get quantity => integer().withDefault(const Constant(1))();
+  TextColumn get unit => text().withDefault(const Constant('un'))();
+  TextColumn get category => text()();
+  IntColumn get position => integer()();
+  BoolColumn get done => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+/// Categoria escolhida pelo usuário para um nome de produto ([key] é o nome
+/// normalizado ou `#primeira-palavra`). Vira a sugestão das próximas vezes.
+@DataClassName('CategoryHintRow')
+class CategoryHints extends Table {
+  TextColumn get key => text()();
+  TextColumn get category => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
+@DriftDatabase(
+  tables: [Purchases, PurchaseItems, ShoppingLists, ListItems, CategoryHints],
+)
 class TinoDatabase extends _$TinoDatabase {
   TinoDatabase([QueryExecutor? executor])
     : super(executor ?? driftDatabase(name: 'tino'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(shoppingLists);
+        await m.createTable(listItems);
+      }
+      if (from < 3) await m.createTable(categoryHints);
+    },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );
 }
