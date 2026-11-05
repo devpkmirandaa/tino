@@ -6,14 +6,17 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 import '../../../core/theme/tino_theme.dart';
+import '../../settings/data/lab_mode.dart';
 import '../application/shopping_controller.dart';
 import '../data/nv21_crop.dart';
 import '../domain/cart.dart';
+import '../domain/lab_answer.dart';
 import '../domain/money.dart';
 import '../domain/tag_reader.dart';
 import 'shopping_sheets.dart';
@@ -61,9 +64,32 @@ class _Stats {
   var sharpMs = 0;
   var ocrMs = 0;
   var parseMs = 0;
+  final prices = <Money, int>{};
 
   String avg(int total) => ocr == 0 ? '-' : '${total ~/ ocr}';
+
+  /// Preços concorrentes, do mais votado: "19,11×4, 18,11×1".
+  String tally() {
+    final list = prices.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return list
+        .map((e) => '${e.key.format().replaceFirst(r'R$ ', '')}×${e.value}')
+        .join(', ');
+  }
 }
+
+/// Travamento aguardando a etiqueta sair para ser comparado com o gabarito
+/// (atacado e mínimo podem chegar depois do preço).
+typedef _LabPending = ({
+  LabAnswer? answer,
+  int ms,
+  int frames,
+  String rule,
+  String tally,
+});
+
+/// Quadros seguidos sem preço que encerram a tentativa (etiqueta saiu).
+const _goneAfter = 8;
 
 /// Preço preferido em etiquetas com varejo e atacado.
 enum PriceMode { retail, bulk }
@@ -108,6 +134,15 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   _Crop? _spare;
   var _spareSharpness = -1.0;
   var _stats = _Stats();
+  var _missRun = 0;
+
+  // Modo laboratório: QR de gabarito lido em paralelo ao OCR.
+  BarcodeScanner? _barcodes;
+  LabReport? _lab;
+  LabAnswer? _answer;
+  var _answerAt = DateTime(0);
+  _LabPending? _pending;
+  TagReading? _labLast;
   Money? _shownProvisional;
 
   @override
@@ -124,6 +159,12 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           onError: (_) => _turn = 0,
           cancelOnError: true,
         );
+    ref.read(labModeProvider.future).then((on) {
+      if (!on || !mounted) return;
+      debugPrint('tino-lab modo laboratório ligado');
+      _lab = LabReport();
+      _barcodes = BarcodeScanner(formats: [BarcodeFormat.qrCode]);
+    }, onError: (_) {});
     _open();
   }
 
@@ -137,6 +178,58 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     } else if (state == AppLifecycleState.resumed && _camera == null) {
       _open();
     }
+  }
+
+  var _qrFrames = 0;
+  var _qrFound = 0;
+  final _unknownQr = <String>{};
+
+  void _onQr(List<Barcode> codes) {
+    _qrFrames++;
+    for (final code in codes) {
+      _qrFound++;
+      final raw = code.rawValue ?? code.displayValue ?? '';
+      final answer = LabAnswer.parse(raw);
+      if (answer == null) {
+        // Diagnóstico: QR lido que não está no formato do gabarito.
+        if (_unknownQr.add(raw)) debugPrint('tino-lab QR desconhecido: "$raw"');
+        continue;
+      }
+      if (answer.id != _answer?.id) {
+        debugPrint('tino-lab QR id=${answer.id} c=${answer.scenario}');
+      }
+      _answer = answer;
+      _answerAt = DateTime.now();
+      _lab?.saw(answer);
+    }
+  }
+
+  /// Compara o último travamento com o gabarito, quando a etiqueta sai.
+  void _labFinish() {
+    final p = _pending;
+    final last = _labLast;
+    _pending = null;
+    _labLast = null;
+    if (p == null || last == null) return;
+    final a = p.answer;
+    final tail =
+        '| ${p.ms}ms quadros=${p.frames} regra=${p.rule} '
+        'preços ${p.tally}';
+    if (a == null) {
+      debugPrint('tino-lab sem QR: lido ${last.price?.format()} $tail');
+      return;
+    }
+    String field(bool ok, Object? read, Object? want) =>
+        ok ? 'ok' : 'ERRO(lido $read, certo $want)';
+    final c = a.check(last);
+    final ok = _lab!.lock(a, last, p.ms);
+    debugPrint(
+      'tino-lab id=${a.id} c=${a.scenario} ${ok ? 'ACERTOU' : 'ERROU'} '
+      'preço=${field(c.price, last.price?.format(), a.price.format())} '
+      'atacado=${field(c.bulk, last.bulkPrice?.format(), a.bulkPrice?.format())} '
+      'mínimo=${field(c.min, last.bulkMin, a.bulkMin)} '
+      'kg=${field(c.kg, last.perKg, a.perKg)} $tail',
+    );
   }
 
   Future<void> _open() async {
@@ -243,6 +336,18 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       _lastApproved = now;
       _spare = null;
       _spareSharpness = -1;
+      // Quadro inteiro: o QR pode estar fora da moldura.
+      final qr = _barcodes?.processImage(
+        InputImage.fromBytes(
+          bytes: plane.bytes,
+          metadata: InputImageMetadata(
+            size: Size(image.width.toDouble(), image.height.toDouble()),
+            rotation: rotation,
+            format: format!,
+            bytesPerRow: plane.bytesPerRow,
+          ),
+        ),
+      );
       final text = await _recognizer.processImage(
         InputImage.fromBytes(
           bytes: crop?.bytes ?? plane.bytes,
@@ -258,6 +363,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         ),
       );
       final ocrMs = watch.elapsedMilliseconds - cropMs - sharpMs;
+      if (qr != null) _onQr(await qr);
       // Sem recorte, filtra pela moldura na imagem inteira.
       final turned =
           rotation == InputImageRotation.rotation90deg ||
@@ -300,6 +406,13 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         _firstSeen = DateTime.now();
         _stats = _Stats();
       }
+      if (reading.price case final p?) {
+        _missRun = 0;
+        _stats.prices[p] = (_stats.prices[p] ?? 0) + 1;
+      } else if (++_missRun >= _goneAfter && _stabilizer.stable == null) {
+        // Etiqueta saiu sem travar: a próxima tentativa recomeça o relógio.
+        _firstSeen = null;
+      }
       _stats
         ..ocr += 1
         ..voted += reading.price == null ? 0 : 1
@@ -328,9 +441,22 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             _stabilizer.stable!.price != before &&
             first != null) {
           final s = _stats;
+          final ms = DateTime.now().difference(first).inMilliseconds;
+          if (_lab != null) {
+            _labFinish();
+            _pending = (
+              answer: now.difference(_answerAt) < const Duration(seconds: 3)
+                  ? _answer
+                  : null,
+              ms: ms,
+              frames: s.ocr,
+              rule: '${_stabilizer.rule?.name}',
+              tally: s.tally(),
+            );
+          }
           debugPrint(
-            "tino-ocr travou em ${DateTime.now().difference(first).inMilliseconds}ms "
-            "regra=${_stabilizer.rule?.name} | quadros ocr=${s.ocr} "
+            "tino-ocr travou em ${ms}ms "
+            "regra=${_stabilizer.rule?.name} | preços ${s.tally()} | quadros ocr=${s.ocr} "
             "votos=${s.voted} descartados borrado=${s.blurred} "
             "movimento=${s.moving} saída300=${s.fallback} | média ms recorte=${s.avg(s.cropMs)} "
             "nitidez=${s.avg(s.sharpMs)} ocr=${s.avg(s.ocrMs)} "
@@ -345,6 +471,11 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           "kg=${reading.perKg} | ${lines.map((l) => "${l.text}@${l.left.round()},${l.top.round()},h${l.height.round()}").join(" ; ")}",
         );
         final stable = _stabilizer.stable;
+        if (stable == null) {
+          _labFinish();
+        } else {
+          _labLast = stable;
+        }
         setState(() {
           if (stable != null) _quantity = _startQuantity(stable);
         });
@@ -407,6 +538,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       context.pop(ScanRead(_chosen(r)));
       return;
     }
+    _labFinish();
     _stabilizer.accept();
     _firstSeen = null;
     setState(() {
@@ -419,6 +551,17 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
   @override
   void dispose() {
+    _labFinish();
+    final lab = _lab;
+    if (lab != null) {
+      debugPrint(
+        'tino-lab leitor de QR: $_qrFrames quadros, $_qrFound códigos achados',
+      );
+      for (final line in lab.isEmpty ? <String>[] : lab.summary()) {
+        debugPrint('tino-lab resumo $line');
+      }
+    }
+    _barcodes?.close();
     WidgetsBinding.instance.removeObserver(this);
     _gyro?.cancel();
     _camera?.dispose();

@@ -5,7 +5,7 @@
 /// letra (ou duas, em palavras longas) de uma única palavra da lista; marca
 /// ou palavra desconhecida fica como foi lida.
 String tidyProductName(String raw) {
-  final text = raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+  final text = _lettersForDigits(raw.trim().replaceAll(RegExp(r'\s+'), ' '));
   if (text.isEmpty) return text;
   final shouting = text == text.toUpperCase();
   final words = text.split(' ').map(_correct).toList();
@@ -16,6 +16,17 @@ String tidyProductName(String raw) {
       _sentenceCase(words[i], first: i == 0),
   ].join(' ');
 }
+
+final _digitInWord = RegExp(r'(?<=[A-Za-zÀ-ÿ])[01](?=[A-Za-zÀ-ÿ])');
+
+/// 0 e 1 entre letras são O e I mal lidos: "I0GURTE" → "IOGURTE".
+String _lettersForDigits(String text) =>
+    text.replaceAllMapped(_digitInWord, (m) {
+      final next = text[m.end];
+      final upper = next == next.toUpperCase();
+      final letter = m[0] == '0' ? 'O' : 'I';
+      return upper ? letter : letter.toLowerCase();
+    });
 
 /// Siglas e unidades que ficam sempre em maiúsculas.
 const _acronyms = {'UHT', 'ML', 'KG', 'L', 'G', 'LT', 'MG', 'UN'};

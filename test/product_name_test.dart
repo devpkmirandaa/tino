@@ -15,6 +15,13 @@ void main() {
     expect(tidyProductName('Detergnete Ypê'), 'Detergente Ypê');
   });
 
+  test('0 e 1 entre letras viram O e I', () {
+    expect(tidyProductName('I0GURTE NATURAL'), 'Iogurte natural');
+    expect(tidyProductName('ÓLEO DE S0JA'), 'Óleo de soja');
+    expect(tidyProductName('LE1TE'), 'Leite');
+    expect(tidyProductName('ARROZ TIPO 1 5KG'), 'Arroz tipo 1 5KG');
+  });
+
   test('marca ou palavra desconhecida fica como foi lida', () {
     expect(tidyProductName('Detergente Ypê'), 'Detergente Ypê');
     expect(tidyProductName('Chocolate Lacta'), 'Chocolate Lacta');
