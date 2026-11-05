@@ -282,6 +282,14 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
                 top: line.boundingBox.top,
                 width: line.boundingBox.width,
                 height: line.boundingBox.height,
+                glyphs: [
+                  for (final element in line.elements)
+                    for (final symbol in element.symbols)
+                      (
+                        top: symbol.boundingBox.top,
+                        bottom: symbol.boundingBox.bottom,
+                      ),
+                ],
               ),
       ];
       final reading = readTag(lines);
@@ -299,6 +307,13 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         ..sharpMs += sharpMs
         ..ocrMs += ocrMs
         ..parseMs += parseMs;
+      if (reading.price == null &&
+          lines.any((l) => RegExp(r'\d{2}').hasMatch(l.text))) {
+        // Diagnóstico: números lidos que não viraram preço.
+        debugPrint(
+          "tino-ocr sem preço | ${lines.map((l) => "${l.text}@${l.left.round()},${l.top.round()},h${l.height.round()}${RegExp(r'\d{3}').hasMatch(l.text) ? " g${l.glyphs.map((g) => "${g.top.round()}-${g.bottom.round()}").join("/")}" : ""}").join(" ; ")}",
+        );
+      }
       final before = _stabilizer.stable?.price;
       final changed = _stabilizer.add(reading);
       final provisional = _stabilizer.provisional?.price;

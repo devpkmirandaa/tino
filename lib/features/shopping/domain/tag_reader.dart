@@ -1,5 +1,6 @@
 import 'decimal_input.dart';
 import 'money.dart';
+import 'product_name.dart';
 
 /// Linha reconhecida pelo OCR, com caixa na imagem em pé.
 typedef OcrLine = ({
@@ -8,6 +9,9 @@ typedef OcrLine = ({
   double top,
   double width,
   double height,
+
+  /// Topo e base de cada caractere, em ordem (vazia se o OCR não informar).
+  List<({double top, double bottom})> glyphs,
 });
 
 /// Sugestão extraída de uma etiqueta; sempre confirmada pelo usuário.
@@ -21,6 +25,7 @@ final class TagReading {
     this.strength = 1,
     this.weak = false,
     this.checked = false,
+    this.glued = false,
   });
 
   final String? name;
@@ -40,6 +45,10 @@ final class TagReading {
 
   /// Dígito verificador: preço por kg/litro × embalagem fecha com o preço.
   final bool checked;
+
+  /// Número sem vírgula sozinho na linha do preço ("3511"): se repetir
+  /// igual em 3 quadros, vira leitura firme.
+  final bool glued;
 
   /// Preço unitário para [quantity] unidades (atacado, se atingir o mínimo).
   Money? priceFor(int quantity) =>
@@ -68,10 +77,19 @@ final _price = RegExp(
 final _integer = RegExp('^(?:$_currency\\s*)?(\\d{1,4})\$');
 final _cents = RegExp(r'''^[,.'’]?\s*(\d{2})$''');
 final _hasCurrency = RegExp(_currency);
+
+/// Sujeira que o OCR põe antes do preço grande (".3511", ".35.11").
+const _junk = "[.,'’]?";
 final _separatorMisread = RegExp(
-  '^(?:$_currency\\s*)?(\\d{1,4})\\s*[:.]\\s*(\\d{2})\$',
+  '^$_junk(?:$_currency\\s*)?(\\d{1,4})\\s*[:.]\\s*(\\d{2})\$',
 );
-final _separatorLost = RegExp('^$_currency\\s*(\\d{1,3})(\\d{2})\$');
+
+/// "35 11": o ML Kit separou número e centavos em elementos diferentes, o
+/// que já é sinal de centavos; leitura firme.
+final _separatorSpace = RegExp('^(?:$_currency\\s*)?(\\d{1,3})\\s+(\\d{2})\$');
+
+/// Número de 3 a 5 dígitos sozinho na linha ("3511", ".3511", "RS 915").
+final _gluedDigits = RegExp('^$_junk(?:$_currency\\s*)?(\\d{3,5})\$');
 
 /// Valor e unidade do preço de referência: "por kg R$ 4,98", "R$ 4,98/L".
 final _referenceValue = RegExp(
@@ -117,6 +135,7 @@ typedef _Candidate = ({
   bool currency,
   bool bulk,
   bool weak,
+  bool glued,
 });
 typedef _Reference = ({int cents, int base});
 
@@ -128,7 +147,13 @@ typedef _Reference = ({int cents, int base});
 /// - Nome: maior linha de texto acima do preço que não seja faixa/seção.
 TagReading readTag(List<OcrLine> lines) {
   final candidates = <_Candidate>[];
-  void add(int? cents, OcrLine line, bool currency, {bool weak = false}) {
+  void add(
+    int? cents,
+    OcrLine line,
+    bool currency, {
+    bool weak = false,
+    bool glued = false,
+  }) {
     if (cents == null || cents == 0) return;
     candidates.add((
       price: Money(cents),
@@ -136,8 +161,12 @@ TagReading readTag(List<OcrLine> lines) {
       currency: currency,
       bulk: _nearBulk(line, lines),
       weak: weak,
+      glued: glued,
     ));
   }
+
+  final heights = [for (final l in lines) l.height]..sort();
+  final median = heights.isEmpty ? 0.0 : heights[heights.length ~/ 2];
 
   for (final line in lines) {
     if (_reference.hasMatch(line.text) || _oldPrice.hasMatch(line.text)) {
@@ -160,19 +189,38 @@ TagReading readTag(List<OcrLine> lines) {
         _hasCurrency.hasMatch(alone),
         weak: true,
       );
-    } else if (_separatorLost.firstMatch(alone) case final m?) {
-      add(parseScaled('${m[1]},${m[2]}', 2), line, true, weak: true);
-    }
-    final whole = _integer.firstMatch(alone);
-    if (whole == null) continue;
-    for (final other in lines) {
-      final cents = _cents.firstMatch(other.text.trim());
-      if (cents == null || !_isCentsBeside(line, other)) continue;
+    } else if (_separatorSpace.firstMatch(alone) case final m?) {
       add(
-        parseScaled('${whole[1]},${cents[1]}', 2),
+        parseScaled('${m[1]},${m[2]}', 2),
         line,
-        _hasCurrency.hasMatch(line.text) || _hasCurrencyBefore(line, lines),
+        _hasCurrency.hasMatch(alone),
       );
+    }
+    final before = candidates.length;
+    final whole = _integer.firstMatch(alone);
+    if (whole != null) {
+      for (final other in lines) {
+        final cents = _cents.firstMatch(other.text.trim());
+        if (cents == null || !_isCentsBeside(line, other)) continue;
+        add(
+          parseScaled('${whole[1]},${cents[1]}', 2),
+          line,
+          _hasCurrency.hasMatch(line.text) || _hasCurrencyBefore(line, lines),
+        );
+      }
+    }
+    // Vírgula sumida, número sozinho na linha do preço ("3511"): os dois
+    // últimos dígitos são centavos. Firme se o desenho provar centavos
+    // sobrescritos; senão voto fraco, que trava ao se repetir igual.
+    final glued = _gluedDigits.firstMatch(alone);
+    if (glued == null || candidates.length != before) continue;
+    final digits = glued[1]!;
+    final currency =
+        _hasCurrency.hasMatch(alone) || _hasCurrencyBefore(line, lines);
+    if (_superscriptCents(line, digits.length)) {
+      add(_split(digits), line, true);
+    } else if (currency || line.height >= median * 1.6) {
+      add(_split(digits), line, currency, weak: true, glued: true);
     }
   }
   if (candidates.isEmpty) return const TagReading();
@@ -227,6 +275,7 @@ TagReading readTag(List<OcrLine> lines) {
     bulkMin: bulkMin,
     strength: retail.weak ? 1 : _strength(retail, lines),
     weak: retail.weak,
+    glued: retail.glued,
     // Referência pode vir em linha própria ("Preço por kg R$ 4,98") ou em
     // linha pequena com "/kg"; a linha do próprio preço não conta.
     checked: _checks(retail.price, [
@@ -267,6 +316,35 @@ bool _checks(Money price, List<_Reference> refs, List<OcrLine> lines) {
     }
   }
   return false;
+}
+
+/// "3511" → 35,11.
+int? _split(String digits) => parseScaled(
+  '${digits.substring(0, digits.length - 2)},'
+  '${digits.substring(digits.length - 2)}',
+  2,
+);
+
+/// Centavos sobrescritos: os dois últimos dígitos com no máximo 75% da
+/// altura dos demais, ou alinhados pelo topo com a base bem mais alta.
+bool _superscriptCents(OcrLine line, int digits) {
+  final g = line.glyphs;
+  if (g.length < digits) return false;
+  final mine = g.sublist(g.length - digits);
+  final whole = mine.sublist(0, digits - 2);
+  final cents = mine.sublist(digits - 2);
+  double minOf(Iterable<double> v) => v.reduce((a, b) => a < b ? a : b);
+  double maxOf(Iterable<double> v) => v.reduce((a, b) => a > b ? a : b);
+  final wholeHeight = minOf(whole.map((c) => c.bottom - c.top));
+  if (wholeHeight <= 0) return false;
+  final shorter =
+      maxOf(cents.map((c) => c.bottom - c.top)) <= wholeHeight * 0.75;
+  final wholeBottom = minOf(whole.map((c) => c.bottom));
+  final wholeTop = maxOf(whole.map((c) => c.top));
+  final raised =
+      maxOf(cents.map((c) => c.bottom)) <= wholeBottom - wholeHeight * 0.2 &&
+      minOf(cents.map((c) => c.top)) >= wholeTop - wholeHeight * 0.2;
+  return shorter || raised;
 }
 
 /// Outro preço de tamanho parecido, na mesma altura e ao lado.
@@ -343,7 +421,7 @@ String? _name(List<OcrLine> lines, OcrLine price) {
     }
     if (best == null || l.height > best.height * 1.05) best = l;
   }
-  return best == null ? null : _tidy(best.text);
+  return best == null ? null : tidyProductName(best.text);
 }
 
 bool _isWords(String text) {
@@ -351,17 +429,10 @@ bool _isWords(String text) {
   return letters >= 3 && letters >= text.replaceAll(' ', '').length / 2;
 }
 
-/// Espaços normalizados; TUDO MAIÚSCULO vira "Só a primeira".
-String _tidy(String text) {
-  final t = text.trim().replaceAll(RegExp(r'\s+'), ' ');
-  if (t != t.toUpperCase()) return t;
-  final lower = t.toLowerCase();
-  return lower[0].toUpperCase() + lower.substring(1);
-}
-
-/// Como o preço travou: votação (3 de 5), atalho (2 fortes seguidas) ou
-/// dígito verificador (preço por kg/litro × embalagem).
-enum LockRule { votes, shortcut, checkDigit }
+/// Como o preço travou: votação (3 de 5), atalho (2 fortes seguidas),
+/// repetição (mesmo número sem vírgula em 3 quadros) ou dígito verificador
+/// (preço por kg/litro × embalagem).
+enum LockRule { votes, shortcut, repeated, checkDigit }
 
 /// Votação entre os últimos quadros, com memória da etiqueta.
 ///
@@ -409,6 +480,8 @@ class ReadingConsensus {
       _misses = 0;
       if (price != _accepted) _accepted = null;
     }
+    // Quadro sem preço não ocupa a janela: só os com preço votam.
+    if (price == null) return false;
     _frames.add(reading);
     if (_frames.length > window) _frames.removeAt(0);
 
@@ -437,17 +510,20 @@ class ReadingConsensus {
     }
     final counts = <Money, int>{};
     final firm = <Money>{};
+    final glued = <Money, int>{};
     for (final f in _frames) {
       final p = f.price;
       if (p == null || p == _accepted) continue;
       counts[p] = (counts[p] ?? 0) + 1;
       if (!f.weak) firm.add(p);
+      if (f.glued) glued[p] = (glued[p] ?? 0) + 1;
     }
     for (final e in counts.entries) {
-      // Votos fracos ajudam, mas é preciso ao menos uma leitura firme.
-      if (e.value >= votes && firm.contains(e.key)) {
-        return (e.key, LockRule.votes);
-      }
+      if (e.value < votes) continue;
+      // Votos fracos ajudam, mas é preciso ao menos uma leitura firme...
+      if (firm.contains(e.key)) return (e.key, LockRule.votes);
+      // ...ou o mesmo número sem vírgula repetido em 3 quadros.
+      if ((glued[e.key] ?? 0) >= votes) return (e.key, LockRule.repeated);
     }
     if (_frames.length >= 2) {
       final a = _frames[_frames.length - 2];
@@ -486,7 +562,12 @@ class ReadingConsensus {
         _confirmed(mine, (f) => f.bulkPrice) ?? (keep ? old.bulkPrice : null);
     return TagReading(
       price: price,
-      name: _mostCommon(mine, (f) => f.name) ?? (keep ? old.name : null),
+      // Nome confirmado por 2 quadros vence; senão mantém o já mostrado ou
+      // usa o mais votado como provisório.
+      name:
+          _confirmed(mine, (f) => f.name) ??
+          (keep ? old.name : null) ??
+          _mostCommon(mine, (f) => f.name),
       perKg: mine.where((f) => f.perKg).length >= 2 || (keep && old.perKg),
       bulkPrice: bulk,
       bulkMin: bulk == null

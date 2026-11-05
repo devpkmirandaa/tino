@@ -8,7 +8,15 @@ OcrLine l(
   double height, {
   double left = 0,
   double width = 300,
-}) => (text: text, left: left, top: top, width: width, height: height);
+  List<({double top, double bottom})> glyphs = const [],
+}) => (
+  text: text,
+  left: left,
+  top: top,
+  width: width,
+  height: height,
+  glyphs: glyphs,
+);
 
 void main() {
   group('readTag', () {
@@ -137,7 +145,91 @@ void main() {
     expect(r.price, Money(1077));
     expect(r.bulkPrice, Money(915));
     expect(r.bulkMin, 3);
-    expect(r.name, 'Leite integral uht');
+    expect(r.name, 'Leite integral UHT');
+  });
+
+  test('hortifrúti real: tomate R\$ 35,11/kg', () {
+    final r = readTag([
+      l('HORTIFRUTI', 94, 28, left: 96, width: 200),
+      l('TOMATE SALADA', 132, 34, left: 94, width: 260),
+      l('Fresco a granel', 169, 19, left: 96, width: 150),
+      l('I', 253, 20, left: 472, width: 8),
+      l('KG', 252, 20, left: 488, width: 30),
+      l('35,11', 203, 73, left: 161, width: 220),
+      l(r'R$', 261, 17, left: 105, width: 30),
+      l('PREÇO POR QUILO', 300, 19, left: 104, width: 200),
+    ]);
+    expect(r.price, Money(3511));
+    expect(r.perKg, isTrue);
+    expect(r.name, 'Tomate salada');
+  });
+
+  test('"35 11" em elementos separados é leitura firme', () {
+    final spaced = readTag([l('35 11', 0, 70)]);
+    expect(spaced.price, Money(3511));
+    expect(spaced.weak, isFalse);
+  });
+
+  test('"3511" sozinho na linha do preço é voto fraco de repetição', () {
+    final withCurrency = readTag([
+      l('3511', 200, 73, left: 160, width: 220),
+      l(r'R$', 258, 17, left: 105, width: 30),
+    ]);
+    expect(withCurrency.price, Money(3511));
+    expect(withCurrency.weak, isTrue);
+    expect(withCurrency.glued, isTrue);
+    // Log real: ".3511" sem R$, mas é a linha de maior destaque.
+    final dominant = readTag([
+      l('TOMATE SALADA', 112, 30, left: 136),
+      l('Frescoa granel', 144, 17, left: 136),
+      l('.3511', 141, 74, left: 130),
+      l('PREÇO POR QUILO', 229, 19, left: 131),
+    ]);
+    expect(dominant.price, Money(3511));
+    expect(dominant.glued, isTrue);
+    expect(readTag([l('3511', 200, 73)]).price, isNull);
+    expect(readTag([l('.35.11', 200, 73)]).price, Money(3511));
+  });
+
+  ({double top, double bottom}) g(double top, double bottom) =>
+      (top: top, bottom: bottom);
+
+  test('centavos sobrescritos: menores ou com a base mais alta', () {
+    final shorter = readTag([
+      l('TOMATE SALADA', 121, 26, left: 98),
+      l(
+        '3511',
+        185,
+        68,
+        left: 151,
+        width: 220,
+        glyphs: [g(185, 253), g(185, 251), g(185, 219), g(185, 218)],
+      ),
+      l('PREÇO POR QUILO', 275, 16, left: 99),
+    ]);
+    expect(shorter.price, Money(3511));
+    expect(shorter.weak, isFalse);
+    expect(shorter.strength, 2);
+    // Mesma altura, mas topo alinhado e base bem mais alta.
+    final raised = readTag([
+      l(
+        '3511',
+        185,
+        68,
+        glyphs: [g(185, 253), g(185, 253), g(185, 235), g(186, 236)],
+      ),
+    ]);
+    expect(raised.price, Money(3511));
+    // Tudo na mesma linha de base: não prova centavos.
+    final even = readTag([
+      l(
+        '3511',
+        185,
+        68,
+        glyphs: [g(185, 253), g(185, 253), g(186, 252), g(185, 253)],
+      ),
+    ]);
+    expect(even.price, isNull);
   });
 
   test('"RS 915" sem vírgula ainda é preço; código não é', () {
@@ -224,6 +316,42 @@ void main() {
       s.add(t(1077));
       expect(s.stable!.price, Money(1077));
       expect(s.rule, LockRule.votes);
+    });
+
+    test('quadros sem preço não ocupam a janela de votos', () {
+      final s = ReadingConsensus();
+      for (final c in [3511, null, null, 3511, null, null, null, 3511]) {
+        s.add(t(c));
+      }
+      expect(s.stable!.price, Money(3511));
+    });
+
+    test('mesmo número sem vírgula em 3 quadros trava por repetição', () {
+      TagReading glued() =>
+          TagReading(price: Money(3511), weak: true, glued: true);
+      final s = ReadingConsensus()
+        ..add(glued())
+        ..add(glued());
+      expect(s.stable, isNull);
+      s.add(glued());
+      expect(s.stable!.price, Money(3511));
+      expect(s.rule, LockRule.repeated);
+    });
+
+    test('vírgula torta (não grudada) continua sem travar sozinha', () {
+      final s = ReadingConsensus();
+      for (var i = 0; i < 5; i++) {
+        s.add(TagReading(price: Money(1077), weak: true));
+      }
+      expect(s.stable, isNull);
+    });
+
+    test('nome vence por votos entre quadros', () {
+      final s = ReadingConsensus()
+        ..add(t(500, n: 'Leite integral', s: 2))
+        ..add(t(500, n: 'Leito integral', s: 2))
+        ..add(t(500, n: 'Leite integral', s: 2));
+      expect(s.stable!.name, 'Leite integral');
     });
 
     test('dígito verificador trava com uma leitura', () {
