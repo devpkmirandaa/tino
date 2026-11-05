@@ -474,7 +474,8 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         _lastThumb = thumb;
       }
 
-      if (reading.price != null && _firstSeen == null) {
+      if (reading.price case final p?
+          when _firstSeen == null && !_stabilizer.ignores(p)) {
         // Nova tentativa: conta a partir do primeiro preço visto.
         _firstSeen = now;
         _stats = _Stats();

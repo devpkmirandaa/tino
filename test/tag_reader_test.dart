@@ -164,6 +164,30 @@ void main() {
     });
   });
 
+  test('hortifrúti real: sujeira antes do preço e parte inteira com ":"', () {
+    expect(readTag([l('-26:74', 102, 59)]).price, Money(2674));
+    expect(readTag([l('„26.74', 93, 61)]).price, Money(2674));
+    expect(readTag([l('-27.57', 47, 91)]).price, Money(2757));
+    final split = readTag([
+      l('BANANA', 0, 25, left: 87),
+      l('I KG', 95, 24, left: 444, width: 40),
+      l('57', 54, 55, left: 241, width: 60),
+      l('.27:', 59, 78, left: 88, width: 140),
+    ]);
+    expect(split.price, Money(2757));
+    expect(split.kgOnPrice, isTrue);
+  });
+
+  test('R1D8IS: "VAREJO" escrito marca cara de atacado', () {
+    final r = readTag([
+      l('VAREJO I UN', 40, 22, left: 73, width: 150),
+      l('5.02', 63, 49, left: 119, width: 120),
+      l(r'R$', 98, 15, left: 76, width: 30),
+    ]);
+    expect(r.price, Money(502));
+    expect(r.bulkHint, isTrue);
+  });
+
   test('"ATACADO" escrito com um preço só marca cara de atacado', () {
     final r = readTag([
       l('ATACADO', 60, 20, left: 400, width: 150),
@@ -472,11 +496,22 @@ void main() {
       expect(s.stable!.price, Money(599));
     });
 
-    test('recortes sem a linha do kg não apagam o kg do quadro inteiro', () {
-      final s = ReadingConsensus()
-        ..add(TagReading(price: Money(3511), perKg: true, strength: 2))
+    test('kg: 2 quadros, ou 1 se estava na linha do preço', () {
+      final once = ReadingConsensus()
+        ..add(TagReading(price: Money(3156), perKg: true, strength: 2))
+        ..add(TagReading(price: Money(3156), strength: 2, partial: true));
+      expect(once.stable!.perKg, isFalse);
+      final onLine = ReadingConsensus()
+        ..add(
+          TagReading(
+            price: Money(3511),
+            perKg: true,
+            kgOnPrice: true,
+            strength: 2,
+          ),
+        )
         ..add(TagReading(price: Money(3511), strength: 2, partial: true));
-      expect(s.stable!.perKg, isTrue);
+      expect(onLine.stable!.perKg, isTrue);
     });
 
     test('nome vence por votos entre quadros', () {
@@ -494,10 +529,20 @@ void main() {
       expect(s.rule, LockRule.checkDigit);
     });
 
-    test('leituras fracas travam com 3 de 5', () {
+    test('duas leituras firmes comuns seguidas travam pelo atalho', () {
+      final s = ReadingConsensus()..add(t(649));
+      expect(s.stable, isNull);
+      s
+        ..add(t(null))
+        ..add(t(649));
+      expect(s.stable!.price, Money(649));
+      expect(s.rule, LockRule.shortcut);
+    });
+
+    test('leitura errada isolada não trava', () {
       final s = ReadingConsensus()
         ..add(t(649))
-        ..add(t(null))
+        ..add(t(9635))
         ..add(t(649));
       expect(s.stable, isNull);
       s.add(t(649));
@@ -559,13 +604,39 @@ void main() {
         s.add(t(500, s: 2));
       }
       expect(s.stable, isNull);
+      // Leitura errada isolada no meio não libera o preço já usado.
+      s
+        ..add(t(9635))
+        ..add(t(500, s: 2))
+        ..add(t(500, s: 2));
+      expect(s.stable, isNull);
+      // Poucos quadros sem preço também não: a etiqueta não saiu.
       for (var i = 0; i < 4; i++) {
         s.add(t(null));
       }
       s
         ..add(t(500, s: 2))
         ..add(t(500, s: 2));
+      expect(s.stable, isNull);
+      expect(s.ignores(Money(500)), isTrue);
+      // Saiu da câmera (8 quadros sem preço): volta a valer.
+      for (var i = 0; i < 8; i++) {
+        s.add(t(null));
+      }
+      s
+        ..add(t(500, s: 2))
+        ..add(t(500, s: 2));
       expect(s.stable!.price, Money(500));
+    });
+
+    test('após usar, troca de etiqueta libera o preço usado', () {
+      final s = ReadingConsensus()
+        ..add(t(500, s: 2))
+        ..add(t(500, s: 2))
+        ..accept()
+        ..add(t(700, s: 2), cut: true)
+        ..add(t(700, s: 2));
+      expect(s.stable!.price, Money(700));
     });
   });
 }

@@ -37,6 +37,7 @@ final class TagReading {
     this.bulkBox,
     this.partial = false,
     this.bulkHint = false,
+    this.kgOnPrice = false,
   });
 
   final String? name;
@@ -77,6 +78,10 @@ final class TagReading {
   /// preço): um preço sozinho pode ser só uma das colunas.
   final bool bulkHint;
 
+  /// "kg" na própria linha do preço ("6,49/KG" ou "/KG" ao lado): basta um
+  /// quadro para marcar preço por quilo.
+  final bool kgOnPrice;
+
   /// Preço unitário para [quantity] unidades (atacado, se atingir o mínimo).
   Money? priceFor(int quantity) =>
       bulkPrice != null && bulkMin != null && quantity >= bulkMin!
@@ -101,12 +106,16 @@ final _currencyAlone = RegExp('^$_currency\$');
 final _price = RegExp(
   '(?:$_currency\\s*)?(\\d{1,3}(?:\\.\\d{3})+|\\d{1,5})\\s*,\\s*(\\d{2})(?!\\d)',
 );
-final _integer = RegExp('^(?:$_currency\\s*)?(\\d{1,4})\$');
+
+/// Parte inteira sozinha ("6", "27:", "-27."), para juntar com os centavos
+/// pequenos ao lado.
+final _integer = RegExp('^$_junk(?:$_currency\\s*)?(\\d{1,4})[.,:]?\$');
 final _cents = RegExp(r'''^[,.'’]?\s*(\d{2})$''');
 final _hasCurrency = RegExp(_currency);
 
-/// Sujeira que o OCR põe antes do preço grande (".3511", ".35.11").
-const _junk = "[.,'’]?";
+/// Sujeira que o OCR põe antes do preço grande (".3511", "-26:74",
+/// "„26.74"): até dois sinais soltos.
+const _junk = "[.,'’`´\\-–—„\"“”~•·]{0,2}";
 final _separatorMisread = RegExp(
   '^$_junk(?:$_currency\\s*)?(\\d{1,4})\\s*[:.]\\s*(\\d{2})\$',
 );
@@ -145,6 +154,9 @@ final _perKg = RegExp(
   caseSensitive: false,
 );
 final _bulk = RegExp(r'atacado|a partir de', caseSensitive: false);
+
+/// "VAREJO" escrito também indica etiqueta de duas colunas.
+final _twoColumns = RegExp(r'atacado|a partir de|varejo', caseSensitive: false);
 final _minQty = RegExp(r'a partir de\s*(\d{1,3})', caseSensitive: false);
 final _letters = RegExp(r'[A-Za-zÀ-ÿ]');
 
@@ -301,6 +313,7 @@ TagReading readTag(List<OcrLine> lines, {bool region = false}) {
               !_price.hasMatch(l.text) &&
               !_integer.hasMatch(l.text.trim()),
         ),
+    kgOnPrice: _kgOnPriceLine(retail.line, lines),
     bulkPrice: bulk?.price,
     bulkMin: bulkMin,
     strength: retail.weak ? 1 : _strength(retail, lines),
@@ -314,9 +327,10 @@ TagReading readTag(List<OcrLine> lines, {bool region = false}) {
       y: retail.line.top + retail.line.height / 2,
       h: retail.line.height,
     ),
-    // "ATACADO"/"a partir de" escrito, ou outro preço grande em outra coluna.
+    // "ATACADO"/"VAREJO"/"a partir de" escrito, ou outro preço grande em
+    // outra coluna.
     bulkHint:
-        lines.any((l) => _bulk.hasMatch(l.text)) ||
+        lines.any((l) => _twoColumns.hasMatch(l.text)) ||
         candidates.any(
           (c) =>
               c.price != retail.price &&
@@ -391,6 +405,20 @@ Box? priceRegion(TagReading r, double width, double height) {
   if (right - left < 8 || bottom - top < 8) return null;
   return (left: left, top: top, width: right - left, height: bottom - top);
 }
+
+/// "kg" no texto do preço ou num "/KG" sozinho na mesma faixa de altura do
+/// preço (à direita dele, na mesma linha da etiqueta).
+bool _kgOnPriceLine(OcrLine price, List<OcrLine> lines) =>
+    _perKg.hasMatch(price.text) ||
+    lines.any(
+      (l) =>
+          l != price &&
+          _kgAlone.hasMatch(l.text.trim()) &&
+          l.top < price.top + price.height &&
+          l.top + l.height > price.top,
+    );
+
+final _kgAlone = RegExp(r'^[/|Il1\s]*kg$', caseSensitive: false);
 
 /// "3511" → 35,11.
 int? _split(String digits) => parseScaled(
@@ -567,8 +595,9 @@ class ReadingConsensus {
     final price = reading.price;
     if (price == null) {
       _misses++;
-      if (_misses >= 4) _accepted = null;
       if (_misses >= maxMisses) {
+        // A etiqueta saiu da câmera: o preço já usado pode voltar a valer.
+        _accepted = null;
         _frames.clear();
         _armed = 0;
         _hintWait = 0;
@@ -578,7 +607,6 @@ class ReadingConsensus {
       }
     } else {
       _misses = 0;
-      if (price != _accepted) _accepted = null;
     }
     // Quadro sem preço não ocupa a janela: só os com preço votam.
     if (price == null) {
@@ -587,6 +615,10 @@ class ReadingConsensus {
     }
     if (cut || _jumped(reading)) _arm();
     if (_armed > 0) _watchSwitch(price);
+    if (switched) _accepted = null;
+    // Preço que acabou de travar e foi usado: não abre tentativa nova até a
+    // etiqueta sair da câmera ou haver troca de etiqueta.
+    if (price == _accepted) return false;
     _frames.add(reading);
     if (_frames.length > window) _frames.removeAt(0);
     if (switched) {
@@ -606,7 +638,10 @@ class ReadingConsensus {
   void _arm() {
     cutSeen = true;
     _armed = _armedFrames;
-    _beforeCut = stable?.price ?? (_frames.isEmpty ? null : _frames.last.price);
+    _beforeCut =
+        stable?.price ??
+        _accepted ??
+        (_frames.isEmpty ? null : _frames.last.price);
     _newPrice = null;
     _newCount = 0;
   }
@@ -640,6 +675,9 @@ class ReadingConsensus {
   }
 
   int _count(Money price) => _frames.where((f) => f.price == price).length;
+
+  /// Preço que não abre tentativa nova: o travado agora ou o já usado.
+  bool ignores(Money price) => price == stable?.price || price == _accepted;
 
   /// Primeira leitura com preço, antes de travar: mostrada como provisória.
   TagReading? get provisional {
@@ -679,9 +717,7 @@ class ReadingConsensus {
           a.price == last.price &&
           a.price != _accepted &&
           !a.weak &&
-          !last.weak &&
-          a.strength >= 1.5 &&
-          last.strength >= 1.5) {
+          !last.weak) {
         return (a.price!, LockRule.shortcut);
       }
     }
@@ -726,11 +762,10 @@ class ReadingConsensus {
           _confirmed(mine, (f) => f.name) ??
           (keep ? old.name : null) ??
           _mostCommon(mine, (f) => f.name),
-      // "kg" visto em 2 quadros; se só 1 quadro inteiro foi lido (os outros
-      // eram recortes sem a linha do kg), 1 basta.
+      // "kg" visto em 2 quadros, ou em 1 se estava na linha do próprio preço.
       perKg:
-          mine.where((f) => f.perKg).length >=
-              (mine.where((f) => !f.partial).length >= 2 ? 2 : 1) ||
+          mine.where((f) => f.perKg).length >= 2 ||
+          mine.any((f) => f.kgOnPrice) ||
           (keep && old.perKg),
       bulkPrice: bulk,
       bulkMin: bulk == null
