@@ -129,6 +129,17 @@ void main() {
     expect(r.priceFor(10), Money(649));
   });
 
+  test('"ATACADO" escrito com um preço só marca cara de atacado', () {
+    final r = readTag([
+      l('ATACADO', 60, 20, left: 400, width: 150),
+      l(r'R$ 5,99', 100, 60, left: 400, width: 200),
+    ]);
+    expect(r.price, Money(599));
+    expect(r.bulkHint, isTrue);
+    expect(r.where, (x: 500.0, y: 130.0, h: 60.0));
+    expect(readTag([l(r'R$ 5,99', 100, 60)]).bulkHint, isFalse);
+  });
+
   // Linhas reais do Moto G54 (log tino-ocr), com a vírgula mal lida.
   test('leite: "10:77" e "9:15" viram varejo e atacado', () {
     final r = readTag([
@@ -344,6 +355,86 @@ void main() {
         s.add(TagReading(price: Money(1077), weak: true));
       }
       expect(s.stable, isNull);
+    });
+
+    TagReading at(int c, double x, {int? bulk, bool hint = false}) =>
+        TagReading(
+          price: Money(c),
+          bulkPrice: bulk == null ? null : Money(bulk),
+          strength: 2,
+          where: (x: x, y: 100, h: 50),
+          bulkHint: hint,
+        );
+
+    test('troca de etiqueta: corte na imagem + 2 quadros com preço novo', () {
+      final s = ReadingConsensus();
+      for (var i = 0; i < 5; i++) {
+        s.add(at(2872, 200));
+      }
+      s.add(at(1608, 200), cut: true);
+      expect(s.stable!.price, Money(2872));
+      expect(s.switched, isFalse);
+      s.add(at(1608, 200));
+      expect(s.switched, isTrue);
+      expect(s.stable!.price, Money(1608));
+    });
+
+    test('sem corte, o preço novo não derruba o travado tão cedo', () {
+      final s = ReadingConsensus();
+      for (var i = 0; i < 5; i++) {
+        s.add(at(2872, 200));
+      }
+      s
+        ..add(at(1608, 200))
+        ..add(at(1608, 200));
+      expect(s.switched, isFalse);
+      expect(s.stable!.price, Money(2872));
+    });
+
+    test('preço pulando de lugar também conta como troca', () {
+      final s = ReadingConsensus();
+      for (var i = 0; i < 5; i++) {
+        s.add(at(2872, 100));
+      }
+      s
+        ..add(at(1608, 400))
+        ..add(at(1608, 400));
+      expect(s.switched, isTrue);
+      expect(s.stable!.price, Money(1608));
+    });
+
+    test('o atacado da mesma etiqueta não é troca', () {
+      final s = ReadingConsensus();
+      for (var i = 0; i < 3; i++) {
+        s.add(at(649, 100, bulk: 599));
+      }
+      s
+        ..add(at(599, 400), cut: true)
+        ..add(at(599, 400));
+      expect(s.switched, isFalse);
+      expect(s.stable!.price, Money(649));
+    });
+
+    test('cara de atacado com um preço só espera o segundo preço', () {
+      final s = ReadingConsensus()
+        ..add(at(599, 400, hint: true))
+        ..add(at(599, 400, hint: true));
+      expect(s.stable, isNull);
+      s
+        ..add(at(649, 100, bulk: 599, hint: true))
+        ..add(at(649, 100, bulk: 599, hint: true));
+      expect(s.stable!.price, Money(649));
+      expect(s.stable!.bulkPrice, Money(599));
+    });
+
+    test('sem segundo preço, aceita o único depois de alguns quadros', () {
+      final s = ReadingConsensus();
+      for (var i = 0; i < 1 + ReadingConsensus.hintFrames; i++) {
+        s.add(at(599, 400, hint: true));
+      }
+      expect(s.stable, isNull);
+      s.add(at(599, 400, hint: true));
+      expect(s.stable!.price, Money(599));
     });
 
     test('nome vence por votos entre quadros', () {

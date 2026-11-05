@@ -65,6 +65,7 @@ class _Stats {
   var ocrMs = 0;
   var parseMs = 0;
   final prices = <Money, int>{};
+  var maxDiff = 0.0;
 
   String avg(int total) => ocr == 0 ? '-' : '${total ~/ ocr}';
 
@@ -82,6 +83,7 @@ class _Stats {
 /// (atacado e mínimo podem chegar depois do preço).
 typedef _LabPending = ({
   LabAnswer? answer,
+  String note,
   int ms,
   int frames,
   String rule,
@@ -90,6 +92,9 @@ typedef _LabPending = ({
 
 /// Quadros seguidos sem preço que encerram a tentativa (etiqueta saiu).
 const _goneAfter = 8;
+
+/// Diferença média entre miniaturas (0 a 255) que indica mudança brusca.
+const _cutDiff = 18.0;
 
 /// Preço preferido em etiquetas com varejo e atacado.
 enum PriceMode { retail, bulk }
@@ -136,11 +141,17 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   var _stats = _Stats();
   var _missRun = 0;
 
+  // Troca de etiqueta: miniatura do quadro anterior e dados desde o corte.
+  Uint8List? _lastThumb;
+  DateTime? _cutAt;
+  _Stats? _cutStats;
+  var _cutQr = <String>{};
+  var _qrSinceStart = <String>{};
+
   // Modo laboratório: QR de gabarito lido em paralelo ao OCR.
   BarcodeScanner? _barcodes;
   LabReport? _lab;
   LabAnswer? _answer;
-  var _answerAt = DateTime(0);
   _LabPending? _pending;
   TagReading? _labLast;
   Money? _shownProvisional;
@@ -199,7 +210,8 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         debugPrint('tino-lab QR id=${answer.id} c=${answer.scenario}');
       }
       _answer = answer;
-      _answerAt = DateTime.now();
+      _qrSinceStart.add(answer.id);
+      _cutQr.add(answer.id);
       _lab?.saw(answer);
     }
   }
@@ -216,7 +228,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         '| ${p.ms}ms quadros=${p.frames} regra=${p.rule} '
         'preços ${p.tally}';
     if (a == null) {
-      debugPrint('tino-lab sem QR: lido ${last.price?.format()} $tail');
+      debugPrint('tino-lab ${p.note}: lido ${last.price?.format()} $tail');
       return;
     }
     String field(bool ok, Object? read, Object? want) =>
@@ -401,25 +413,56 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       final reading = readTag(lines);
       final parseMs = watch.elapsedMilliseconds - cropMs - sharpMs - ocrMs;
 
+      // Mudança brusca na imagem: miniatura muito diferente da anterior.
+      var diff = 0.0;
+      if (crop != null) {
+        final thumb = thumbnail(crop.bytes, crop.width, crop.height);
+        final last = _lastThumb;
+        if (last != null) diff = thumbnailDiff(thumb, last);
+        _lastThumb = thumb;
+      }
+
       if (reading.price != null && _firstSeen == null) {
         // Nova tentativa: conta a partir do primeiro preço visto.
-        _firstSeen = DateTime.now();
+        _firstSeen = now;
         _stats = _Stats();
+        _qrSinceStart = {if (_answer case final a?) a.id};
       }
-      if (reading.price case final p?) {
-        _missRun = 0;
-        _stats.prices[p] = (_stats.prices[p] ?? 0) + 1;
-      } else if (++_missRun >= _goneAfter && _stabilizer.stable == null) {
+      final before = _stabilizer.stable?.price;
+      final changed = _stabilizer.add(reading, cut: diff >= _cutDiff);
+      if (_stabilizer.cutSeen) {
+        _cutAt = now;
+        _cutStats = _Stats();
+        _cutQr = {};
+      }
+      if (_stabilizer.switched) {
+        // Troca de etiqueta confirmada: o relógio conta desde o corte.
+        debugPrint(
+          'tino-ocr troca de etiqueta: ${before?.format()} → '
+          '${reading.price?.format()} (diferença ${diff.toStringAsFixed(0)})',
+        );
+        _firstSeen = _cutAt ?? now;
+        _stats = _cutStats ?? _Stats();
+        _qrSinceStart = _cutQr;
+      }
+      if (reading.price == null &&
+          ++_missRun >= _goneAfter &&
+          _stabilizer.stable == null) {
         // Etiqueta saiu sem travar: a próxima tentativa recomeça o relógio.
         _firstSeen = null;
       }
-      _stats
-        ..ocr += 1
-        ..voted += reading.price == null ? 0 : 1
-        ..cropMs += cropMs
-        ..sharpMs += sharpMs
-        ..ocrMs += ocrMs
-        ..parseMs += parseMs;
+      for (final s in [_stats, ?_cutStats]) {
+        if (reading.price case final p?) s.prices[p] = (s.prices[p] ?? 0) + 1;
+        s
+          ..ocr += 1
+          ..voted += reading.price == null ? 0 : 1
+          ..cropMs += cropMs
+          ..sharpMs += sharpMs
+          ..ocrMs += ocrMs
+          ..parseMs += parseMs
+          ..maxDiff = math.max(s.maxDiff, diff);
+      }
+      if (reading.price != null) _missRun = 0;
       if (reading.price == null &&
           lines.any((l) => RegExp(r'\d{2}').hasMatch(l.text))) {
         // Diagnóstico: números lidos que não viraram preço.
@@ -427,8 +470,6 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           "tino-ocr sem preço | ${lines.map((l) => "${l.text}@${l.left.round()},${l.top.round()},h${l.height.round()}${RegExp(r'\d{3}').hasMatch(l.text) ? " g${l.glyphs.map((g) => "${g.top.round()}-${g.bottom.round()}").join("/")}" : ""}").join(" ; ")}",
         );
       }
-      final before = _stabilizer.stable?.price;
-      final changed = _stabilizer.add(reading);
       final provisional = _stabilizer.provisional?.price;
       if (!changed && provisional != _shownProvisional && mounted) {
         setState(() => _shownProvisional = provisional);
@@ -444,10 +485,16 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           final ms = DateTime.now().difference(first).inMilliseconds;
           if (_lab != null) {
             _labFinish();
+            // Só compara se um único QR foi lido durante esta tentativa.
+            final ids = _qrSinceStart;
+            final a = _answer;
             _pending = (
-              answer: now.difference(_answerAt) < const Duration(seconds: 3)
-                  ? _answer
+              answer: ids.length == 1 && a != null && ids.single == a.id
+                  ? a
                   : null,
+              note: ids.length > 1
+                  ? 'QR misturado (${ids.join(", ")})'
+                  : 'sem QR',
               ms: ms,
               frames: s.ocr,
               rule: '${_stabilizer.rule?.name}',
@@ -461,7 +508,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             "movimento=${s.moving} saída300=${s.fallback} | média ms recorte=${s.avg(s.cropMs)} "
             "nitidez=${s.avg(s.sharpMs)} ocr=${s.avg(s.ocrMs)} "
             "leitura=${s.avg(s.parseMs)} | nitidez ${sharp.round()} "
-            "melhor ${_bestSharpness.round()}",
+            "melhor ${_bestSharpness.round()} | maior diferença ${s.maxDiff.toStringAsFixed(0)}",
           );
           _firstSeen = null;
         }

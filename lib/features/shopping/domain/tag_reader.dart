@@ -26,6 +26,8 @@ final class TagReading {
     this.weak = false,
     this.checked = false,
     this.glued = false,
+    this.where,
+    this.bulkHint = false,
   });
 
   final String? name;
@@ -49,6 +51,13 @@ final class TagReading {
   /// Número sem vírgula sozinho na linha do preço ("3511"): se repetir
   /// igual em 3 quadros, vira leitura firme.
   final bool glued;
+
+  /// Centro e altura da linha do preço, na imagem da moldura.
+  final ({double x, double y, double h})? where;
+
+  /// Etiqueta com cara de atacado ("ATACADO" escrito ou duas colunas de
+  /// preço): um preço sozinho pode ser só uma das colunas.
+  final bool bulkHint;
 
   /// Preço unitário para [quantity] unidades (atacado, se atingir o mínimo).
   Money? priceFor(int quantity) =>
@@ -276,6 +285,20 @@ TagReading readTag(List<OcrLine> lines) {
     strength: retail.weak ? 1 : _strength(retail, lines),
     weak: retail.weak,
     glued: retail.glued,
+    where: (
+      x: retail.line.left + retail.line.width / 2,
+      y: retail.line.top + retail.line.height / 2,
+      h: retail.line.height,
+    ),
+    // "ATACADO"/"a partir de" escrito, ou outro preço grande em outra coluna.
+    bulkHint:
+        lines.any((l) => _bulk.hasMatch(l.text)) ||
+        candidates.any(
+          (c) =>
+              c.price != retail.price &&
+              !_sameColumn(c.line, retail.line) &&
+              c.line.height >= retail.line.height * 0.6,
+        ),
     // Referência pode vir em linha própria ("Preço por kg R$ 4,98") ou em
     // linha pequena com "/kg"; a linha do próprio preço não conta.
     checked: _checks(retail.price, [
@@ -462,16 +485,42 @@ class ReadingConsensus {
     _accepted = stable?.price;
     stable = null;
     _frames.clear();
+    _armed = 0;
+    _hintWait = 0;
   }
 
-  /// Registra um quadro; retorna `true` se [stable] mudou.
-  bool add(TagReading reading) {
+  /// Quadros com preço em que uma troca detectada ainda pode se confirmar.
+  static const _armedFrames = 6;
+
+  /// Quadros que uma etiqueta com cara de atacado espera pelo segundo preço.
+  static const hintFrames = 4;
+
+  var _armed = 0;
+  Money? _beforeCut;
+  Money? _newPrice;
+  var _newCount = 0;
+  var _hintWait = 0;
+
+  /// A última chamada de [add] confirmou troca de etiqueta: mudança brusca
+  /// seguida de 2 quadros com preço novo. A janela recomeçou.
+  var switched = false;
+
+  /// A última chamada de [add] viu mudança brusca (imagem ou preço pulando).
+  var cutSeen = false;
+
+  /// Registra um quadro; retorna `true` se [stable] mudou. [cut] indica
+  /// mudança brusca na imagem (diferença grande entre quadros).
+  bool add(TagReading reading, {bool cut = false}) {
+    switched = false;
+    cutSeen = false;
     final price = reading.price;
     if (price == null) {
       _misses++;
       if (_misses >= 4) _accepted = null;
       if (_misses >= maxMisses) {
         _frames.clear();
+        _armed = 0;
+        _hintWait = 0;
         final changed = stable != null;
         stable = null;
         return changed;
@@ -481,14 +530,62 @@ class ReadingConsensus {
       if (price != _accepted) _accepted = null;
     }
     // Quadro sem preço não ocupa a janela: só os com preço votam.
-    if (price == null) return false;
+    if (price == null) {
+      if (cut) _arm();
+      return false;
+    }
+    if (cut || _jumped(reading)) _arm();
+    if (_armed > 0) _watchSwitch(price);
     _frames.add(reading);
     if (_frames.length > window) _frames.removeAt(0);
+    if (switched) {
+      // Fica só com os quadros da etiqueta nova.
+      _frames.removeWhere((f) => f.price != price);
+      stable = null;
+      rule = null;
+      _hintWait = 0;
+    }
 
     final next = _decide();
     if (_same(next, stable)) return false;
     stable = next;
     return true;
+  }
+
+  void _arm() {
+    cutSeen = true;
+    _armed = _armedFrames;
+    _beforeCut = stable?.price ?? (_frames.isEmpty ? null : _frames.last.price);
+    _newPrice = null;
+    _newCount = 0;
+  }
+
+  /// O preço pulou de lugar na moldura (mais de 1,5 altura da linha).
+  bool _jumped(TagReading r) {
+    final a = r.where;
+    final b = _frames.isEmpty ? null : _frames.last.where;
+    if (a == null || b == null || r.price == _frames.last.price) return false;
+    final h = a.h > b.h ? a.h : b.h;
+    final dx = a.x - b.x;
+    final dy = a.y - b.y;
+    return dx * dx + dy * dy > (1.5 * h) * (1.5 * h);
+  }
+
+  void _watchSwitch(Money price) {
+    _armed--;
+    final before = _beforeCut;
+    // O atacado da própria etiqueta não é etiqueta nova.
+    if (before == null || price == before || price == stable?.bulkPrice) {
+      _newPrice = null;
+      _newCount = 0;
+      return;
+    }
+    _newCount = price == _newPrice ? _newCount + 1 : 1;
+    _newPrice = price;
+    if (_newCount >= 2) {
+      switched = true;
+      _armed = 0;
+    }
   }
 
   int _count(Money price) => _frames.where((f) => f.price == price).length;
@@ -548,6 +645,16 @@ class ReadingConsensus {
       price = old.price!;
     } else if (lock != null) {
       price = lock.$1;
+      // Etiqueta com cara de atacado e um preço só: pode ser só uma das
+      // colunas. Espera alguns quadros pelo segundo preço antes de aceitar.
+      final single = _frames.where((f) => f.price == price);
+      if (old?.price != price &&
+          single.every((f) => f.bulkHint && f.bulkPrice == null) &&
+          _hintWait < hintFrames) {
+        _hintWait++;
+        return old;
+      }
+      _hintWait = 0;
       if (old?.price != price) rule = lock.$2;
     } else {
       rule = null;

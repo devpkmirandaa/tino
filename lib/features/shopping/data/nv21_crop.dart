@@ -103,3 +103,40 @@ double sharpness(Uint8List y, int width, int height, {int step = 2}) {
   final mean = sum / n;
   return squares / n - mean * mean;
 }
+
+/// Miniatura [size]×[size] do plano Y (média de cada célula), para comparar
+/// quadros rapidamente.
+Uint8List thumbnail(Uint8List y, int width, int height, {int size = 16}) {
+  final out = Uint8List(size * size);
+  final cw = width ~/ size;
+  final ch = height ~/ size;
+  if (cw == 0 || ch == 0) return out;
+  // Amostra 4×4 pontos por célula: barato e suficiente para média.
+  final sx = (cw / 4).ceil();
+  final sy = (ch / 4).ceil();
+  for (var gy = 0; gy < size; gy++) {
+    for (var gx = 0; gx < size; gx++) {
+      var sum = 0;
+      var n = 0;
+      for (var r = gy * ch; r < (gy + 1) * ch; r += sy) {
+        final row = r * width;
+        for (var c = gx * cw; c < (gx + 1) * cw; c += sx) {
+          sum += y[row + c];
+          n++;
+        }
+      }
+      out[gy * size + gx] = n == 0 ? 0 : sum ~/ n;
+    }
+  }
+  return out;
+}
+
+/// Diferença média (0 a 255) entre duas miniaturas do mesmo tamanho.
+double thumbnailDiff(Uint8List a, Uint8List b) {
+  if (a.length != b.length || a.isEmpty) return 0;
+  var sum = 0;
+  for (var i = 0; i < a.length; i++) {
+    sum += (a[i] - b[i]).abs();
+  }
+  return sum / a.length;
+}

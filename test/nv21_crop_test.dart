@@ -44,6 +44,17 @@ void main() {
     expect(r, (x: 384, y: 72, w: 384, h: 576));
   });
 
+  test('miniatura: mesma imagem não difere; imagem trocada difere', () {
+    final dark = Uint8List(64 * 64)..fillRange(0, 64 * 64, 40);
+    final half = Uint8List.fromList([
+      for (var i = 0; i < 64 * 64; i++) (i % 64) < 32 ? 40 : 200,
+    ]);
+    final a = thumbnail(dark, 64, 64);
+    expect(a.length, 256);
+    expect(thumbnailDiff(a, thumbnail(dark, 64, 64)), 0);
+    expect(thumbnailDiff(a, thumbnail(half, 64, 64)), 80);
+  });
+
   test('nitidez: listras nítidas valem mais que imagem lisa', () {
     final flat = Uint8List(64 * 64)..fillRange(0, 64 * 64, 128);
     final stripes = Uint8List.fromList([
