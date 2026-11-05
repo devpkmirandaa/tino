@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +40,12 @@ const _guide = Rect.fromLTRB(0.08, 0.32, 0.92, 0.62);
 const _interval = Duration(milliseconds: 80);
 
 /// Giro acima disso (rad/s) é celular em movimento: quadro descartado.
-const _maxTurn = 0.5;
+const _maxTurn = 0.8;
+
+/// Sem quadro aprovado por este tempo, o mais nítido recusado vai pro OCR.
+const _maxWait = Duration(milliseconds: 300);
+
+typedef _Crop = ({Uint8List bytes, int width, int height});
 
 /// Quadro com nitidez abaixo desta fração da melhor recente é descartado.
 const _minSharpness = 0.4;
@@ -49,6 +55,7 @@ class _Stats {
   var ocr = 0;
   var blurred = 0;
   var moving = 0;
+  var fallback = 0;
   var voted = 0;
   var cropMs = 0;
   var sharpMs = 0;
@@ -97,6 +104,9 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   StreamSubscription<GyroscopeEvent>? _gyro;
   var _turn = 0.0;
   var _bestSharpness = 0.0;
+  var _lastApproved = DateTime.now();
+  _Crop? _spare;
+  var _spareSharpness = -1.0;
   var _stats = _Stats();
   Money? _shownProvisional;
 
@@ -185,10 +195,6 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       final plane = image.planes.single;
       final watch = Stopwatch()..start();
       final stats = _stats;
-      if (_turn > _maxTurn) {
-        stats.moving++;
-        return;
-      }
       // Só a moldura vai para o OCR: menos pixels, mesma nitidez.
       final area = sensorRect(
         left: _guide.left,
@@ -199,7 +205,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         height: image.height,
         rotation: rotation.rawValue,
       );
-      final crop = cropNv21(
+      var crop = cropNv21(
         plane.bytes,
         width: image.width,
         height: image.height,
@@ -216,10 +222,27 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           : sharpness(crop.bytes, crop.width, crop.height, step: 3);
       final sharpMs = watch.elapsedMilliseconds - cropMs;
       _bestSharpness = math.max(sharp, _bestSharpness * 0.95);
-      if (crop != null && sharp < _bestSharpness * _minSharpness) {
-        stats.blurred++;
-        return;
+      final moving = _turn > _maxTurn;
+      if (moving || crop != null && sharp < _bestSharpness * _minSharpness) {
+        moving ? stats.moving++ : stats.blurred++;
+        if (crop == null) return;
+        if (sharp > _spareSharpness) {
+          _spare = crop;
+          _spareSharpness = sharp;
+        }
+        if (now.difference(_lastApproved) < _maxWait) return;
+        // Nunca fica sem leitura: vai o mais nítido dos recusados.
+        debugPrint(
+          "tino-ocr saída ${_maxWait.inMilliseconds}ms: quadro recusado "
+          "nitidez ${_spareSharpness.round()} melhor ${_bestSharpness.round()} "
+          "giro ${_turn.toStringAsFixed(2)}",
+        );
+        stats.fallback++;
+        crop = _spare;
       }
+      _lastApproved = now;
+      _spare = null;
+      _spareSharpness = -1;
       final text = await _recognizer.processImage(
         InputImage.fromBytes(
           bytes: crop?.bytes ?? plane.bytes,
@@ -294,7 +317,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             "tino-ocr travou em ${DateTime.now().difference(first).inMilliseconds}ms "
             "regra=${_stabilizer.rule?.name} | quadros ocr=${s.ocr} "
             "votos=${s.voted} descartados borrado=${s.blurred} "
-            "movimento=${s.moving} | média ms recorte=${s.avg(s.cropMs)} "
+            "movimento=${s.moving} saída300=${s.fallback} | média ms recorte=${s.avg(s.cropMs)} "
             "nitidez=${s.avg(s.sharpMs)} ocr=${s.avg(s.ocrMs)} "
             "leitura=${s.avg(s.parseMs)} | nitidez ${sharp.round()} "
             "melhor ${_bestSharpness.round()}",
