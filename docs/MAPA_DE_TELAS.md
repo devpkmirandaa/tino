@@ -69,4 +69,10 @@ mínimo de interações.
   quantidade com − e +; adicionar direto do scanner. Câmera pedida no
   primeiro uso. Release exige `android/app/proguard-rules.pro` (ML Kit).
   Validado no Moto G54; meta de latência/acerto em estudo (benchmark F0).
+- Etapa 6b (feita, leitura congelada em `6b35a37`): OCR só na região do
+  preço após a 1ª leitura; troca de etiqueta por mudança brusca; espera do
+  2º preço em etiqueta de atacado; mínimo não lido fica vazio e editável.
+  Modo laboratório (7 toques no rodapé de Ajustes) compara com o QR de
+  gabarito. Última rodada: preço certo 31/31, todos os campos 30/31,
+  mediana ~495 ms até travar.
 - Próximas: definir com o usuário, uma por vez.
