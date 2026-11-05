@@ -408,12 +408,17 @@ void main() {
       expect(s.rule, LockRule.repeated);
     });
 
-    test('vírgula torta (não grudada) continua sem travar sozinha', () {
-      final s = ReadingConsensus();
-      for (var i = 0; i < 5; i++) {
-        s.add(TagReading(price: Money(1077), weak: true));
-      }
+    test('vírgula torta repetida igual em 3 quadros trava', () {
+      final torta = readTag([l('7.63', 0, 60)]);
+      expect(torta.weak, isTrue);
+      expect(torta.glued, isTrue);
+      final s = ReadingConsensus()
+        ..add(torta)
+        ..add(torta);
       expect(s.stable, isNull);
+      s.add(torta);
+      expect(s.stable!.price, Money(763));
+      expect(s.rule, LockRule.repeated);
     });
 
     TagReading at(int c, double x, {int? bulk, bool hint = false}) =>

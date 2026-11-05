@@ -58,8 +58,8 @@ final class TagReading {
   /// Dígito verificador: preço por kg/litro × embalagem fecha com o preço.
   final bool checked;
 
-  /// Número sem vírgula sozinho na linha do preço ("3511"): se repetir
-  /// igual em 3 quadros, vira leitura firme.
+  /// Preço sozinho na linha com a vírgula sumida ("3511") ou torta
+  /// ("7.63", "10:77"): se repetir igual em 3 quadros, vira leitura firme.
   final bool glued;
 
   /// Centro e altura da linha do preço, na imagem da moldura.
@@ -230,6 +230,7 @@ TagReading readTag(List<OcrLine> lines, {bool region = false}) {
         line,
         _hasCurrency.hasMatch(alone),
         weak: true,
+        glued: true,
       );
     } else if (_separatorSpace.firstMatch(alone) case final m?) {
       add(

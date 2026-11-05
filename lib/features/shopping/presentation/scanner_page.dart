@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
@@ -592,7 +592,12 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           _labLast = stable;
         }
         setState(() {
-          if (stable != null) _quantity = _startQuantity(stable);
+          // Mínimo digitado vale só para a etiqueta em que foi digitado.
+          if (stable?.price != _minFor) {
+            _manualMin = null;
+            _minFor = stable?.price;
+          }
+          if (stable != null) _quantity = _startQuantity(_withMin(stable));
         });
       }
     } on Exception catch (e) {
@@ -618,6 +623,21 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
   PriceMode get _mode => ref.read(priceModeProvider);
 
+  /// Mínimo do atacado não lido e digitado no cartão; nunca preenchido
+  /// sozinho.
+  int? _manualMin;
+  Money? _minFor;
+
+  TagReading _withMin(TagReading r) => r.bulkMin != null || _manualMin == null
+      ? r
+      : TagReading(
+          name: r.name,
+          price: r.price,
+          perKg: r.perKg,
+          bulkPrice: r.bulkPrice,
+          bulkMin: _manualMin,
+        );
+
   int _startQuantity(TagReading r) =>
       _mode == PriceMode.bulk ? (r.bulkMin ?? 1) : 1;
 
@@ -634,7 +654,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     ref.read(priceModeProvider.notifier).set(mode);
     final found = _stabilizer.stable;
     setState(() {
-      if (found != null) _quantity = _startQuantity(found);
+      if (found != null) _quantity = _startQuantity(_withMin(found));
     });
   }
 
@@ -690,7 +710,8 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     final text = Theme.of(context).textTheme;
     const light = TinoColors.offWhite;
     final camera = _camera;
-    final found = _stabilizer.stable;
+    final read = _stabilizer.stable;
+    final found = read == null ? null : _withMin(read);
     final mode = ref.watch(priceModeProvider);
     return Scaffold(
       backgroundColor: TinoColors.ink,
@@ -760,6 +781,16 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
                       quantity: _quantity,
                       onQuantity: _direct(found)
                           ? (q) => setState(() => _quantity = q)
+                          : null,
+                      // Atacado lido sem o mínimo: campo vazio para digitar.
+                      onMin: read!.bulkPrice != null && read.bulkMin == null
+                          ? (m) => setState(() {
+                              _manualMin = m;
+                              _minFor = read.price;
+                              if (_mode == PriceMode.bulk && m != null) {
+                                _quantity = m;
+                              }
+                            })
                           : null,
                     )
                   else if (_error == null)
@@ -831,6 +862,48 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   }
 }
 
+/// "Atacado a partir de [__] un." com o número vazio até o usuário digitar.
+class _MinField extends StatelessWidget {
+  const _MinField({super.key, required this.applied, required this.onChanged});
+  final bool applied;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelLarge;
+    return Padding(
+      padding: const EdgeInsets.only(top: TinoSpace.s4),
+      child: Row(
+        children: [
+          Flexible(
+            child: Text(
+              applied ? 'Atacado aplicado a partir de' : 'Atacado a partir de',
+              style: style,
+            ),
+          ),
+          const SizedBox(width: TinoSpace.s8),
+          SizedBox(
+            width: 64,
+            child: TextField(
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              maxLength: 3,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(counterText: '', hintText: '–'),
+              onChanged: (v) {
+                final n = int.tryParse(v);
+                onChanged(n == null || n < 1 ? null : n);
+              },
+            ),
+          ),
+          const SizedBox(width: TinoSpace.s8),
+          Text('un.', style: style),
+        ],
+      ),
+    );
+  }
+}
+
 /// Filtro escolhido antes de escanear: qual preço usar em etiqueta dupla.
 class _ModeToggle extends StatelessWidget {
   const _ModeToggle({required this.mode, required this.onChanged});
@@ -857,6 +930,7 @@ class _Suggestion extends StatelessWidget {
     required this.quantity,
     this.onMode,
     this.onQuantity,
+    this.onMin,
   });
   final TagReading reading;
   final Money price;
@@ -864,6 +938,9 @@ class _Suggestion extends StatelessWidget {
   final int quantity;
   final ValueChanged<PriceMode>? onMode;
   final ValueChanged<int>? onQuantity;
+
+  /// Mínimo do atacado não lido: mostra campo vazio e editável.
+  final ValueChanged<int?>? onMin;
 
   @override
   Widget build(BuildContext context) {
@@ -901,7 +978,17 @@ class _Suggestion extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (bulkNote != null) Text(bulkNote, style: text.labelLarge),
+                if (onMin != null)
+                  _MinField(
+                    key: ValueKey(reading.price),
+                    applied:
+                        mode == PriceMode.retail &&
+                        min != null &&
+                        quantity >= min,
+                    onChanged: onMin!,
+                  )
+                else if (bulkNote != null)
+                  Text(bulkNote, style: text.labelLarge),
               ],
             ),
           ),
