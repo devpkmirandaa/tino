@@ -121,6 +121,56 @@ void main() {
     expect(r.priceFor(10), Money(649));
   });
 
+  // Linhas reais do Moto G54 (log tino-ocr), com a vírgula mal lida.
+  test('leite: "10:77" e "9:15" viram varejo e atacado', () {
+    final r = readTag([
+      l('ECONOMIA NO ATACADO', 88, 28, left: 72, width: 300),
+      l('LEITE INTEGRAL UHT', 126, 29, left: 73, width: 280),
+      l('Piracanjuba1L', 158, 18, left: 67, width: 160),
+      l('A PARTIR DE 3 UNIDADES', 198, 18, left: 322, width: 260),
+      l('PREÇO UNITÁRIO', 193, 19, left: 75, width: 180),
+      l('9:15', 233, 41, left: 367, width: 110),
+      l('RS', 259, 17, left: 317, width: 30),
+      l('10.77', 228, 52, left: 117, width: 150),
+      l('RS', 257, 18, left: 78, width: 30),
+    ]);
+    expect(r.price, Money(1077));
+    expect(r.bulkPrice, Money(915));
+    expect(r.bulkMin, 3);
+    expect(r.name, 'Leite integral uht');
+  });
+
+  test('"RS 915" sem vírgula ainda é preço; código não é', () {
+    expect(readTag([l('RS 915', 0, 43)]).price, Money(915));
+    expect(readTag([l('7891000', 0, 43)]).price, isNull);
+  });
+
+  test('vírgula torta é voto fraco', () {
+    expect(readTag([l('10:77', 0, 50)]).weak, isTrue);
+    expect(readTag([l(r'R$ 10,77', 0, 50)]).weak, isFalse);
+  });
+
+  test('dígito verificador: preço por kg × embalagem fecha', () {
+    final ok = readTag([
+      l('ARROZ TIPO 1 5KG', 0, 24),
+      l(r'R$ 24,90', 40, 70),
+      l(r'Preço por kg R$ 4,98', 120, 14),
+    ]);
+    expect(ok.checked, isTrue);
+    final half = readTag([
+      l('CAFÉ 500g', 0, 24),
+      l(r'R$ 18,90', 40, 70),
+      l(r'R$ 37,80/kg', 120, 14),
+    ]);
+    expect(half.checked, isTrue);
+    final wrong = readTag([
+      l('ARROZ TIPO 1 5KG', 0, 24),
+      l(r'R$ 21,90', 40, 70),
+      l(r'Preço por kg R$ 4,98', 120, 14),
+    ]);
+    expect(wrong.checked, isFalse);
+  });
+
   test('preço de referência por kg não é preço nem marca peso', () {
     final r = readTag([
       l('ARROZ TIPO 1 5KG', 0, 24),
@@ -161,6 +211,26 @@ void main() {
       expect(s.stable, isNull);
       expect(s.add(t(649, s: 2)), isTrue);
       expect(s.stable!.price, Money(649));
+    });
+
+    test('votos de vírgula torta não travam sozinhos', () {
+      TagReading w() => TagReading(price: Money(1077), weak: true);
+      final s = ReadingConsensus();
+      for (var i = 0; i < 5; i++) {
+        s.add(w());
+      }
+      expect(s.stable, isNull);
+      expect(s.provisional!.price, Money(1077));
+      s.add(t(1077));
+      expect(s.stable!.price, Money(1077));
+      expect(s.rule, LockRule.votes);
+    });
+
+    test('dígito verificador trava com uma leitura', () {
+      final s = ReadingConsensus()
+        ..add(TagReading(price: Money(2490), checked: true));
+      expect(s.stable!.price, Money(2490));
+      expect(s.rule, LockRule.checkDigit);
     });
 
     test('leituras fracas travam com 3 de 5', () {

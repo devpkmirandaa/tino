@@ -19,6 +19,8 @@ final class TagReading {
     this.bulkPrice,
     this.bulkMin,
     this.strength = 1,
+    this.weak = false,
+    this.checked = false,
   });
 
   final String? name;
@@ -31,6 +33,13 @@ final class TagReading {
 
   /// Peso do voto deste quadro (1 a 2): preço grande e com "R$" vale mais.
   final double strength;
+
+  /// Preço lido com a vírgula torta ou sumida ("10:77", "RS 915"): ajuda a
+  /// confirmar, mas não trava sozinho.
+  final bool weak;
+
+  /// Dígito verificador: preço por kg/litro × embalagem fecha com o preço.
+  final bool checked;
 
   /// Preço unitário para [quantity] unidades (atacado, se atingir o mínimo).
   Money? priceFor(int quantity) =>
@@ -59,6 +68,23 @@ final _price = RegExp(
 final _integer = RegExp('^(?:$_currency\\s*)?(\\d{1,4})\$');
 final _cents = RegExp(r'''^[,.'’]?\s*(\d{2})$''');
 final _hasCurrency = RegExp(_currency);
+final _separatorMisread = RegExp(
+  '^(?:$_currency\\s*)?(\\d{1,4})\\s*[:.]\\s*(\\d{2})\$',
+);
+final _separatorLost = RegExp('^$_currency\\s*(\\d{1,3})(\\d{2})\$');
+
+/// Valor e unidade do preço de referência: "por kg R$ 4,98", "R$ 4,98/L".
+final _referenceValue = RegExp(
+  r'(?:por|do|da)\s+(kg|quilo|litro|l|100\s*g|100\s*ml)\b.*?(\d{1,4}[,.:]\d{2})'
+  r'|(\d{1,4}[,.]\d{2})\s*/\s*(kg|litro|l|100\s*g|100\s*ml)\b',
+  caseSensitive: false,
+);
+
+/// Tamanho da embalagem: "5KG", "1L", "500 g", "900ml".
+final _packSize = RegExp(
+  r'(?<![\d.,])(\d{1,4}(?:[.,]\d{1,3})?)\s*(kg|g|ml|lt|l)\b',
+  caseSensitive: false,
+);
 final _oldPrice = RegExp(r'^\s*de\b', caseSensitive: false);
 
 /// Preço de referência por unidade de medida ("Preço por kg R$ 4,98"),
@@ -79,13 +105,20 @@ final _letters = RegExp(r'[A-Za-zÀ-ÿ]');
 
 /// Palavras de faixa promocional ou de seção, que não são nome de produto.
 final _banner = RegExp(
-  r'^(?:oferta|ofertas|promo|promoção|economize|hortifruti|hortifrúti|'
+  r'^(?:oferta|ofertas|promo|promoção|economize|economia|hortifruti|hortifrúti|'
   r'açougue|padaria|atacado|varejo|leve|pague|imperdível|preço|preços|por|'
   r'de|un|unidade|unidades|cada|kg|exclusiv\w*)\b',
   caseSensitive: false,
 );
 
-typedef _Candidate = ({Money price, OcrLine line, bool currency, bool bulk});
+typedef _Candidate = ({
+  Money price,
+  OcrLine line,
+  bool currency,
+  bool bulk,
+  bool weak,
+});
+typedef _Reference = ({int cents, int base});
 
 /// Lê nome, preço, preço/kg e atacado de uma etiqueta brasileira.
 ///
@@ -95,18 +128,19 @@ typedef _Candidate = ({Money price, OcrLine line, bool currency, bool bulk});
 /// - Nome: maior linha de texto acima do preço que não seja faixa/seção.
 TagReading readTag(List<OcrLine> lines) {
   final candidates = <_Candidate>[];
-  void add(int? cents, OcrLine line, bool currency) {
+  void add(int? cents, OcrLine line, bool currency, {bool weak = false}) {
     if (cents == null || cents == 0) return;
     candidates.add((
       price: Money(cents),
       line: line,
       currency: currency,
       bulk: _nearBulk(line, lines),
+      weak: weak,
     ));
   }
 
   for (final line in lines) {
-    if (_oldPrice.hasMatch(line.text) || _reference.hasMatch(line.text)) {
+    if (_reference.hasMatch(line.text) || _oldPrice.hasMatch(line.text)) {
       continue;
     }
     for (final m in _price.allMatches(line.text)) {
@@ -116,7 +150,20 @@ TagReading readTag(List<OcrLine> lines) {
         _hasCurrency.hasMatch(m[0]!),
       );
     }
-    final whole = _integer.firstMatch(line.text.trim());
+    // O OCR costuma trocar a vírgula por ":" ou "." ("10:77", "9.15") ou
+    // perdê-la ("RS 915"). Só vale se a linha for apenas o preço.
+    final alone = line.text.trim();
+    if (_separatorMisread.firstMatch(alone) case final m?) {
+      add(
+        parseScaled('${m[1]},${m[2]}', 2),
+        line,
+        _hasCurrency.hasMatch(alone),
+        weak: true,
+      );
+    } else if (_separatorLost.firstMatch(alone) case final m?) {
+      add(parseScaled('${m[1]},${m[2]}', 2), line, true, weak: true);
+    }
+    final whole = _integer.firstMatch(alone);
     if (whole == null) continue;
     for (final other in lines) {
       final cents = _cents.firstMatch(other.text.trim());
@@ -137,8 +184,7 @@ TagReading readTag(List<OcrLine> lines) {
       if (b == null ||
           c.line.height > b.line.height * 1.05 ||
           (c.line.height >= b.line.height * 0.95 &&
-              c.currency &&
-              !b.currency)) {
+              (c.currency && !b.currency || !c.weak && b.weak))) {
         best = c;
       }
     }
@@ -179,8 +225,48 @@ TagReading readTag(List<OcrLine> lines) {
         ),
     bulkPrice: bulk?.price,
     bulkMin: bulkMin,
-    strength: _strength(retail, lines),
+    strength: retail.weak ? 1 : _strength(retail, lines),
+    weak: retail.weak,
+    // Referência pode vir em linha própria ("Preço por kg R$ 4,98") ou em
+    // linha pequena com "/kg"; a linha do próprio preço não conta.
+    checked: _checks(retail.price, [
+      for (final l in lines)
+        if (l != retail.line) ?_referenceOf(l.text),
+    ], lines),
   );
+}
+
+_Reference? _referenceOf(String text) {
+  final m = _referenceValue.firstMatch(text);
+  if (m == null) return null;
+  final unit = (m[1] ?? m[4])!.toLowerCase().replaceAll(' ', '');
+  final cents = parseScaled((m[2] ?? m[3])!.replaceAll(':', ','), 2);
+  if (cents == null || cents == 0) return null;
+  return (cents: cents, base: unit.startsWith('100') ? 100 : 1000);
+}
+
+/// Preço por kg/litro × tamanho da embalagem fecha com o preço lido, com a
+/// folga do arredondamento do preço de referência.
+bool _checks(Money price, List<_Reference> refs, List<OcrLine> lines) {
+  if (refs.isEmpty) return false;
+  for (final l in lines) {
+    if (_reference.hasMatch(l.text)) continue;
+    for (final m in _packSize.allMatches(l.text)) {
+      final unit = m[2]!.toLowerCase();
+      final size = parseScaled(m[1]!, 3);
+      if (size == null || size == 0) continue;
+      // Em g ou ml.
+      final amount = unit == 'kg' || unit == 'l' || unit == 'lt'
+          ? size
+          : size ~/ 1000;
+      for (final r in refs) {
+        final expected = (r.cents * amount / r.base).round();
+        final slack = (amount / r.base / 2).ceil() + 1;
+        if ((expected - price.cents).abs() <= slack) return true;
+      }
+    }
+  }
+  return false;
 }
 
 /// Outro preço de tamanho parecido, na mesma altura e ao lado.
@@ -273,6 +359,10 @@ String _tidy(String text) {
   return lower[0].toUpperCase() + lower.substring(1);
 }
 
+/// Como o preço travou: votação (3 de 5), atalho (2 fortes seguidas) ou
+/// dígito verificador (preço por kg/litro × embalagem).
+enum LockRule { votes, shortcut, checkDigit }
+
 /// Votação entre os últimos quadros, com memória da etiqueta.
 ///
 /// - Trava quando [votes] dos últimos [window] quadros concordam (3 de 5),
@@ -330,24 +420,45 @@ class ReadingConsensus {
 
   int _count(Money price) => _frames.where((f) => f.price == price).length;
 
-  Money? _locked() {
+  /// Primeira leitura com preço, antes de travar: mostrada como provisória.
+  TagReading? get provisional {
+    if (stable != null || _frames.isEmpty) return null;
+    final last = _frames.last;
+    return last.price == null || last.price == _accepted ? null : last;
+  }
+
+  /// Regra que travou o preço atual.
+  LockRule? rule;
+
+  (Money, LockRule)? _locked() {
+    final last = _frames.last;
+    if (last.checked && last.price != null && last.price != _accepted) {
+      return (last.price!, LockRule.checkDigit);
+    }
     final counts = <Money, int>{};
+    final firm = <Money>{};
     for (final f in _frames) {
       final p = f.price;
-      if (p != null && p != _accepted) counts[p] = (counts[p] ?? 0) + 1;
+      if (p == null || p == _accepted) continue;
+      counts[p] = (counts[p] ?? 0) + 1;
+      if (!f.weak) firm.add(p);
     }
     for (final e in counts.entries) {
-      if (e.value >= votes) return e.key;
+      // Votos fracos ajudam, mas é preciso ao menos uma leitura firme.
+      if (e.value >= votes && firm.contains(e.key)) {
+        return (e.key, LockRule.votes);
+      }
     }
     if (_frames.length >= 2) {
       final a = _frames[_frames.length - 2];
-      final b = _frames.last;
       if (a.price != null &&
-          a.price == b.price &&
+          a.price == last.price &&
           a.price != _accepted &&
+          !a.weak &&
+          !last.weak &&
           a.strength >= 1.5 &&
-          b.strength >= 1.5) {
-        return a.price;
+          last.strength >= 1.5) {
+        return (a.price!, LockRule.shortcut);
       }
     }
     return null;
@@ -360,8 +471,10 @@ class ReadingConsensus {
     if (old != null && (lock == null || _count(old.price!) > 1)) {
       price = old.price!;
     } else if (lock != null) {
-      price = lock;
+      price = lock.$1;
+      if (old?.price != price) rule = lock.$2;
     } else {
+      rule = null;
       return null;
     }
     final mine = [

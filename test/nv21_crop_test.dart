@@ -43,4 +43,13 @@ void main() {
     );
     expect(r, (x: 384, y: 72, w: 384, h: 576));
   });
+
+  test('nitidez: listras nítidas valem mais que imagem lisa', () {
+    final flat = Uint8List(64 * 64)..fillRange(0, 64 * 64, 128);
+    final stripes = Uint8List.fromList([
+      for (var i = 0; i < 64 * 64; i++) (i % 64).isEven ? 0 : 255,
+    ]);
+    expect(sharpness(flat, 64, 64), 0);
+    expect(sharpness(stripes, 64, 64, step: 1), greaterThan(1000));
+  });
 }

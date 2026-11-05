@@ -1,9 +1,13 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 import '../../../core/theme/tino_theme.dart';
 import '../application/shopping_controller.dart';
@@ -33,6 +37,26 @@ const _guide = Rect.fromLTRB(0.08, 0.32, 0.92, 0.62);
 
 /// Intervalo mínimo entre análises; na prática, o limite é o tempo do OCR.
 const _interval = Duration(milliseconds: 80);
+
+/// Giro acima disso (rad/s) é celular em movimento: quadro descartado.
+const _maxTurn = 0.5;
+
+/// Quadro com nitidez abaixo desta fração da melhor recente é descartado.
+const _minSharpness = 0.4;
+
+/// Contagem por etiqueta, do primeiro preço visto até travar (logcat).
+class _Stats {
+  var ocr = 0;
+  var blurred = 0;
+  var moving = 0;
+  var voted = 0;
+  var cropMs = 0;
+  var sharpMs = 0;
+  var ocrMs = 0;
+  var parseMs = 0;
+
+  String avg(int total) => ocr == 0 ? '-' : '${total ~/ ocr}';
+}
 
 /// Preço preferido em etiquetas com varejo e atacado.
 enum PriceMode { retail, bulk }
@@ -70,11 +94,26 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   var _torch = false;
   DateTime? _firstSeen;
   String? _added;
+  StreamSubscription<GyroscopeEvent>? _gyro;
+  var _turn = 0.0;
+  var _bestSharpness = 0.0;
+  var _stats = _Stats();
+  Money? _shownProvisional;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Giro do aparelho, com decaimento: um tranco segura por ~100 ms.
+    _gyro = gyroscopeEventStream(samplingPeriod: SensorInterval.gameInterval)
+        .listen(
+          (e) => _turn = math.max(
+            math.sqrt(e.x * e.x + e.y * e.y + e.z * e.z),
+            _turn * 0.7,
+          ),
+          onError: (_) => _turn = 0,
+          cancelOnError: true,
+        );
     _open();
   }
 
@@ -145,6 +184,11 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     try {
       final plane = image.planes.single;
       final watch = Stopwatch()..start();
+      final stats = _stats;
+      if (_turn > _maxTurn) {
+        stats.moving++;
+        return;
+      }
       // Só a moldura vai para o OCR: menos pixels, mesma nitidez.
       final area = sensorRect(
         left: _guide.left,
@@ -165,6 +209,17 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         w: area.w,
         h: area.h,
       );
+      final cropMs = watch.elapsedMilliseconds;
+      // Nitidez relativa à melhor recente: se adapta à luz e à etiqueta.
+      final sharp = crop == null
+          ? 0.0
+          : sharpness(crop.bytes, crop.width, crop.height, step: 3);
+      final sharpMs = watch.elapsedMilliseconds - cropMs;
+      _bestSharpness = math.max(sharp, _bestSharpness * 0.95);
+      if (crop != null && sharp < _bestSharpness * _minSharpness) {
+        stats.blurred++;
+        return;
+      }
       final text = await _recognizer.processImage(
         InputImage.fromBytes(
           bytes: crop?.bytes ?? plane.bytes,
@@ -179,7 +234,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           ),
         ),
       );
-      _logTiming(watch.elapsedMilliseconds, cropped: crop != null);
+      final ocrMs = watch.elapsedMilliseconds - cropMs - sharpMs;
       // Sem recorte, filtra pela moldura na imagem inteira.
       final turned =
           rotation == InputImageRotation.rotation90deg ||
@@ -207,13 +262,42 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
               ),
       ];
       final reading = readTag(lines);
+      final parseMs = watch.elapsedMilliseconds - cropMs - sharpMs - ocrMs;
 
-      if (reading.price != null) _firstSeen ??= DateTime.now();
-      if (_stabilizer.add(reading) && mounted) {
+      if (reading.price != null && _firstSeen == null) {
+        // Nova tentativa: conta a partir do primeiro preço visto.
+        _firstSeen = DateTime.now();
+        _stats = _Stats();
+      }
+      _stats
+        ..ocr += 1
+        ..voted += reading.price == null ? 0 : 1
+        ..cropMs += cropMs
+        ..sharpMs += sharpMs
+        ..ocrMs += ocrMs
+        ..parseMs += parseMs;
+      final before = _stabilizer.stable?.price;
+      final changed = _stabilizer.add(reading);
+      final provisional = _stabilizer.provisional?.price;
+      if (!changed && provisional != _shownProvisional && mounted) {
+        setState(() => _shownProvisional = provisional);
+      }
+      if (changed && mounted) {
+        _shownProvisional = null;
         final first = _firstSeen;
-        if (_stabilizer.stable != null && first != null) {
+        // Só travamento novo; nome ou atacado chegando depois não conta.
+        if (_stabilizer.stable != null &&
+            _stabilizer.stable!.price != before &&
+            first != null) {
+          final s = _stats;
           debugPrint(
-            "tino-ocr travou em ${DateTime.now().difference(first).inMilliseconds}ms",
+            "tino-ocr travou em ${DateTime.now().difference(first).inMilliseconds}ms "
+            "regra=${_stabilizer.rule?.name} | quadros ocr=${s.ocr} "
+            "votos=${s.voted} descartados borrado=${s.blurred} "
+            "movimento=${s.moving} | média ms recorte=${s.avg(s.cropMs)} "
+            "nitidez=${s.avg(s.sharpMs)} ocr=${s.avg(s.ocrMs)} "
+            "leitura=${s.avg(s.parseMs)} | nitidez ${sharp.round()} "
+            "melhor ${_bestSharpness.round()}",
           );
           _firstSeen = null;
         }
@@ -222,24 +306,16 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           "tino-ocr ${reading.price?.format()} bulk=${reading.bulkPrice?.format()} "
           "kg=${reading.perKg} | ${lines.map((l) => "${l.text}@${l.left.round()},${l.top.round()},h${l.height.round()}").join(" ; ")}",
         );
-        setState(() => _quantity = _startQuantity(_stabilizer.stable!));
+        final stable = _stabilizer.stable;
+        setState(() {
+          if (stable != null) _quantity = _startQuantity(stable);
+        });
       }
     } on Exception catch (e) {
       debugPrint("tino-ocr erro: $e");
     } finally {
       _busy = false;
     }
-  }
-
-  var _timings = <int>[];
-
-  /// Diagnóstico: média do tempo de OCR a cada 20 quadros (logcat).
-  void _logTiming(int ms, {required bool cropped}) {
-    _timings.add(ms);
-    if (_timings.length < 20) return;
-    final avg = _timings.reduce((a, b) => a + b) ~/ _timings.length;
-    debugPrint("tino-ocr tempo médio ${avg}ms (recorte: $cropped)");
-    _timings = [];
   }
 
   /// Por unidade e com nome lido: dá para adicionar sem sair da câmera.
@@ -306,6 +382,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _gyro?.cancel();
     _camera?.dispose();
     _recognizer.close();
     super.dispose();
@@ -390,7 +467,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
                     )
                   else if (_error == null)
                     Text(
-                      _added ?? 'Procurando preço…',
+                      switch (_shownProvisional) {
+                        final p? => '${p.format()} · confirmando…',
+                        null => _added ?? 'Procurando preço…',
+                      },
                       textAlign: TextAlign.center,
                       style: text.bodyMedium?.copyWith(color: light),
                     ),

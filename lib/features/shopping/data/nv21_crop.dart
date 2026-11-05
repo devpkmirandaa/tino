@@ -82,3 +82,24 @@ import 'dart:typed_data';
   }
   return (bytes: out, width: w, height: h);
 }
+
+/// Nitidez: variância do Laplaciano no plano Y (os primeiros
+/// [width]×[height] bytes), amostrando a cada [step] pixels. Borrado ≈ baixo.
+double sharpness(Uint8List y, int width, int height, {int step = 2}) {
+  var n = 0;
+  var sum = 0.0;
+  var squares = 0.0;
+  for (var r = 1; r < height - 1; r += step) {
+    final row = r * width;
+    for (var c = 1; c < width - 1; c += step) {
+      final i = row + c;
+      final lap = 4 * y[i] - y[i - 1] - y[i + 1] - y[i - width] - y[i + width];
+      sum += lap;
+      squares += lap * lap;
+      n++;
+    }
+  }
+  if (n == 0) return 0;
+  final mean = sum / n;
+  return squares / n - mean * mean;
+}
