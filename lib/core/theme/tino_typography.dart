@@ -15,6 +15,11 @@ abstract final class TinoType {
   static const label = TinoTypeStyle(14, 20, FontWeight.w600);
   static const caption = TinoTypeStyle(12, 16, FontWeight.w500);
 
+  /// Corpo em peso 600: rótulo do botão primário e nome na linha de item
+  /// (design/specs/telas.md). Fora da escala de 8 estilos; aprovado como
+  /// variação do corpo.
+  static const corpoForte = TinoTypeStyle(16, 24, FontWeight.w600);
+
   static const all = {
     'display': display,
     'tela': tela,

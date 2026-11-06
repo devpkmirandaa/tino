@@ -1,3 +1,4 @@
+import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
 
 /// As seis molas do Tino (design/motion/motion.md, v2). Use só estas.
@@ -82,6 +83,15 @@ abstract final class TinoMotion {
   /// Troca por opacidade usada no lugar de deslocamento e escala quando o
   /// sistema pede movimento reduzido.
   static const reducedFade = Duration(milliseconds: 150);
+
+  /// Simulação de uma das [TinoSprings], de [from] até [to], partindo da
+  /// [velocity] atual. Encosta exatamente em [to] ao terminar.
+  static SpringSimulation spring(
+    SpringDescription spring,
+    double from,
+    double to, [
+    double velocity = 0,
+  ]) => SpringSimulation(spring, from, to, velocity, snapToEnd: true);
 
   /// Verdadeiro quando o sistema pede movimento reduzido.
   static bool reduced(BuildContext context) =>

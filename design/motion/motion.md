@@ -78,7 +78,7 @@ Sequência, a partir da leitura confirmada:
 - Movimento reduzido: troca direta.
 
 ### M5 · Folhas (Detalhe do item, Orçamento, Digitar preço, Organizar)
-- Abrir: y 100% → 0 com mola `folha`. Fundo escurece 0 → 0,5 em 250 ms. A tela de trás escala 1 → 0,94 junto (efeito de cartão empilhado do iOS).
+- Abrir: y 100% → 0 com mola `folha`. Fundo escurece 0 → 0,5 em 250 ms. A tela de trás escala 1 → 0,94 junto e arredonda os cantos de 0 a `radius-panel` (24), proporcional à escala (efeito de cartão empilhado do iOS). Atrás dela aparece `scrim`.
 - Conteúdo da folha entra em cascata: cada bloco y 24 → 0 + opacidade, 60 ms entre eles, mola `cartao`.
 - Arrastar: a folha segue o dedo 1:1 pra baixo; pra cima, resistência (deslocamento × 0,3). A tela de trás volta proporcionalmente.
 - Soltar: fecha se passou de 30% da altura **ou** velocidade pra baixo > 800 px/s. A mola parte com a velocidade do dedo.
@@ -122,7 +122,7 @@ Sequência, a partir da leitura confirmada:
 | --- | --- | --- |
 | Preço travado | leve | estalo curto (opcional) |
 | Item no carrinho | sucesso | — |
-| Passou do orçamento | aviso | — |
+| Passou do orçamento | aviso: dois impactos médios com 120 ms entre eles (ritmo próprio, diferente do sucesso) | — |
 | Desfazer | leve | — |
 | Concluir compra | sucesso | som de conclusão (opcional) |
 
