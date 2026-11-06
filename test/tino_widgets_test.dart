@@ -569,7 +569,6 @@ void main() {
           .listSync()
           .whereType<File>()
           .where((f) => !legacy.contains(f.uri.pathSegments.last)),
-      File('lib/dev/vitrine_main.dart'),
     ];
     final hits = <String>[];
     for (final file in files) {
