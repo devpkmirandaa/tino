@@ -23,7 +23,8 @@ repositório, não em conversas.
 
 Fonte da verdade: `docs/marca/` (manual provisório v0.2). Leia
 `docs/marca/README.md` antes de mexer em tela, componente ou asset visual;
-`tokens.json` traz cores claro/escuro, tipografia, espaçamento, raios e medidas.
+`design/tokens/tokens.json` traz cores claro/escuro, tipografia, espaçamento,
+raios e medidas.
 Vitrine: https://claude.ai/artifact/BFnLRLhQYhhA9nrvtNNbx1.
 
 - No código, só tokens semânticos (`canvas`, `surface`, `text-primary`,
@@ -36,8 +37,8 @@ Vitrine: https://claude.ai/artifact/BFnLRLhQYhhA9nrvtNNbx1.
 - Não invente símbolo da saúva, lockup, ícone do app ou componente aprovado;
   o UI Kit é exploratório.
 - Antes de trocar token ou decisão definida, explique o motivo e peça
-  aprovação. Se um token mudar, atualize `docs/marca/tokens.json` e avise que
-  a vitrine no Claude precisa ser atualizada.
+  aprovação. Se um token mudar, atualize `design/tokens/tokens.json` e avise
+  que a vitrine no Claude precisa ser atualizada.
 
 ## Stack
 
