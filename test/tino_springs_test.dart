@@ -3,14 +3,14 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tino/core/motion/tino_springs.dart';
 
-/// Tabela de design/motion/motion.md: response (s) e amortecimento.
+/// Tabela de design/motion/motion.md (v2): response (s) e amortecimento.
 const _expected = {
-  'toque': (response: 0.20, ratio: 0.90),
-  'selecao': (response: 0.25, ratio: 0.85),
-  'cartao': (response: 0.35, ratio: 0.82),
-  'confirmacao': (response: 0.38, ratio: 0.70),
-  'navegacao': (response: 0.42, ratio: 0.92),
-  'folha': (response: 0.45, ratio: 0.88),
+  'toque': (response: 0.22, ratio: 0.75),
+  'selecao': (response: 0.30, ratio: 0.75),
+  'cartao': (response: 0.40, ratio: 0.72),
+  'confirmacao': (response: 0.45, ratio: 0.58),
+  'navegacao': (response: 0.45, ratio: 0.85),
+  'folha': (response: 0.50, ratio: 0.80),
 };
 
 void main() {

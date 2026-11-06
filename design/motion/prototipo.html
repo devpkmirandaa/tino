@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tino · Protótipo de motion</title>
+<title>Tino · Protótipo de motion v2</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -114,7 +114,7 @@ nav.abas span.ativa{color:var(--action);font-weight:600}
 
   <div class="painel">
     <h1>Motion do Tino</h1>
-    <p>Protótipo com as molas de verdade. Toque nos botões como no celular.</p>
+    <p>v2, movimento mais evidente. Molas de verdade: toque nos botões como no celular.</p>
     <div class="caixa">
       <h2>Controles</h2>
       <label class="opcao">Câmera lenta (4×) <input type="checkbox" id="lenta"></label>
@@ -207,12 +207,12 @@ nav.abas span.ativa{color:var(--action);font-weight:600}
 <script>
 // ---------- Molas (massa 1). Mesmos números de motion.md ----------
 const MOLAS = {
-  toque:       {r:0.20, z:0.90},
-  selecao:     {r:0.25, z:0.85},
-  cartao:      {r:0.35, z:0.82},
-  confirmacao: {r:0.38, z:0.70},
-  navegacao:   {r:0.42, z:0.92},
-  folha:       {r:0.45, z:0.88},
+  toque:       {r:0.22, z:0.75},
+  selecao:     {r:0.30, z:0.75},
+  cartao:      {r:0.40, z:0.72},
+  confirmacao: {r:0.45, z:0.58},
+  navegacao:   {r:0.45, z:0.85},
+  folha:       {r:0.50, z:0.80},
 };
 for (const k in MOLAS){ const m=MOLAS[k]; m.k=Math.pow(2*Math.PI/m.r,2); m.c=4*Math.PI*m.z/m.r; }
 document.getElementById('molas').innerHTML = Object.entries(MOLAS).map(([n,m]) =>
@@ -265,7 +265,7 @@ const reais = v => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+
 // ---------- M1 · Pressionar ----------
 document.querySelectorAll('.pressionavel').forEach(el => {
   const m = new Mola(1, v => el.style.transform = `scale(${v})`);
-  el.addEventListener('pointerdown', () => { if (el.disabled) return; el.classList.add('press'); m.para(0.97, 'toque'); });
+  el.addEventListener('pointerdown', () => { if (el.disabled) return; el.classList.add('press'); m.para(0.94, 'toque'); });
   const soltar = () => { el.classList.remove('press'); m.para(1, 'toque'); };
   el.addEventListener('pointerup', soltar); el.addEventListener('pointerleave', soltar); el.addEventListener('pointercancel', soltar);
 });
@@ -292,7 +292,7 @@ function criarLinha(item){
   w.innerHTML = `<button class="item"><span class="nome"><b>${item.nome}</b><span>${item.apoio}</span></span><span class="preco">${reais(item.preco)}</span></button>`;
   const btn = w.querySelector('button');
   const m = new Mola(1, v => btn.style.transform = `scale(${v})`);
-  btn.addEventListener('pointerdown', () => { btn.style.background='var(--surface-soft)'; m.para(0.98,'toque'); });
+  btn.addEventListener('pointerdown', () => { btn.style.background='var(--surface-soft)'; m.para(0.96,'toque'); });
   const s = () => { btn.style.background=''; m.para(1,'toque'); };
   btn.addEventListener('pointerup', s); btn.addEventListener('pointerleave', s);
   btn.addEventListener('click', () => abrirFolha(item));
@@ -310,11 +310,22 @@ function atualizarTotal(){
   document.getElementById('rotuloTotal').textContent = `Total · ${n} ${n===1?'item':'itens'}`;
   document.getElementById('scQtd').textContent = `${n} ${n===1?'item':'itens'}`;
   const escrever = v => { elTotal.textContent = reais(v); elScTotal.textContent = reais(v); };
-  tween(de, novo, 350, escrever);
-  pulso.x = 1; pulso.v = 1.4; pulso.para(1, 'confirmacao');
+  tween(de, novo, 450, escrever);
+  pulso.v += 3.5; pulso.para(1, 'confirmacao');
+  flashCor();
   barra.para(Math.min(100, novo/ORCAMENTO*100), 'cartao');
   const f = ORCAMENTO - novo;
   document.getElementById('falta').textContent = f >= 0 ? `Faltam ${reais(f)}` : `Passou ${reais(-f)}`;
+}
+function flashCor(){
+  if (reduzido) return;
+  elTotal.style.transition = 'none'; elScTotal.style.transition = 'none';
+  elTotal.style.color = 'var(--action)'; elScTotal.style.color = 'var(--jade-claro)';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const d = Math.round(500/escalaTempo) + 'ms';
+    elTotal.style.transition = `color ${d} cubic-bezier(.2,0,0,1)`; elScTotal.style.transition = `color ${d} cubic-bezier(.2,0,0,1)`;
+    elTotal.style.color = ''; elScTotal.style.color = '';
+  }));
 }
 // ---------- M9 · Barra ----------
 const elBarra = document.getElementById('barra');
@@ -324,6 +335,9 @@ barra.definir(soma()/ORCAMENTO*100);
 // ---------- M2 · Abrir/fechar scanner ----------
 const fone = document.getElementById('fone'), scanner = document.getElementById('scanner'), comprar = document.getElementById('comprar'), veu = document.getElementById('veu');
 const btnScan = document.getElementById('abrirScanner'), scTopo = document.getElementById('scTopo');
+const topoY = new Mola(0, v => scTopo.style.transform = `translateY(${v}px)`);
+const elVisor = document.querySelector('.visor');
+const visorS = new Mola(1, v => elVisor.style.transform = `scale(${v})`);
 let origem = null;
 const morph = new Mola(0, p => {
   const o = origem; if (!o) return;
@@ -331,8 +345,8 @@ const morph = new Mola(0, p => {
   Object.assign(scanner.style, {left:L+'px', top:T+'px', width:W+'px', height:H+'px', borderRadius:R+'px'});
   const interno = document.getElementById('scInterno');
   interno.style.transform = `translate(${-o.l*(1-p)}px, ${-o.t*(1-p)}px)`;
-  comprar.style.transform = `scale(${1-0.06*p})`;
-  veu.style.opacity = 0.3*p;
+  comprar.style.transform = `scale(${1-0.10*p})`;
+  veu.style.opacity = 0.45*p;
 });
 function retanguloBotao(){ const f = fone.getBoundingClientRect(), b = btnScan.getBoundingClientRect(), s = f.width/390;
   return {l:(b.left-f.left)/s, t:(b.top-f.top)/s, w:b.width/s, h:b.height/s}; }
@@ -340,7 +354,8 @@ btnScan.addEventListener('click', () => {
   origem = retanguloBotao(); scanner.style.display = 'block'; scTopo.style.opacity = 0;
   if (reduzido){ morph.definir(1); scanner.style.opacity = 0; tween(0,1,150,v=>scanner.style.opacity=v); scTopo.style.opacity=1; return; }
   scanner.style.opacity = 1; morph.x = 0; morph.aoMudar(0); morph.para(1, 'navegacao');
-  esperar(120).then(() => tween(0, 1, 200, v => scTopo.style.opacity = v));
+  esperar(140).then(() => { tween(0, 1, 200, v => scTopo.style.opacity = v); topoY.x = -16; topoY.para(0, 'cartao'); });
+  visorS.x = 1.15; visorS.aoMudar(1.15); visorS.para(1, 'cartao');
 });
 document.getElementById('fecharScanner').addEventListener('click', () => {
   origem = retanguloBotao();
@@ -361,6 +376,7 @@ const inset = new Mola(0, v => {
 });
 inset.definir(0);
 const selo = document.getElementById('selo'), scConteudo = document.getElementById('scConteudo');
+const seloS = new Mola(1, v => selo.style.transform = `scale(${v})`);
 const btnDesfazer = document.getElementById('desfazer');
 let ocupado = false;
 
@@ -371,12 +387,15 @@ function htmlItem(it){ return `<div class="sc-item"><div class="info">
 function trocarConteudo(html){
   const velho = scConteudo.firstElementChild;
   if (velho){ velho.style.position='absolute'; velho.style.left='0'; velho.style.right='0';
-    tween(0, 1, 150, p => { velho.style.opacity = 1-p; velho.style.transform = `translateY(${-12*p}px)`; }, () => velho.remove()); }
+    tween(0, 1, 180, p => { velho.style.opacity = 1-p; velho.style.transform = `translateY(${-24*p}px)`; }, () => velho.remove()); }
   const novo = document.createElement('div'); novo.innerHTML = html; novo.style.opacity = 0; scConteudo.appendChild(novo);
-  const y = new Mola(16, v => novo.style.transform = `translateY(${v}px)`); y.para(0, 'confirmacao');
-  tween(0, 1, 180, v => novo.style.opacity = v);
+  const y = new Mola(32, v => novo.style.transform = `translateY(${v}px)`); y.aoMudar(32); y.para(0, 'confirmacao');
+  tween(0, 1, 200, v => novo.style.opacity = v);
+  const preco = novo.querySelector('.p');
+  if (preco){ preco.style.opacity = 0; const py = new Mola(32, v => preco.style.transform = `translateY(${v}px)`); py.aoMudar(32);
+    esperar(60).then(() => { py.para(0, 'confirmacao'); tween(0, 1, 200, v => preco.style.opacity = v); }); }
   const check = novo.querySelector('.ok svg');
-  if (check){ const s = new Mola(0.6, v => check.style.transform = `scale(${v})`); s.para(1, 'confirmacao'); }
+  if (check){ const s = new Mola(0.3, v => check.style.transform = `scale(${v})`); s.aoMudar(0.3); s.para(1, 'confirmacao'); }
 }
 
 document.getElementById('simular').addEventListener('click', async () => {
@@ -385,7 +404,11 @@ document.getElementById('simular').addEventListener('click', async () => {
   document.getElementById('etqTexto').textContent = it.cru;
   document.getElementById('etqPreco').textContent = it.preco.toFixed(2).replace('.', ',');
   // M3a
-  inset.para(26, 'cartao');
+  inset.para(26, 'confirmacao');
+  visorS.v += 1.6; visorS.para(1, 'confirmacao');
+  cantos.forEach(c => c.style.borderColor = '#FFFFFF');
+  esperar(250).then(() => cantos.forEach(c => c.style.borderColor = ''));
+  seloS.x = 0.7; seloS.aoMudar(0.7); seloS.para(1, 'confirmacao');
   tween(0, 1, 150, v => selo.style.opacity = v);
   if (navigator.vibrate) navigator.vibrate(8);
   await esperar(80);
@@ -422,22 +445,24 @@ async function inserirPendentes(){
     const alvo = btn.offsetHeight;
     const h = new Mola(0, v => w.style.height = v + 'px');
     h.para(alvo, 'cartao', {fim: () => w.style.height = ''});
-    const y = new Mola(-8, v => btn.style.transform = `translateY(${v}px)`); y.para(0, 'cartao');
+    const y = new Mola(0, v => btn.style.transform = `translateY(${-20*v}px) scale(${1-0.04*v})`); y.definir(1); y.para(0, 'cartao');
     tween(0, 1, 200, v => btn.style.opacity = v);
-    await esperar(40);
+    btn.style.background = 'var(--surface-soft)';
+    esperar(300).then(() => { btn.style.transition = `background-color ${Math.round(900/escalaTempo)}ms cubic-bezier(.2,0,0,1)`; btn.style.background = ''; esperar(950).then(() => btn.style.transition = ''); });
+    await esperar(60);
   }
 }
 function removerLinha(it){
   const w = it.el; if (!w) return;
   const h0 = w.offsetHeight; const btn = w.querySelector('button');
-  tween(0, 1, 150, p => { btn.style.opacity = 1-p; btn.style.transform = `translateX(${-40*p}px)`; });
+  tween(0, 1, 150, p => { btn.style.opacity = 1-p; btn.style.transform = `translateX(${-80*p}px)`; });
   const h = new Mola(h0, v => w.style.height = v + 'px'); h.para(0, 'cartao', {fim: () => w.remove()});
 }
 
 // ---------- M5 · Folha com arraste ----------
 const folha = document.getElementById('folha'), fundoFolha = document.getElementById('fundoFolha');
 let alturaFolha = 0, itemAberto = null;
-const fy = new Mola(1, v => { folha.style.transform = `translateY(${v*alturaFolha}px)`; fundoFolha.style.opacity = 0.4*(1-Math.min(1,Math.max(0,v))); });
+const fy = new Mola(1, v => { folha.style.transform = `translateY(${v*alturaFolha}px)`; const a = 1-Math.min(1,Math.max(0,v)); fundoFolha.style.opacity = 0.5*a; comprar.style.transform = `scale(${1-0.06*a})`; comprar.style.borderRadius = (24*a)+'px'; });
 function abrirFolha(it){
   itemAberto = it;
   document.getElementById('folhaTitulo').textContent = it.nome;
@@ -448,6 +473,10 @@ function abrirFolha(it){
   posicionarPolegar(true);
   if (reduzido){ folha.style.opacity=0; fy.definir(0); tween(0,1,150,v=>folha.style.opacity=v); return; }
   folha.style.opacity = 1; fy.para(0, 'folha');
+  [...folha.children].slice(1).forEach((el, i) => {
+    el.style.opacity = 0; const m = new Mola(24, v => el.style.transform = `translateY(${v}px)`); m.aoMudar(24);
+    esperar(80 + i*60).then(() => { m.para(0, 'cartao'); tween(0, 1, 200, v => el.style.opacity = v); });
+  });
 }
 function fecharFolha(vel=0){
   fundoFolha.style.pointerEvents = 'none';
@@ -486,7 +515,8 @@ window.addEventListener('pointerup', fimArrasto);
 // ---------- M6 · Segmentado ----------
 const seg = document.getElementById('seg'), polegar = document.getElementById('polegar');
 let segIdx = 0;
-const px = new Mola(0, v => polegar.style.transform = `translateX(${v}px)`);
+let pxAnt = 0;
+const px = new Mola(0, v => { const vel = Math.min(1, Math.abs(px ? px.v : 0)/1500); polegar.style.transform = `translateX(${v}px) scaleX(${1+0.12*vel})`; });
 function posicionarPolegar(inst){
   const w = (seg.clientWidth - 8)/2; polegar.style.width = w + 'px';
   if (inst) px.definir(segIdx*w); else px.para(segIdx*w, 'selecao');
