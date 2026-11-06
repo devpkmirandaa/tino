@@ -115,10 +115,9 @@ class _NavigationItem extends StatelessWidget {
                       label,
                       textAlign: TextAlign.center,
                       softWrap: true,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: animatedColor,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.weight(FontWeight.w600)
+                          .copyWith(color: animatedColor),
                     ),
                   ],
                 ),

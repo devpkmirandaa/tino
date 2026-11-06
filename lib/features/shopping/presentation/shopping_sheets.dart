@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/theme/tino_theme.dart';
 import '../application/shopping_controller.dart';
 import '../domain/cart.dart';
 import '../domain/decimal_input.dart';
@@ -251,9 +252,9 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
         const SizedBox(height: 16),
         Text(
           _error ?? 'Total do item: ${preview?.format() ?? '—'}',
-          style: text.bodyMedium?.copyWith(
-            fontWeight: _error == null ? null : FontWeight.w600,
-          ),
+          style: _error == null
+              ? text.bodyMedium
+              : text.bodyMedium?.weight(FontWeight.w600),
         ),
         const SizedBox(height: 24),
         Row(

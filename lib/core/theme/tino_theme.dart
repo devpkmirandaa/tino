@@ -95,15 +95,17 @@ ThemeData buildTinoTheme(Brightness brightness) {
   );
 
   return base.copyWith(
-    textTheme: base.textTheme.copyWith(
-      displaySmall: TinoType.display.withColor(primary).money,
-      headlineLarge: TinoType.tela.withColor(primary),
-      titleLarge: TinoType.secao.withColor(primary),
-      titleMedium: TinoType.subtitulo.withColor(primary),
-      bodyLarge: TinoType.corpo.withColor(primary),
-      bodyMedium: TinoType.secundario.withColor(secondary),
-      labelLarge: label,
-      bodySmall: TinoType.caption.withColor(secondary),
+    textTheme: _withWeightAxis(
+      base.textTheme.copyWith(
+        displaySmall: TinoType.display.withColor(primary).money,
+        headlineLarge: TinoType.tela.withColor(primary),
+        titleLarge: TinoType.secao.withColor(primary),
+        titleMedium: TinoType.subtitulo.withColor(primary),
+        bodyLarge: TinoType.corpo.withColor(primary),
+        bodyMedium: TinoType.secundario.withColor(secondary),
+        labelLarge: label,
+        bodySmall: TinoType.caption.withColor(secondary),
+      ),
     ),
     // Lucide Outline: o traço (2 px) vem da fonte; ativo muda só a cor.
     iconTheme: IconThemeData(size: TinoSize.icon, color: c.action),
@@ -197,5 +199,30 @@ ThemeData buildTinoTheme(Brightness brightness) {
       titleTextStyle: TinoType.secao.withColor(primary),
       contentTextStyle: TinoType.corpo.withColor(primary),
     ),
+  );
+}
+
+/// Estilos do Material que o Tino não redefine também levam o eixo `wght`.
+TextTheme _withWeightAxis(TextTheme theme) {
+  // O peso dos estilos do Material vem da geometria M3, aplicada só no
+  // Theme.of; mesclar aqui é o mesmo que o Flutter faz depois.
+  final t = Typography.material2021().englishLike.merge(theme);
+  TextStyle? axis(TextStyle? s) => s?.withWeightAxis;
+  return t.copyWith(
+    displayLarge: axis(t.displayLarge),
+    displayMedium: axis(t.displayMedium),
+    displaySmall: axis(t.displaySmall),
+    headlineLarge: axis(t.headlineLarge),
+    headlineMedium: axis(t.headlineMedium),
+    headlineSmall: axis(t.headlineSmall),
+    titleLarge: axis(t.titleLarge),
+    titleMedium: axis(t.titleMedium),
+    titleSmall: axis(t.titleSmall),
+    bodyLarge: axis(t.bodyLarge),
+    bodyMedium: axis(t.bodyMedium),
+    bodySmall: axis(t.bodySmall),
+    labelLarge: axis(t.labelLarge),
+    labelMedium: axis(t.labelMedium),
+    labelSmall: axis(t.labelSmall),
   );
 }

@@ -155,4 +155,46 @@ void main() {
       );
     });
   }
+
+  test('Todo peso do tema leva o eixo wght correspondente', () {
+    final t = buildTinoTheme(Brightness.light).textTheme;
+    final styles = [
+      t.displayLarge,
+      t.displayMedium,
+      t.displaySmall,
+      t.headlineLarge,
+      t.headlineMedium,
+      t.headlineSmall,
+      t.titleLarge,
+      t.titleMedium,
+      t.titleSmall,
+      t.bodyLarge,
+      t.bodyMedium,
+      t.bodySmall,
+      t.labelLarge,
+      t.labelMedium,
+      t.labelSmall,
+      for (final s in TinoType.all.values) s.withColor(const Color(0xFF000000)),
+      t.bodyLarge!.weight(FontWeight.w500),
+      t.bodySmall!.money,
+    ];
+    for (final s in styles) {
+      expect(s?.fontVariations, [
+        FontVariation.weight(s!.fontWeight!.value.toDouble()),
+      ]);
+    }
+  });
+
+  test('Peso só muda via weight(), com o eixo wght junto', () {
+    final hits = <String>[];
+    for (final f in Directory('lib').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      if (f.path.endsWith('tino_typography.dart')) continue;
+      final lines = f.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].contains('fontWeight:')) hits.add('${f.path}:${i + 1}');
+      }
+    }
+    expect(hits, isEmpty);
+  });
 }

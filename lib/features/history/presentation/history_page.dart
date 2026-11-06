@@ -120,9 +120,7 @@ class _PurchaseRow extends StatelessWidget {
                 children: [
                   Text(
                     formatDateTime(purchase.finishedAt),
-                    style: text.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: text.bodyLarge?.weight(FontWeight.w600),
                   ),
                   Text(
                     itemCount(purchase.cart.items.length),

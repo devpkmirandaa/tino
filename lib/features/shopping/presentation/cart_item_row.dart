@@ -35,16 +35,12 @@ class CartItemRow extends StatelessWidget {
                   children: [
                     Text(
                       item.name,
-                      style: text.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: text.bodyLarge?.weight(FontWeight.w600),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       detail,
-                      style: text.bodySmall?.money.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: text.bodySmall?.money.weight(FontWeight.w500),
                     ),
                   ],
                 ),

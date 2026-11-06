@@ -44,14 +44,33 @@ class TinoTypeStyle {
     fontSize: fontSize,
     height: lineHeight / fontSize,
     fontWeight: fontWeight,
+    fontVariations: tinoWeightAxis(fontWeight),
     color: color,
   );
 }
 
+/// A Plus Jakarta Sans é variável: o eixo `wght` precisa acompanhar
+/// `fontWeight`, senão o Android pode desenhar todos os pesos iguais.
+List<FontVariation> tinoWeightAxis(FontWeight weight) => [
+  FontVariation.weight(weight.value.toDouble()),
+];
+
+extension TinoWeight on TextStyle {
+  /// Troca o peso mantendo o eixo `wght` em sincronia. Use no lugar de
+  /// `copyWith(fontWeight: ...)`.
+  TextStyle weight(FontWeight weight) =>
+      copyWith(fontWeight: weight, fontVariations: tinoWeightAxis(weight));
+
+  /// Aplica o eixo `wght` do peso que o estilo já tem.
+  TextStyle get withWeightAxis {
+    final w = fontWeight;
+    return w == null ? this : weight(w);
+  }
+}
+
 extension TinoMoney on TextStyle {
   /// Preço: peso 700 e numerais tabulares.
-  TextStyle get money => copyWith(
-    fontWeight: FontWeight.w700,
-    fontFeatures: const [FontFeature.tabularFigures()],
-  );
+  TextStyle get money =>
+      weight(FontWeight.w700)
+          .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
 }

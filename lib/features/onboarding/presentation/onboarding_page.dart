@@ -228,10 +228,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                                                     child: Text(
                                                       _steps[index].title,
                                                       style: text.headlineMedium
-                                                          ?.copyWith(
+                                                          ?.weight(
+                                                            FontWeight.w600,
+                                                          )
+                                                          .copyWith(
                                                             fontSize: 28,
-                                                            fontWeight:
-                                                                FontWeight.w600,
                                                             height: 1.25,
                                                           ),
                                                     ),
@@ -240,10 +241,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                                                   Text(
                                                     _steps[index].support,
                                                     style: text.bodyLarge
-                                                        ?.copyWith(
+                                                        ?.weight(
+                                                          FontWeight.w400,
+                                                        )
+                                                        .copyWith(
                                                           fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.w400,
                                                           height: 1.5,
                                                         ),
                                                   ),
