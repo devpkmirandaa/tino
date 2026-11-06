@@ -1,30 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// Paleta oficial (docs/marca). Em widgets, prefira [TinoTokens].
-abstract final class TinoColors {
-  static const jade = Color(0xFF246B55);
-  static const lightJade = Color(0xFFABD8C5);
-  static const glacialBlue = Color(0xFFC8E1ED);
-  static const offWhite = Color(0xFFF5F7F6);
-  static const ink = Color(0xFF16221F);
-  static const softWhite = Color(0xFFEAF1EE);
-}
+import 'tino_colors.dart';
+import 'tino_typography.dart';
 
-/// Tokens semânticos do tema claro (docs/marca/tokens.json).
-/// O tema escuro ainda não está implementado.
-abstract final class TinoTokens {
-  static const canvas = TinoColors.offWhite;
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceSoft = TinoColors.softWhite;
-  static const border = Color(0xFFD6E1DB);
-  static const borderStrong = Color(0xFF7D9189);
-  static const textPrimary = TinoColors.ink;
-  static const textSecondary = Color(0xFF52655E);
-  static const action = TinoColors.jade;
-  static const onAction = Color(0xFFFFFFFF);
-  static const actionPressed = Color(0xFF1C5946);
-  static const info = TinoColors.glacialBlue;
-}
+export 'tino_colors.dart';
+export 'tino_typography.dart';
+
+// Fonte da verdade de todos os valores: design/tokens/tokens.json.
+// test/theme_tokens_test.dart confere este arquivo contra o JSON.
 
 /// Escala de 4 pt.
 abstract final class TinoSpace {
@@ -43,84 +26,97 @@ abstract final class TinoRadius {
   static const cardCompact = 16.0;
   static const card = 20.0;
   static const panel = 24.0;
+  static const pill = 999.0;
 }
 
-extension TinoMoney on TextStyle {
-  /// Preço: peso 700 e numerais tabulares.
-  TextStyle get money => copyWith(
-    fontWeight: FontWeight.w700,
-    fontFeatures: const [FontFeature.tabularFigures()],
-  );
+abstract final class TinoSize {
+  static const touchTarget = 48.0;
+  static const inputHeight = 52.0;
+  static const icon = 24.0;
+  static const iconCompact = 20.0;
+  static const iconStroke = 2.0;
+  static const borderWidth = 1.0;
 }
 
-TextStyle _style(double size, double height, FontWeight weight, Color color) =>
-    TextStyle(
-      fontFamily: 'PlusJakartaSans',
-      fontSize: size,
-      height: height / size,
-      fontWeight: weight,
-      color: color,
-    );
+/// Tema claro. Mantido para os pontos de entrada atuais do app.
+ThemeData buildTinoLightTheme() => buildTinoTheme(Brightness.light);
 
-ThemeData buildTinoLightTheme() {
-  const scheme = ColorScheme.light(
-    primary: TinoTokens.action,
-    onPrimary: TinoTokens.onAction,
-    primaryContainer: TinoColors.lightJade,
-    onPrimaryContainer: TinoTokens.textPrimary,
-    secondary: TinoTokens.action,
-    onSecondary: TinoTokens.onAction,
-    secondaryContainer: TinoTokens.surfaceSoft,
-    onSecondaryContainer: TinoTokens.textPrimary,
-    surface: TinoTokens.surface,
-    onSurface: TinoTokens.textPrimary,
-    onSurfaceVariant: TinoTokens.textSecondary,
-    outline: TinoTokens.borderStrong,
-    outlineVariant: TinoTokens.border,
-    surfaceContainerLow: TinoTokens.surfaceSoft,
+/// Tema completo a partir dos tokens de [TinoColorScheme].
+///
+/// O escuro já existe, mas o app segue em `ThemeMode.light` até as telas
+/// trocarem [TinoTokens] por `context.tino`.
+ThemeData buildTinoTheme(Brightness brightness) {
+  final c = TinoColorScheme.of(brightness);
+  // Erro fica no padrão do Material: o manual ainda não define token de erro.
+  final defaults = brightness == Brightness.dark
+      ? const ColorScheme.dark()
+      : const ColorScheme.light();
+  final scheme = defaults.copyWith(
+    primary: c.action,
+    onPrimary: c.onAction,
+    primaryContainer: c.jadeTint ?? TinoColors.lightJade,
+    onPrimaryContainer: c.textPrimary,
+    secondary: c.action,
+    onSecondary: c.onAction,
+    secondaryContainer: c.surfaceSoft,
+    onSecondaryContainer: c.textPrimary,
+    surface: c.surface,
+    onSurface: c.textPrimary,
+    onSurfaceVariant: c.textSecondary,
+    outline: c.borderStrong,
+    outlineVariant: c.border,
+    surfaceContainerLow: c.surfaceSoft,
   );
   final base = ThemeData(
     useMaterial3: true,
+    brightness: brightness,
     colorScheme: scheme,
-    fontFamily: 'PlusJakartaSans',
-    scaffoldBackgroundColor: TinoTokens.canvas,
+    fontFamily: tinoFontFamily,
+    scaffoldBackgroundColor: c.canvas,
+    extensions: [c],
   );
-  const primary = TinoTokens.textPrimary;
-  const secondary = TinoTokens.textSecondary;
-  final label = _style(14, 20, FontWeight.w600, primary);
+  final primary = c.textPrimary;
+  final secondary = c.textSecondary;
+  final label = TinoType.label.withColor(primary);
   final control = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(TinoRadius.control),
   );
-  const buttonSize = Size(48, 48);
-  const buttonPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 12);
-  OutlineInputBorder inputBorder(Color color, [double width = 1]) =>
-      OutlineInputBorder(
-        borderRadius: BorderRadius.circular(TinoRadius.control),
-        borderSide: BorderSide(color: color, width: width),
-      );
+  const buttonSize = Size(TinoSize.touchTarget, TinoSize.touchTarget);
+  const buttonPadding = EdgeInsets.symmetric(
+    horizontal: TinoSpace.s16,
+    vertical: TinoSpace.s12,
+  );
+  OutlineInputBorder inputBorder(
+    Color color, [
+    double width = TinoSize.borderWidth,
+  ]) => OutlineInputBorder(
+    borderRadius: BorderRadius.circular(TinoRadius.control),
+    borderSide: BorderSide(color: color, width: width),
+  );
 
   return base.copyWith(
     textTheme: base.textTheme.copyWith(
-      displaySmall: _style(32, 40, FontWeight.w700, primary).money,
-      headlineLarge: _style(24, 32, FontWeight.w700, primary),
-      titleLarge: _style(20, 28, FontWeight.w700, primary),
-      titleMedium: _style(18, 26, FontWeight.w600, primary),
-      bodyLarge: _style(16, 24, FontWeight.w400, primary),
-      bodyMedium: _style(14, 20, FontWeight.w500, secondary),
+      displaySmall: TinoType.display.withColor(primary).money,
+      headlineLarge: TinoType.tela.withColor(primary),
+      titleLarge: TinoType.secao.withColor(primary),
+      titleMedium: TinoType.subtitulo.withColor(primary),
+      bodyLarge: TinoType.corpo.withColor(primary),
+      bodyMedium: TinoType.secundario.withColor(secondary),
       labelLarge: label,
-      bodySmall: _style(12, 16, FontWeight.w500, secondary),
+      bodySmall: TinoType.caption.withColor(secondary),
     ),
-    iconTheme: const IconThemeData(size: 24, color: TinoTokens.action),
-    dividerTheme: const DividerThemeData(
-      color: TinoTokens.border,
-      thickness: 1,
-      space: 1,
+    // Lucide Outline: o traço (2 px) vem da fonte; ativo muda só a cor.
+    iconTheme: IconThemeData(size: TinoSize.icon, color: c.action),
+    dividerTheme: DividerThemeData(
+      color: c.border,
+      thickness: TinoSize.borderWidth,
+      space: TinoSize.borderWidth,
     ),
     filledButtonTheme: FilledButtonThemeData(
       style:
           FilledButton.styleFrom(
-            backgroundColor: TinoTokens.action,
-            foregroundColor: TinoTokens.onAction,
+            backgroundColor: c.action,
+            foregroundColor: c.onAction,
             minimumSize: buttonSize,
             padding: buttonPadding,
             shape: control,
@@ -128,25 +124,24 @@ ThemeData buildTinoLightTheme() {
           ).copyWith(
             overlayColor: const WidgetStatePropertyAll(Colors.transparent),
             backgroundColor: WidgetStateProperty.resolveWith(
-              (s) => s.contains(WidgetState.pressed)
-                  ? TinoTokens.actionPressed
-                  : TinoTokens.action,
+              (s) =>
+                  s.contains(WidgetState.pressed) ? c.actionPressed : c.action,
             ),
           ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: TinoTokens.action,
+        foregroundColor: c.action,
         minimumSize: buttonSize,
         padding: buttonPadding,
-        side: const BorderSide(color: TinoTokens.action),
+        side: BorderSide(color: c.action),
         shape: control,
         textStyle: label,
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: TinoTokens.action,
+        foregroundColor: c.action,
         minimumSize: buttonSize,
         padding: buttonPadding,
         shape: control,
@@ -156,47 +151,51 @@ ThemeData buildTinoLightTheme() {
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: SegmentedButton.styleFrom(
         minimumSize: buttonSize,
-        backgroundColor: TinoTokens.surface,
-        foregroundColor: TinoTokens.textSecondary,
-        selectedBackgroundColor: TinoTokens.surfaceSoft,
-        selectedForegroundColor: TinoTokens.action,
-        side: const BorderSide(color: TinoTokens.borderStrong),
+        backgroundColor: c.surface,
+        foregroundColor: c.textSecondary,
+        selectedBackgroundColor: c.surfaceSoft,
+        selectedForegroundColor: c.action,
+        side: BorderSide(color: c.borderStrong),
         shape: control,
         textStyle: label,
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: TinoTokens.surface,
-      constraints: const BoxConstraints(minHeight: 52),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      labelStyle: _style(14, 20, FontWeight.w500, secondary),
-      border: inputBorder(TinoTokens.borderStrong),
-      enabledBorder: inputBorder(TinoTokens.borderStrong),
-      focusedBorder: inputBorder(TinoTokens.action, 2),
+      fillColor: c.surface,
+      constraints: const BoxConstraints(minHeight: TinoSize.inputHeight),
+      // 14 vertical centraliza o texto de 24 px na altura de 52.
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: TinoSpace.s16,
+        vertical: 14,
+      ),
+      labelStyle: TinoType.secundario.withColor(secondary),
+      border: inputBorder(c.borderStrong),
+      enabledBorder: inputBorder(c.borderStrong),
+      focusedBorder: inputBorder(c.action, 2),
     ),
-    progressIndicatorTheme: const ProgressIndicatorThemeData(
-      color: TinoTokens.action,
-      linearTrackColor: TinoTokens.surfaceSoft,
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: c.action,
+      linearTrackColor: c.surfaceSoft,
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: TinoTokens.surface,
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: c.surface,
       surfaceTintColor: Colors.transparent,
-      dragHandleColor: TinoTokens.border,
-      shape: RoundedRectangleBorder(
+      dragHandleColor: c.border,
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(TinoRadius.panel),
         ),
       ),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: TinoTokens.surface,
+      backgroundColor: c.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(TinoRadius.panel),
       ),
-      titleTextStyle: _style(20, 28, FontWeight.w700, primary),
-      contentTextStyle: _style(16, 24, FontWeight.w400, primary),
+      titleTextStyle: TinoType.secao.withColor(primary),
+      contentTextStyle: TinoType.corpo.withColor(primary),
     ),
   );
 }
