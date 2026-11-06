@@ -24,6 +24,7 @@ Animações: ver `motion/motion.md`. Cada tela abaixo cita as interações pelo 
 | Botão de texto | altura 48 | sem fundo, texto `action` 14/600 |
 | Chip | altura 40, raio pílula | borda `border-strong`, ícone 20 (compacto) + rótulo 14/600 |
 | Botão só ícone | 48 × 48 | sempre com rótulo de acessibilidade |
+| Botão desativado | mesmas medidas da variante | primário: fundo `surface-soft`, texto e ícone `text-secondary`; contornado: borda `border`, texto `text-secondary`; texto e só ícone: `text-secondary`. Sem M1 (não escala nem troca cor) e sem háptico; leitor de tela anuncia "desativado" |
 | Input | altura 52, raio 12 | borda `border-strong`, rótulo acima 14/600 |
 | Cartão | raio 20 (principal) ou 16 (compacto), padding 16 | fundo `surface`, borda 1 `border`, sem sombra |
 | Linha de item | altura mín. 64, padding 12/16 | nome 16/600, apoio 12/500 `text-secondary`, preço 16/700 tabular à direita |

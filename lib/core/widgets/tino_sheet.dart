@@ -110,6 +110,9 @@ class _TinoSheetRoute<T> extends PopupRoute<T> {
     super.dispose();
   }
 
+  /// A folha está fora do lugar (descendo ou erguida com resistência).
+  bool get displaced => (controller?.value ?? 1) < 1 || (_lift?.value ?? 0) > 0;
+
   void dragUpdate(double deltaPx, double height) {
     if (!isCurrent || height <= 0) return;
     final c = controller!;
@@ -158,8 +161,62 @@ class _TinoSheetFrame extends StatefulWidget {
 
 class _TinoSheetFrameState extends State<_TinoSheetFrame> {
   final _sheet = GlobalKey();
+  final _scroll = ScrollController();
+
+  /// O gesto atual está movendo a folha (e não rolando o conteúdo).
+  bool _movingSheet = false;
 
   double get _height => _sheet.currentContext?.size?.height ?? 0;
+
+  ScrollPosition? get _position => _scroll.hasClients ? _scroll.position : null;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _dragStart(DragStartDetails _) {
+    _movingSheet = false;
+    // Segura uma rolagem em andamento, como um toque segura no iOS.
+    final position = _position;
+    if (position != null) position.jumpTo(position.pixels);
+  }
+
+  /// Puxar pra baixo com o conteúdo no topo (ou sem rolagem) move a folha;
+  /// com a folha fora do lugar, o gesto continua nela. No resto, rola.
+  void _dragUpdate(DragUpdateDetails d) {
+    final route = widget.route;
+    final dy = d.delta.dy;
+    final position = _position;
+    final scrollable =
+        position != null && position.maxScrollExtent > position.minScrollExtent;
+    final atTop =
+        position == null || position.pixels <= position.minScrollExtent;
+    _movingSheet =
+        route.displaced || (dy > 0 && atTop) || (dy < 0 && !scrollable);
+    if (_movingSheet || position == null) {
+      route.dragUpdate(dy, _height);
+      return;
+    }
+    position.jumpTo(
+      (position.pixels - dy).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      ),
+    );
+  }
+
+  void _dragEnd(double velocity) {
+    final route = widget.route;
+    final position = _position;
+    if (_movingSheet || route.displaced || position == null) {
+      route.dragEnd(velocity, _height);
+    } else if (position is ScrollPositionWithSingleContext) {
+      position.goBallistic(-velocity);
+    }
+    _movingSheet = false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -203,6 +260,9 @@ class _TinoSheetFrameState extends State<_TinoSheetFrame> {
             ),
             Flexible(
               child: SingleChildScrollView(
+                key: const ValueKey('tino-sheet-scroll'),
+                controller: _scroll,
+                physics: const _SheetContentPhysics(),
                 padding: const EdgeInsets.fromLTRB(
                   TinoSpace.s16,
                   TinoSpace.s8,
@@ -232,10 +292,10 @@ class _TinoSheetFrameState extends State<_TinoSheetFrame> {
 
     final draggable = GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onVerticalDragUpdate: (d) => route.dragUpdate(d.delta.dy, _height),
-      onVerticalDragEnd: (d) =>
-          route.dragEnd(d.velocity.pixelsPerSecond.dy, _height),
-      onVerticalDragCancel: () => route.dragEnd(0, _height),
+      onVerticalDragStart: _dragStart,
+      onVerticalDragUpdate: _dragUpdate,
+      onVerticalDragEnd: (d) => _dragEnd(d.velocity.pixelsPerSecond.dy),
+      onVerticalDragCancel: () => _dragEnd(0),
       child: sheet,
     );
 
@@ -280,6 +340,24 @@ class _TinoSheetFrameState extends State<_TinoSheetFrame> {
       ],
     );
   }
+}
+
+/// Rolagem do conteúdo da folha: o arraste do dedo é tratado pela folha
+/// (que decide entre mover a folha e rolar), então a rolagem não disputa o
+/// gesto. A rolagem implícita continua ligada, pra o leitor de tela e o foco
+/// do teclado levarem o conteúdo até o campo.
+class _SheetContentPhysics extends ClampingScrollPhysics {
+  const _SheetContentPhysics({super.parent});
+
+  @override
+  _SheetContentPhysics applyTo(ScrollPhysics? ancestor) =>
+      _SheetContentPhysics(parent: buildParent(ancestor));
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) => false;
+
+  @override
+  bool get allowImplicitScrolling => true;
 }
 
 /// Bloco da cascata: y 24 → 0 com `cartao` e opacidade com ease-out,

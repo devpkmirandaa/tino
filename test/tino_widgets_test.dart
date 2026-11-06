@@ -48,6 +48,53 @@ Future<List<double>> _frames(
 
 void main() {
   group('M1 · Pressionar', () {
+    testWidgets(
+      'Desativado: sem M1, sem háptico, surface-soft + text-secondary',
+      (tester) async {
+        final platform = <String>[];
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            platform.add(call.method);
+            return null;
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform,
+            null,
+          ),
+        );
+        final semantics = tester.ensureSemantics();
+        await tester.pumpWidget(
+          _app(const TinoButton.primary(label: 'Ok', onPressed: null)),
+        );
+        final button = find.byType(TinoPressable);
+        final gesture = await tester.startGesture(tester.getCenter(button));
+        await tester.pump(kPressTimeout);
+        await _frames(tester, () => 0);
+        expect(_scale(tester, button), 1);
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        const c = TinoColorScheme.light;
+        final box = tester.widget<AnimatedContainer>(
+          find.byType(AnimatedContainer),
+        );
+        expect((box.decoration! as BoxDecoration).color, c.surfaceSoft);
+        expect(
+          tester.widget<Text>(find.text('Ok')).style?.color,
+          c.textSecondary,
+        );
+        expect(platform.where((m) => m.startsWith('HapticFeedback')), isEmpty);
+        expect(
+          tester.getSemantics(button),
+          isSemantics(isButton: true, hasEnabledState: true, isEnabled: false),
+        );
+        semantics.dispose();
+      },
+    );
+
     testWidgets('Botão afunda a 0,94 e volta passando um pouco de 1', (
       tester,
     ) async {
@@ -259,7 +306,11 @@ void main() {
   });
 
   group('M5 · Folha', () {
-    Future<void> open(WidgetTester tester, {bool reduced = false}) async {
+    Future<void> open(
+      WidgetTester tester, {
+      bool reduced = false,
+      bool tall = false,
+    }) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: buildTinoTheme(Brightness.light),
@@ -275,9 +326,12 @@ void main() {
                     label: 'Abrir',
                     onPressed: () => showTinoSheet<void>(
                       context,
-                      blocks: const [
-                        SizedBox(height: 200, child: Text('Conteúdo')),
-                        Text('Segundo bloco'),
+                      blocks: [
+                        SizedBox(
+                          height: tall ? 1500 : 200,
+                          child: const Text('Conteúdo'),
+                        ),
+                        const Text('Segundo bloco'),
                       ],
                     ),
                   ),
@@ -375,6 +429,67 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
       expect(tester.getTopLeft(handle()).dy, closeTo(rest, 0.5));
+    });
+
+    group('Conteúdo rolável', () {
+      Finder content() => find.text('Conteúdo');
+      // O texto ocupa os 1500 px do bloco: toca perto do topo dele.
+      Offset grab(WidgetTester tester) =>
+          tester.getTopLeft(content()) + const Offset(40, 40);
+      double scrolled(WidgetTester tester) => tester
+          .state<ScrollableState>(
+            find.descendant(
+              of: find.byKey(const ValueKey('tino-sheet-scroll')),
+              matching: find.byType(Scrollable),
+            ),
+          )
+          .position
+          .pixels;
+
+      testWidgets('No topo, puxar o conteúdo pra baixo move a folha', (
+        tester,
+      ) async {
+        await open(tester, tall: true);
+        final top = tester.getTopLeft(handle()).dy;
+        final gesture = await tester.startGesture(grab(tester));
+        await gesture.moveBy(const Offset(0, kTouchSlop));
+        await gesture.moveBy(const Offset(0, 60));
+        await tester.pump();
+        expect(tester.getTopLeft(handle()).dy, greaterThan(top + 50));
+        expect(scrolled(tester), 0);
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(tester.getTopLeft(handle()).dy, closeTo(top, 0.5));
+      });
+
+      testWidgets('Pra cima, rola o conteúdo e a folha fica', (tester) async {
+        await open(tester, tall: true);
+        final top = tester.getTopLeft(handle()).dy;
+        final gesture = await tester.startGesture(grab(tester));
+        await gesture.moveBy(const Offset(0, -kTouchSlop));
+        await gesture.moveBy(const Offset(0, -120));
+        await tester.pump();
+        expect(scrolled(tester), greaterThan(100));
+        expect(tester.getTopLeft(handle()).dy, top);
+
+        // Rolado, puxar pra baixo primeiro rola de volta, sem mover a folha.
+        await gesture.moveBy(const Offset(0, 60));
+        await tester.pump();
+        expect(scrolled(tester), lessThan(100));
+        expect(tester.getTopLeft(handle()).dy, top);
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(find.text('Conteúdo'), findsOneWidget);
+      });
+
+      testWidgets('No topo, arremesso pra baixo pelo conteúdo fecha', (
+        tester,
+      ) async {
+        await open(tester, tall: true);
+        await tester.flingFrom(grab(tester), const Offset(0, 70), 1500);
+        await tester.pumpAndSettle();
+        expect(find.text('Conteúdo'), findsNothing);
+      });
     });
 
     testWidgets('Movimento reduzido: tela de trás não escala', (tester) async {

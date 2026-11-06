@@ -78,9 +78,9 @@ Sequência, a partir da leitura confirmada:
 - Movimento reduzido: troca direta.
 
 ### M5 · Folhas (Detalhe do item, Orçamento, Digitar preço, Organizar)
-- Abrir: y 100% → 0 com mola `folha`. Fundo escurece 0 → 0,5 em 250 ms. A tela de trás escala 1 → 0,94 junto e arredonda os cantos de 0 a `radius-panel` (24), proporcional à escala (efeito de cartão empilhado do iOS). Atrás dela aparece `scrim`.
+- Abrir: y 100% → 0 com mola `folha`. Fundo (`scrim`) escurece 0 → 0,5 acompanhando a mola da folha: abre, fecha e clareia no arraste junto com ela (não usa 250 ms fixos). A tela de trás escala 1 → 0,94 junto e arredonda os cantos de 0 a `radius-panel` (24), proporcional à escala (efeito de cartão empilhado do iOS). Atrás dela aparece `scrim`.
 - Conteúdo da folha entra em cascata: cada bloco y 24 → 0 + opacidade, 60 ms entre eles, mola `cartao`.
-- Arrastar: a folha segue o dedo 1:1 pra baixo; pra cima, resistência (deslocamento × 0,3). A tela de trás volta proporcionalmente.
+- Arrastar: a folha segue o dedo 1:1 pra baixo; pra cima, resistência (deslocamento × 0,3). A tela de trás e o escurecimento voltam proporcionalmente. O arraste vale na folha toda: pelo conteúdo, quando ele está rolado até o topo (ou não rola); se o conteúdo está rolado, o gesto primeiro rola. Arremesso pra baixo no topo também fecha.
 - Soltar: fecha se passou de 30% da altura **ou** velocidade pra baixo > 800 px/s. A mola parte com a velocidade do dedo.
 - Teclado abrindo: a folha sobe junto com a mesma curva do teclado do sistema.
 
