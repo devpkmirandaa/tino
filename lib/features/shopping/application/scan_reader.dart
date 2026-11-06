@@ -1,0 +1,618 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+
+import '../data/nv21_crop.dart';
+import '../domain/lab_answer.dart';
+import '../domain/money.dart';
+import '../domain/tag_reader.dart';
+
+/// Moldura de leitura, em frações da imagem já em pé (retrato).
+const scanGuide = Rect.fromLTRB(0.08, 0.32, 0.92, 0.62);
+
+/// Intervalo mínimo entre análises; na prática, o limite é o tempo do OCR.
+const _interval = Duration(milliseconds: 80);
+
+/// Giro acima disso (rad/s) é celular em movimento: quadro descartado.
+const _maxTurn = 0.8;
+
+/// Sem quadro aprovado por este tempo, o mais nítido recusado vai pro OCR.
+const _maxWait = Duration(milliseconds: 300);
+
+typedef _Crop = ({Uint8List bytes, int width, int height});
+
+/// Quadro com nitidez abaixo desta fração da melhor recente é descartado.
+const _minSharpness = 0.4;
+
+/// Contagem por etiqueta, do primeiro preço visto até travar (logcat).
+class _Stats {
+  var ocr = 0;
+  var blurred = 0;
+  var moving = 0;
+  var fallback = 0;
+  var voted = 0;
+  var cropMs = 0;
+  var sharpMs = 0;
+  var ocrMs = 0;
+  var fullOcrMs = 0;
+  var fullOcr = 0;
+  var zoomOcrMs = 0;
+  var zoomOcr = 0;
+
+  String ocrSplit() =>
+      'inteiro=${fullOcr == 0 ? '-' : '${fullOcrMs ~/ fullOcr}ms'}($fullOcr) '
+      'recorte=${zoomOcr == 0 ? '-' : '${zoomOcrMs ~/ zoomOcr}ms'}($zoomOcr)';
+  var parseMs = 0;
+  final prices = <Money, int>{};
+  var maxDiff = 0.0;
+
+  String avg(int total) => ocr == 0 ? '-' : '${total ~/ ocr}';
+
+  /// Preços concorrentes, do mais votado: "19,11×4, 18,11×1".
+  String tally() {
+    final list = prices.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return list
+        .map((e) => '${e.key.format().replaceFirst(r'R$ ', '')}×${e.value}')
+        .join(', ');
+  }
+}
+
+/// Travamento aguardando a etiqueta sair para ser comparado com o gabarito
+/// (atacado e mínimo podem chegar depois do preço).
+typedef _LabPending = ({
+  LabAnswer? answer,
+  String note,
+  int ms,
+  int frames,
+  String rule,
+  String tally,
+});
+
+/// Quadros seguidos sem preço que encerram a tentativa (etiqueta saiu).
+const _goneAfter = 8;
+
+/// A cada tantos quadros, um vai inteiro (moldura) para ler o nome.
+const _fullEvery = 4;
+
+/// Diferença média entre miniaturas (0 a 255) que indica mudança brusca.
+const _cutDiff = 18.0;
+
+/// Câmera ao vivo + OCR local (ML Kit), só dentro da [scanGuide]. Nenhuma
+/// imagem é gravada ou enviada. Não depende de widget: a tela só escuta.
+class ScanReader extends ChangeNotifier with WidgetsBindingObserver {
+  /// [labMode] liga o leitor de QR de gabarito em paralelo ao OCR.
+  ScanReader({required Future<bool> labMode, this.onChanged}) {
+    WidgetsBinding.instance.addObserver(this);
+    // Giro do aparelho, com decaimento: um tranco segura por ~100 ms.
+    _gyro = gyroscopeEventStream(samplingPeriod: SensorInterval.gameInterval)
+        .listen(
+          (e) => _turn = math.max(
+            math.sqrt(e.x * e.x + e.y * e.y + e.z * e.z),
+            _turn * 0.7,
+          ),
+          onError: (_) => _turn = 0,
+          cancelOnError: true,
+        );
+    labMode.then((on) {
+      if (!on || _disposed) return;
+      debugPrint('tino-lab modo laboratório ligado');
+      _lab = LabReport();
+      _barcodes = BarcodeScanner(formats: [BarcodeFormat.qrCode]);
+    }, onError: (_) {});
+    open();
+  }
+
+  /// Chamado quando a leitura confirmada muda (inclui nome ou atacado
+  /// chegando depois), antes de avisar os ouvintes.
+  final void Function(TagReading? stable)? onChanged;
+
+  final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+  final _stabilizer = ReadingConsensus();
+  CameraController? _camera;
+  String? _error;
+  var _busy = false;
+  var _lastFrame = DateTime(0);
+  var _torch = false;
+  DateTime? _firstSeen;
+  StreamSubscription<GyroscopeEvent>? _gyro;
+  var _turn = 0.0;
+  var _bestSharpness = 0.0;
+  var _lastApproved = DateTime.now();
+  _Crop? _spare;
+  var _spareSharpness = -1.0;
+  var _stats = _Stats();
+  var _missRun = 0;
+  var _disposed = false;
+
+  // Região do preço (coordenadas da moldura) para recortar o próximo quadro.
+  Box? _region;
+  var _sinceFull = 0;
+
+  // Troca de etiqueta: miniatura do quadro anterior e dados desde o corte.
+  Uint8List? _lastThumb;
+  DateTime? _cutAt;
+  _Stats? _cutStats;
+  var _cutQr = <String>{};
+  var _qrSinceStart = <String>{};
+
+  // Modo laboratório: QR de gabarito lido em paralelo ao OCR.
+  BarcodeScanner? _barcodes;
+  LabReport? _lab;
+  LabAnswer? _answer;
+  _LabPending? _pending;
+  TagReading? _labLast;
+  Money? _shownProvisional;
+
+  CameraController? get camera => _camera;
+  String? get error => _error;
+  bool get torch => _torch;
+
+  /// Leitura confirmada pela votação.
+  TagReading? get stable => _stabilizer.stable;
+
+  /// Preço visto mas ainda não confirmado.
+  Money? get provisional => _shownProvisional;
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive) {
+      final camera = _camera;
+      _camera = null;
+      camera?.dispose();
+      _notify();
+    } else if (state == AppLifecycleState.resumed && _camera == null) {
+      open();
+    }
+  }
+
+  var _qrFrames = 0;
+  var _qrFound = 0;
+  final _unknownQr = <String>{};
+
+  void _onQr(List<Barcode> codes) {
+    _qrFrames++;
+    for (final code in codes) {
+      _qrFound++;
+      final raw = code.rawValue ?? code.displayValue ?? '';
+      final answer = LabAnswer.parse(raw);
+      if (answer == null) {
+        // Diagnóstico: QR lido que não está no formato do gabarito.
+        if (_unknownQr.add(raw)) debugPrint('tino-lab QR desconhecido: "$raw"');
+        continue;
+      }
+      if (answer.id != _answer?.id) {
+        debugPrint('tino-lab QR id=${answer.id} c=${answer.scenario}');
+      }
+      _answer = answer;
+      _qrSinceStart.add(answer.id);
+      _cutQr.add(answer.id);
+      _lab?.saw(answer);
+    }
+  }
+
+  /// Compara o último travamento com o gabarito, quando a etiqueta sai.
+  void _labFinish() {
+    final p = _pending;
+    final last = _labLast;
+    _pending = null;
+    _labLast = null;
+    if (p == null || last == null) return;
+    final a = p.answer;
+    final tail =
+        '| ${p.ms}ms quadros=${p.frames} regra=${p.rule} '
+        'preços ${p.tally}';
+    if (a == null) {
+      debugPrint('tino-lab ${p.note}: lido ${last.price?.format()} $tail');
+      return;
+    }
+    String field(bool ok, Object? read, Object? want) =>
+        ok ? 'ok' : 'ERRO(lido $read, certo $want)';
+    final c = a.check(last);
+    final ok = _lab!.lock(a, last, p.ms);
+    debugPrint(
+      'tino-lab id=${a.id} c=${a.scenario} ${ok ? 'ACERTOU' : 'ERROU'} '
+      'preço=${field(c.price, last.price?.format(), a.price.format())} '
+      'atacado=${field(c.bulk, last.bulkPrice?.format(), a.bulkPrice?.format())} '
+      'mínimo=${field(c.min, last.bulkMin, a.bulkMin)} '
+      'kg=${field(c.kg, last.perKg, a.perKg)} $tail',
+    );
+  }
+
+  /// Abre a câmera traseira e começa a ler. A permissão é pedida aqui, no
+  /// primeiro uso.
+  Future<void> open() async {
+    _error = null;
+    _notify();
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) throw CameraException('none', null);
+      final back = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+      final camera = CameraController(
+        back,
+        ResolutionPreset.high,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.nv21,
+      );
+      await camera.initialize();
+      // Foco e exposição ficam no automático contínuo: definir um ponto
+      // trava o foco naquela distância e desfoca ao mover o celular.
+      if (_disposed) {
+        await camera.dispose();
+        return;
+      }
+      await camera.startImageStream(
+        (image) => _onFrame(image, back.sensorOrientation),
+      );
+      _camera = camera;
+      _torch = false;
+      _notify();
+    } on CameraException catch (e) {
+      if (_disposed) return;
+      _error = e.code.contains('AccessDenied')
+          ? 'Sem acesso à câmera. Permita o uso da câmera para o Tino nas '
+                'configurações do Android.'
+          : 'Não deu pra abrir a câmera.';
+      _notify();
+    }
+  }
+
+  Future<void> _onFrame(CameraImage image, int sensorOrientation) async {
+    final now = DateTime.now();
+    if (_busy || now.difference(_lastFrame) < _interval) return;
+    final rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
+    final format = InputImageFormatValue.fromRawValue(image.format.raw);
+    if (rotation == null ||
+        format != InputImageFormat.nv21 ||
+        image.planes.length != 1) {
+      return;
+    }
+    _busy = true;
+    _lastFrame = now;
+    try {
+      final plane = image.planes.single;
+      final watch = Stopwatch()..start();
+      final stats = _stats;
+      // Só a moldura vai para o OCR: menos pixels, mesma nitidez.
+      final area = sensorRect(
+        left: scanGuide.left,
+        top: scanGuide.top,
+        right: scanGuide.right,
+        bottom: scanGuide.bottom,
+        width: image.width,
+        height: image.height,
+        rotation: rotation.rawValue,
+      );
+      var crop = cropNv21(
+        plane.bytes,
+        width: image.width,
+        height: image.height,
+        stride: plane.bytesPerRow,
+        x: area.x,
+        y: area.y,
+        w: area.w,
+        h: area.h,
+      );
+      final cropMs = watch.elapsedMilliseconds;
+      // Nitidez relativa à melhor recente: se adapta à luz e à etiqueta.
+      final sharp = crop == null
+          ? 0.0
+          : sharpness(crop.bytes, crop.width, crop.height, step: 3);
+      final sharpMs = watch.elapsedMilliseconds - cropMs;
+      _bestSharpness = math.max(sharp, _bestSharpness * 0.95);
+      var usedSpare = false;
+      final moving = _turn > _maxTurn;
+      if (moving || crop != null && sharp < _bestSharpness * _minSharpness) {
+        moving ? stats.moving++ : stats.blurred++;
+        if (crop == null) return;
+        if (sharp > _spareSharpness) {
+          _spare = crop;
+          _spareSharpness = sharp;
+        }
+        if (now.difference(_lastApproved) < _maxWait) return;
+        // Nunca fica sem leitura: vai o mais nítido dos recusados.
+        debugPrint(
+          "tino-ocr saída ${_maxWait.inMilliseconds}ms: quadro recusado "
+          "nitidez ${_spareSharpness.round()} melhor ${_bestSharpness.round()} "
+          "giro ${_turn.toStringAsFixed(2)}",
+        );
+        stats.fallback++;
+        crop = _spare;
+        usedSpare = true;
+      }
+      _lastApproved = now;
+      _spare = null;
+      _spareSharpness = -1;
+      // Quadro inteiro: o QR pode estar fora da moldura.
+      final qr = _barcodes?.processImage(
+        InputImage.fromBytes(
+          bytes: plane.bytes,
+          metadata: InputImageMetadata(
+            size: Size(image.width.toDouble(), image.height.toDouble()),
+            rotation: rotation,
+            format: format!,
+            bytesPerRow: plane.bytesPerRow,
+          ),
+        ),
+      );
+      final turned =
+          rotation == InputImageRotation.rotation90deg ||
+          rotation == InputImageRotation.rotation270deg;
+      final w = (turned ? image.height : image.width).toDouble();
+      final h = (turned ? image.width : image.height).toDouble();
+      // Depois da primeira leitura, só a região do preço vai para o OCR. A
+      // moldura inteira volta quando o preço some, há troca de etiqueta, o
+      // quadro é o reserva da saída de 300 ms, e a cada [_fullEvery]
+      // quadros, para ler o nome.
+      final region = usedSpare || _sinceFull >= _fullEvery - 1 ? null : _region;
+      final gx = scanGuide.left * w;
+      final gy = scanGuide.top * h;
+      _Crop? zoom;
+      if (region != null && crop != null) {
+        final a = sensorRect(
+          left: (gx + region.left) / w,
+          top: (gy + region.top) / h,
+          right: (gx + region.left + region.width) / w,
+          bottom: (gy + region.top + region.height) / h,
+          width: image.width,
+          height: image.height,
+          rotation: rotation.rawValue,
+        );
+        zoom = cropNv21(
+          plane.bytes,
+          width: image.width,
+          height: image.height,
+          stride: plane.bytesPerRow,
+          x: a.x,
+          y: a.y,
+          w: a.w,
+          h: a.h,
+        );
+      }
+      final input = zoom ?? crop;
+      final ocrStart = watch.elapsedMilliseconds;
+      final text = await _recognizer.processImage(
+        InputImage.fromBytes(
+          bytes: input?.bytes ?? plane.bytes,
+          metadata: InputImageMetadata(
+            size: Size(
+              (input?.width ?? image.width).toDouble(),
+              (input?.height ?? image.height).toDouble(),
+            ),
+            rotation: rotation,
+            format: format!,
+            bytesPerRow: input?.width ?? plane.bytesPerRow,
+          ),
+        ),
+      );
+      final ocrMs = watch.elapsedMilliseconds - ocrStart;
+      if (qr != null) _onQr(await qr);
+      // Linhas do recorte voltam para as coordenadas da moldura.
+      final ox = zoom != null ? region!.left : 0.0;
+      final oy = zoom != null ? region!.top : 0.0;
+      // Sem recorte, filtra pela moldura na imagem inteira.
+      final guide = crop != null
+          ? Rect.largest
+          : Rect.fromLTRB(
+              scanGuide.left * w,
+              scanGuide.top * h,
+              scanGuide.right * w,
+              scanGuide.bottom * h,
+            );
+      final lines = <OcrLine>[
+        for (final block in text.blocks)
+          for (final line in block.lines)
+            if (guide.contains(line.boundingBox.center))
+              (
+                text: line.text,
+                left: line.boundingBox.left + ox,
+                top: line.boundingBox.top + oy,
+                width: line.boundingBox.width,
+                height: line.boundingBox.height,
+                glyphs: [
+                  for (final element in line.elements)
+                    for (final symbol in element.symbols)
+                      (
+                        top: symbol.boundingBox.top + oy,
+                        bottom: symbol.boundingBox.bottom + oy,
+                      ),
+                ],
+              ),
+      ];
+      final parseStart = watch.elapsedMilliseconds;
+      final reading = readTag(lines, region: zoom != null);
+      final parseMs = watch.elapsedMilliseconds - parseStart;
+
+      // Mudança brusca na imagem: miniatura muito diferente da anterior.
+      var diff = 0.0;
+      if (crop != null) {
+        final thumb = thumbnail(crop.bytes, crop.width, crop.height);
+        final last = _lastThumb;
+        if (last != null) diff = thumbnailDiff(thumb, last);
+        _lastThumb = thumb;
+      }
+
+      if (reading.price case final p?
+          when _firstSeen == null && !_stabilizer.ignores(p)) {
+        // Nova tentativa: conta a partir do primeiro preço visto.
+        _firstSeen = now;
+        _stats = _Stats();
+        _qrSinceStart = {if (_answer case final a?) a.id};
+      }
+      final before = _stabilizer.stable?.price;
+      final changed = _stabilizer.add(reading, cut: diff >= _cutDiff);
+      // Próximo quadro: recorte só se o preço apareceu e não houve corte.
+      _sinceFull = zoom != null ? _sinceFull + 1 : 0;
+      if (reading.price == null || _stabilizer.cutSeen) {
+        _region = null;
+      } else if (zoom == null) {
+        _region = priceRegion(
+          reading,
+          (turned ? crop?.height : crop?.width)?.toDouble() ?? 0,
+          (turned ? crop?.width : crop?.height)?.toDouble() ?? 0,
+        );
+      }
+      if (_stabilizer.cutSeen) {
+        _cutAt = now;
+        _cutStats = _Stats();
+        _cutQr = {};
+      }
+      if (_stabilizer.switched) {
+        // Troca de etiqueta confirmada: o relógio conta desde o corte.
+        debugPrint(
+          'tino-ocr troca de etiqueta: ${before?.format()} → '
+          '${reading.price?.format()} (diferença ${diff.toStringAsFixed(0)})',
+        );
+        _firstSeen = _cutAt ?? now;
+        _stats = _cutStats ?? _Stats();
+        _qrSinceStart = _cutQr;
+      }
+      if (reading.price == null &&
+          ++_missRun >= _goneAfter &&
+          _stabilizer.stable == null) {
+        // Etiqueta saiu sem travar: a próxima tentativa recomeça o relógio.
+        _firstSeen = null;
+      }
+      for (final s in [_stats, ?_cutStats]) {
+        if (reading.price case final p?) s.prices[p] = (s.prices[p] ?? 0) + 1;
+        s
+          ..ocr += 1
+          ..voted += reading.price == null ? 0 : 1
+          ..cropMs += cropMs
+          ..sharpMs += sharpMs
+          ..ocrMs += ocrMs
+          ..fullOcrMs += zoom == null ? ocrMs : 0
+          ..fullOcr += zoom == null ? 1 : 0
+          ..zoomOcrMs += zoom != null ? ocrMs : 0
+          ..zoomOcr += zoom != null ? 1 : 0
+          ..parseMs += parseMs
+          ..maxDiff = math.max(s.maxDiff, diff);
+      }
+      if (reading.price != null) _missRun = 0;
+      if (reading.price == null &&
+          lines.any((l) => RegExp(r'\d{2}').hasMatch(l.text))) {
+        // Diagnóstico: números lidos que não viraram preço.
+        debugPrint(
+          "tino-ocr sem preço | ${lines.map((l) => "${l.text}@${l.left.round()},${l.top.round()},h${l.height.round()}${RegExp(r'\d{3}').hasMatch(l.text) ? " g${l.glyphs.map((g) => "${g.top.round()}-${g.bottom.round()}").join("/")}" : ""}").join(" ; ")}",
+        );
+      }
+      final provisional = _stabilizer.provisional?.price;
+      if (!changed && provisional != _shownProvisional && !_disposed) {
+        _shownProvisional = provisional;
+        _notify();
+      }
+      if (changed && !_disposed) {
+        _shownProvisional = null;
+        final first = _firstSeen;
+        // Só travamento novo; nome ou atacado chegando depois não conta.
+        if (_stabilizer.stable != null &&
+            _stabilizer.stable!.price != before &&
+            first != null) {
+          final s = _stats;
+          final ms = DateTime.now().difference(first).inMilliseconds;
+          if (_lab != null) {
+            _labFinish();
+            // Só compara se um único QR foi lido durante esta tentativa.
+            final ids = _qrSinceStart;
+            final a = _answer;
+            _pending = (
+              answer: ids.length == 1 && a != null && ids.single == a.id
+                  ? a
+                  : null,
+              note: ids.length > 1
+                  ? 'QR misturado (${ids.join(", ")})'
+                  : 'sem QR',
+              ms: ms,
+              frames: s.ocr,
+              rule: '${_stabilizer.rule?.name}',
+              tally: s.tally(),
+            );
+          }
+          debugPrint(
+            "tino-ocr travou em ${ms}ms "
+            "regra=${_stabilizer.rule?.name} | preços ${s.tally()} | quadros ocr=${s.ocr} "
+            "votos=${s.voted} descartados borrado=${s.blurred} "
+            "movimento=${s.moving} saída300=${s.fallback} | média ms recorte=${s.avg(s.cropMs)} "
+            "nitidez=${s.avg(s.sharpMs)} ocr ${s.ocrSplit()} "
+            "leitura=${s.avg(s.parseMs)} | nitidez ${sharp.round()} "
+            "melhor ${_bestSharpness.round()} | maior diferença ${s.maxDiff.toStringAsFixed(0)}",
+          );
+          _firstSeen = null;
+        }
+        // Diagnóstico local (logcat): o que o OCR leu dentro da moldura.
+        debugPrint(
+          "tino-ocr ${reading.price?.format()} bulk=${reading.bulkPrice?.format()} "
+          "kg=${reading.perKg} | ${lines.map((l) => "${l.text}@${l.left.round()},${l.top.round()},h${l.height.round()}").join(" ; ")}",
+        );
+        final stable = _stabilizer.stable;
+        if (stable == null) {
+          _labFinish();
+        } else {
+          _labLast = stable;
+        }
+        onChanged?.call(stable);
+        _notify();
+      }
+    } on Exception catch (e) {
+      debugPrint("tino-ocr erro: $e");
+    } finally {
+      _busy = false;
+    }
+  }
+
+  Future<void> toggleTorch() async {
+    final camera = _camera;
+    if (camera == null) return;
+    try {
+      await camera.setFlashMode(_torch ? FlashMode.off : FlashMode.torch);
+      if (!_disposed) {
+        _torch = !_torch;
+        _notify();
+      }
+    } on CameraException {
+      // Sem lanterna neste aparelho.
+    }
+  }
+
+  /// Leitura atual foi para o carrinho: a próxima etiqueta começa do zero.
+  void accept() {
+    _labFinish();
+    _stabilizer.accept();
+    _region = null;
+    _firstSeen = null;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _labFinish();
+    final lab = _lab;
+    if (lab != null) {
+      debugPrint(
+        'tino-lab leitor de QR: $_qrFrames quadros, $_qrFound códigos achados',
+      );
+      for (final line in lab.isEmpty ? <String>[] : lab.summary()) {
+        debugPrint('tino-lab resumo $line');
+      }
+    }
+    _barcodes?.close();
+    WidgetsBinding.instance.removeObserver(this);
+    _gyro?.cancel();
+    _camera?.dispose();
+    _recognizer.close();
+    super.dispose();
+  }
+}
