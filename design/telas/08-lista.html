@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tino · Lista Compras de hoje</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#16221F}
+a{color:#246B55}a:hover{color:#1C5946}
+</style>
+<style>html{background:#D6E1DB}body{display:flex;justify-content:center;padding:24px 0}</style>
+</head>
+<body>
+<!-- Referência visual. Valores vêm de tokens/tokens.json; ver specs/telas.md. -->
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F7F6; display: flex; flex-direction: column; padding: 40px 16px 28px; gap: 16px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #16221F;">
+
+  <div style="display: flex; align-items: center; gap: 4px;">
+    <a href="07-listas.html" aria-label="Voltar" style="width: 48px; height: 48px; margin-left: -12px; display: flex; align-items: center; justify-content: center; color: #16221F;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+    </a>
+    <h1 style="margin: 0; flex-grow: 1; font-size: 24px; line-height: 32px; font-weight: 700;">Compras de hoje</h1>
+    <button type="button" style="height: 40px; padding: 0 12px; border: 0; border-radius: 999px; background: #EAF1EE; color: #16221F; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif; display: flex; align-items: center; gap: 6px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"></path><path d="M14 17H5"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg>
+      Organizar
+    </button>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 8px; height: 52px; box-sizing: border-box; padding: 0 8px 0 16px; border-radius: 12px; border: 1px solid #7D9189; background: #FFFFFF;">
+    <label for="novo" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Adicionar item</label>
+    <input id="novo" placeholder="Adicionar item" style="flex-grow: 1; min-width: 0; height: 48px; border: 0; outline: none; background: transparent; color: #16221F; font: 400 16px/24px 'Plus Jakarta Sans', system-ui, sans-serif;">
+    <button type="button" aria-label="Adicionar" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: #246B55; color: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+    </button>
+  </div>
+
+  <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #52655E;">Mercearia</span>
+      <div style="border-radius: 16px; background: #FFFFFF; border: 1px solid #D6E1DB; overflow: hidden;">
+        <label style="min-height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #D6E1DB;">
+          <input type="checkbox" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+          <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500;">Arroz</span>
+        </label>
+        <label style="min-height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #D6E1DB;">
+          <input type="checkbox" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+          <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500;">Café</span>
+        </label>
+        <label style="min-height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 12px;">
+          <input type="checkbox" checked="" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+          <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500; color: #52655E;">Molho de tomate</span>
+          <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #246B55;">No carrinho</span>
+        </label>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #52655E;">Carnes e frios</span>
+      <div style="border-radius: 16px; background: #FFFFFF; border: 1px solid #D6E1DB; overflow: hidden;">
+        <label style="min-height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 12px;">
+          <input type="checkbox" checked="" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+          <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500; color: #52655E;">Frango</span>
+          <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #246B55;">No carrinho</span>
+        </label>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #52655E;">Laticínios e limpeza</span>
+      <div style="border-radius: 16px; background: #FFFFFF; border: 1px solid #D6E1DB; overflow: hidden;">
+        <label style="min-height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #D6E1DB;">
+          <input type="checkbox" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+          <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500;">Leite</span>
+        </label>
+        <label style="min-height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 12px;">
+          <input type="checkbox" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+          <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500;">Detergente</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <a href="04-comprar-carrinho.html" style="height: 56px; border-radius: 16px; background: #246B55; color: #FFFFFF; font-size: 16px; line-height: 24px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M7 12h10"></path></svg>
+    Comprar com esta lista
+  </a>
+</div>
+</body>
+</html>

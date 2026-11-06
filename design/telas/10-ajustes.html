@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tino · Ajustes</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#16221F}
+a{color:#246B55}a:hover{color:#1C5946}
+</style>
+<style>html{background:#D6E1DB}body{display:flex;justify-content:center;padding:24px 0}</style>
+</head>
+<body>
+<!-- Referência visual. Valores vêm de tokens/tokens.json; ver specs/telas.md. -->
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F7F6; display: flex; flex-direction: column; padding: 40px 16px 28px; gap: 20px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #16221F;">
+
+  <div style="display: flex; align-items: center; gap: 4px;">
+    <a href="04-comprar-carrinho.html" aria-label="Voltar" style="width: 48px; height: 48px; margin-left: -12px; display: flex; align-items: center; justify-content: center; color: #16221F;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+    </a>
+    <h1 style="margin: 0; font-size: 24px; line-height: 32px; font-weight: 700;">Ajustes</h1>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #52655E;">Na compra</span>
+    <div style="border-radius: 16px; background: #FFFFFF; border: 1px solid #D6E1DB; overflow: hidden;">
+      <label style="min-height: 56px; padding: 8px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #D6E1DB;">
+        <span style="flex-grow: 1; display: flex; flex-direction: column;">
+          <span style="font-size: 16px; line-height: 24px; font-weight: 500;">Adicionar ao travar o preço</span>
+          <span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E;">Sem precisar tocar em nada</span>
+        </span>
+        <input type="checkbox" role="switch" checked="" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+      </label>
+      <label style="min-height: 56px; padding: 8px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #D6E1DB;">
+        <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500;">Sons</span>
+        <input type="checkbox" role="switch" checked="" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+      </label>
+      <label style="min-height: 56px; padding: 8px 16px; display: flex; align-items: center; gap: 12px;">
+        <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500;">Vibrar ao ler</span>
+        <input type="checkbox" role="switch" checked="" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+      </label>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #52655E;">Aparência</span>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 4px; border-radius: 12px; background: #EAF1EE; gap: 4px;">
+      <button type="button" aria-pressed="true" style="height: 40px; border: 0; border-radius: 8px; background: #FFFFFF; color: #16221F; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif;">Automático</button>
+      <button type="button" aria-pressed="false" style="height: 40px; border: 0; border-radius: 8px; background: transparent; color: #52655E; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif;">Claro</button>
+      <button type="button" aria-pressed="false" style="height: 40px; border: 0; border-radius: 8px; background: transparent; color: #52655E; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif;">Escuro</button>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #52655E;">Ajude o Tino a ler melhor</span>
+    <div style="border-radius: 16px; background: #FFFFFF; border: 1px solid #D6E1DB; overflow: hidden;">
+      <label style="min-height: 56px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+        <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 16px; line-height: 24px; font-weight: 500;">Enviar recortes das etiquetas</span>
+          <span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E;">Só a imagem do preço, sem local nem dados seus. Treina a Saúva.</span>
+        </span>
+        <input type="checkbox" role="switch" checked="" style="width: 22px; height: 22px; margin: 0; accent-color: #246B55;">
+      </label>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #52655E;">Sobre</span>
+    <div style="border-radius: 16px; background: #FFFFFF; border: 1px solid #D6E1DB; overflow: hidden;">
+      <a href="#" style="min-height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 12px; color: #16221F; text-decoration: none; border-bottom: 1px solid #D6E1DB;">
+        <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500;">Código aberto e licenças</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52655E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+      </a>
+      <a href="#" style="min-height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 12px; color: #16221F; text-decoration: none;">
+        <span style="flex-grow: 1; font-size: 16px; line-height: 24px; font-weight: 500;">Apoiar o Tino</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52655E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+      </a>
+    </div>
+  </div>
+
+  <span style="margin-top: auto; font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E; text-align: center;">Tino beta · [VERSÃO]</span>
+</div>
+</body>
+</html>

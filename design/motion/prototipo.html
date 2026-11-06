@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tino · Protótipo de motion</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --canvas:#F5F7F6; --surface:#FFFFFF; --surface-soft:#EAF1EE; --border:#D6E1DB; --border-strong:#7D9189;
+  --text:#16221F; --text-2:#52655E; --action:#246B55; --action-pressed:#1C5946; --on-action:#FFFFFF;
+  --info:#C8E1ED; --jade-claro:#ABD8C5; --dk-canvas:#141A1A; --dk-surface:#202929; --dk-soft:#293532; --dk-text-2:#AFC1BB;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#D6E1DB;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--text)}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.page{min-height:100vh;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start;padding:32px 16px}
+.painel{width:320px;display:flex;flex-direction:column;gap:16px}
+.painel h1{margin:0;font-size:24px;line-height:32px}
+.painel p{margin:0;font-size:14px;line-height:20px;color:var(--text-2)}
+.caixa{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.caixa h2{margin:0;font-size:14px;line-height:20px;font-weight:600}
+.opcao{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:500;min-height:40px}
+.opcao input{width:22px;height:22px;accent-color:var(--action)}
+.lista-molas{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:16px;color:var(--text-2)}
+.lista-molas b{color:var(--text);font-weight:600}
+.dicas{margin:0;padding-left:18px;font-size:13px;line-height:20px;color:var(--text-2)}
+
+.fone{width:390px;height:844px;border-radius:40px;background:var(--canvas);position:relative;overflow:hidden;box-shadow:0 0 0 10px #16221F, 0 24px 60px rgba(22,34,31,.25);flex-shrink:0;touch-action:none}
+@media (max-width:420px){.fone{transform:scale(.88);transform-origin:top center}}
+.tela{position:absolute;inset:0;display:flex;flex-direction:column;transform-origin:50% 40%}
+.conteudo{flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:48px 16px 16px;overflow:hidden}
+.topo{display:flex;align-items:center;justify-content:space-between}
+.topo h3{margin:0;font-size:24px;line-height:32px;font-weight:700}
+.icone-btn{width:48px;height:48px;border:0;background:transparent;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text-2)}
+.cartao{background:var(--surface);border:1px solid var(--border);border-radius:20px}
+.total{padding:16px;display:flex;flex-direction:column;gap:12px}
+.rotulo{font-size:14px;line-height:20px;font-weight:500;color:var(--text-2)}
+.valor{font-size:40px;line-height:48px;font-weight:700;font-variant-numeric:tabular-nums;display:inline-block;transform-origin:left center}
+.trilho{height:8px;border-radius:999px;background:var(--surface-soft);overflow:hidden}
+.trilho div{height:8px;border-radius:999px;background:var(--action);width:0}
+.linha-orc{display:flex;justify-content:space-between;font-size:12px;line-height:16px;font-weight:500;color:var(--text-2)}
+.linha-orc b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+.itens{overflow:hidden}
+.item-wrap{overflow:hidden}
+.item{width:100%;min-height:64px;padding:12px 16px;border:0;background:var(--surface);display:flex;align-items:center;gap:12px;text-align:left;border-bottom:1px solid var(--border)}
+.item-wrap:last-child .item{border-bottom:0}
+.item .nome{flex:1;display:flex;flex-direction:column}
+.item .nome b{font-size:16px;line-height:24px;font-weight:600}
+.item .nome span{font-size:12px;line-height:16px;font-weight:500;color:var(--text-2)}
+.item .preco{font-size:16px;line-height:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.rodape{display:flex;gap:8px;margin-top:auto}
+.btn-quadrado{width:64px;height:64px;flex-shrink:0;border-radius:16px;border:1px solid var(--border-strong);background:var(--surface);color:var(--action);display:flex;align-items:center;justify-content:center}
+.btn-escanear{flex:1;height:64px;border:0;border-radius:16px;background:var(--action);color:var(--on-action);font-size:18px;line-height:26px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px}
+nav.abas{height:76px;border-top:1px solid var(--border);background:var(--surface);display:grid;grid-template-columns:repeat(3,1fr);padding:8px 8px 16px}
+nav.abas span{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;line-height:16px;font-weight:500;color:var(--text-2)}
+nav.abas span.ativa{color:var(--action);font-weight:600}
+.veu{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+
+.scanner{position:absolute;background:var(--dk-canvas);overflow:hidden;display:none;color:#F5F7F6}
+.scanner .interno{position:absolute;left:0;top:0;width:390px;height:844px;display:flex;flex-direction:column}
+.prateleira{position:absolute;left:0;right:0;height:10px;background:var(--dk-soft)}
+.sc-topo{position:relative;display:flex;align-items:center;justify-content:space-between;padding:48px 16px 0}
+.sc-btn{width:48px;height:48px;border:0;border-radius:999px;background:var(--dk-surface);color:#F5F7F6;display:flex;align-items:center;justify-content:center}
+.pilula{height:40px;padding:0 16px;border-radius:999px;background:var(--dk-surface);display:flex;align-items:center;gap:8px}
+.pilula span{font-size:14px;color:var(--dk-text-2);font-weight:500}
+.pilula b{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;display:inline-block}
+.visor-area{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+.visor{position:relative;width:280px;height:176px;display:flex;align-items:center;justify-content:center}
+.canto{position:absolute;width:34px;height:34px;border:4px solid var(--jade-claro)}
+.canto.a{border-right:0;border-bottom:0;border-top-left-radius:16px}
+.canto.b{border-left:0;border-bottom:0;border-top-right-radius:16px}
+.canto.c{border-left:0;border-top:0;border-bottom-right-radius:16px}
+.canto.d{border-right:0;border-top:0;border-bottom-left-radius:16px}
+.etiqueta{width:200px;padding:12px 14px;border-radius:8px;background:#F5F7F6;color:var(--text);display:flex;flex-direction:column;gap:2px}
+.etiqueta small{font-size:11px;line-height:14px;font-weight:600;letter-spacing:.02em}
+.etiqueta strong{font-size:30px;line-height:36px;font-weight:700;font-variant-numeric:tabular-nums}
+.selo{padding:6px 12px;border-radius:999px;background:var(--dk-surface);font-size:14px;font-weight:500;opacity:0}
+.simular{height:44px;padding:0 18px;border-radius:999px;border:1px solid var(--jade-claro);background:transparent;color:var(--jade-claro);font-size:14px;font-weight:600}
+.sc-folha{position:relative;background:var(--surface);color:var(--text);border-radius:24px 24px 0 0;padding:20px 16px 28px;display:flex;flex-direction:column;gap:16px;min-height:208px}
+.sc-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.sc-item .info{display:flex;flex-direction:column;gap:4px}
+.sc-item .ok{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;font-weight:600;color:var(--action)}
+.sc-item .ok svg{transform-origin:center}
+.sc-item b{font-size:20px;line-height:28px;font-weight:700}
+.sc-item span.apoio{font-size:12px;line-height:16px;font-weight:500;color:var(--text-2)}
+.sc-item .p{font-size:28px;line-height:36px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sc-vazio{font-size:14px;line-height:20px;color:var(--text-2);text-align:center;padding:24px 0}
+.sc-acoes{display:flex;gap:8px}
+.btn-contorno{flex:1;height:48px;border-radius:12px;border:1px solid var(--border-strong);background:var(--surface);font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-contorno:disabled{opacity:.4;cursor:default}
+
+.fundo-folha{position:absolute;inset:0;background:#16221F;opacity:0;pointer-events:none}
+.folha{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:24px 24px 0 0;padding:12px 16px 28px;display:none;flex-direction:column;gap:20px;transform:translateY(100%)}
+.alca{width:40px;height:4px;border-radius:999px;background:var(--border);align-self:center}
+.alca-zona{padding:8px 0 4px;margin:-12px -16px 0;display:flex;justify-content:center;cursor:grab;touch-action:none}
+.folha h4{margin:0;font-size:20px;line-height:28px;font-weight:700}
+.campo{display:flex;flex-direction:column;gap:6px}
+.campo label{font-size:14px;line-height:20px;font-weight:600}
+.campo .caixa-campo{height:52px;border-radius:12px;border:1px solid var(--border-strong);display:flex;align-items:center;padding:0 16px;font-size:16px}
+.campo small{font-size:12px;line-height:16px;font-weight:500;color:var(--text-2)}
+.seg{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:12px;background:var(--surface-soft)}
+.seg .polegar{position:absolute;top:4px;left:4px;height:40px;border-radius:8px;background:var(--surface);box-shadow:0 1px 2px rgba(22,34,31,.08)}
+.seg button{position:relative;height:40px;border:0;background:transparent;font-size:14px;font-weight:600;color:var(--text-2);transition:color 150ms cubic-bezier(.2,0,0,1)}
+.seg button[aria-pressed="true"]{color:var(--text)}
+.btn-primario{height:52px;border:0;border-radius:12px;background:var(--action);color:var(--on-action);font-size:16px;font-weight:600;transition:background-color 100ms}
+.btn-primario.press,.btn-escanear.press{background:var(--action-pressed)}
+.toast{position:absolute;left:16px;right:16px;bottom:96px;height:52px;border-radius:12px;background:var(--text);color:#F5F7F6;display:none;align-items:center;justify-content:space-between;padding:0 8px 0 16px;font-size:14px;font-weight:500}
+.toast button{height:40px;border:0;background:transparent;color:var(--jade-claro);font-weight:600;padding:0 12px}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="painel">
+    <h1>Motion do Tino</h1>
+    <p>Protótipo com as molas de verdade. Toque nos botões como no celular.</p>
+    <div class="caixa">
+      <h2>Controles</h2>
+      <label class="opcao">Câmera lenta (4×) <input type="checkbox" id="lenta"></label>
+      <label class="opcao">Movimento reduzido <input type="checkbox" id="reduzido"></label>
+    </div>
+    <div class="caixa">
+      <h2>Experimente</h2>
+      <ol class="dicas">
+        <li>Escanear preço: o botão vira o scanner (M2).</li>
+        <li>Simular leitura: trava, entra o item e o total conta (M3, M4).</li>
+        <li>Desfazer (M8), depois feche o scanner: as linhas entram (M3c).</li>
+        <li>Toque num item: a folha sobe (M5). Arraste pra baixo e solte rápido.</li>
+        <li>Troque Por unidade / Por quilo (M6).</li>
+      </ol>
+    </div>
+    <div class="caixa">
+      <h2>Molas</h2>
+      <ul class="lista-molas" id="molas"></ul>
+    </div>
+  </div>
+
+  <div class="fone" id="fone">
+    <div class="tela" id="comprar">
+      <div class="conteudo">
+        <div class="topo">
+          <h3>Comprar</h3>
+          <button class="icone-btn pressionavel" aria-label="Ajustes"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
+        </div>
+        <div class="cartao total">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span class="rotulo" id="rotuloTotal">Total · 3 itens</span>
+            <span><span class="valor" id="total">R$ 25,50</span></span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="trilho"><div id="barra"></div></div>
+            <div class="linha-orc"><span>Orçamento R$ 150,00</span><b id="falta">Faltam R$ 124,50</b></div>
+          </div>
+        </div>
+        <div class="cartao itens" id="itens"></div>
+        <div class="rodape">
+          <button class="btn-quadrado pressionavel" aria-label="Digitar preço"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg></button>
+          <button class="btn-escanear pressionavel" id="abrirScanner"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>Escanear preço</button>
+        </div>
+      </div>
+      <nav class="abas" aria-label="Navegação principal">
+        <span class="ativa"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>Comprar</span>
+        <span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>Listas</span>
+        <span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>Histórico</span>
+      </nav>
+    </div>
+    <div class="veu" id="veu"></div>
+
+    <div class="scanner" id="scanner">
+      <div class="interno" id="scInterno">
+        <div class="prateleira" style="top:270px"></div>
+        <div class="prateleira" style="top:400px"></div>
+        <div class="sc-topo" id="scTopo">
+          <button class="sc-btn pressionavel" id="fecharScanner" aria-label="Fechar scanner"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+          <div class="pilula"><span id="scQtd">3 itens</span><b id="scTotal">R$ 25,50</b></div>
+          <button class="sc-btn pressionavel" aria-label="Lanterna"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></button>
+        </div>
+        <div class="visor-area">
+          <div class="visor">
+            <div class="canto a" id="ca"></div><div class="canto b" id="cb"></div><div class="canto c" id="cc"></div><div class="canto d" id="cd"></div>
+            <div class="etiqueta" id="etiqueta"><small id="etqTexto">ARROZ TIPO 1 CAMIL 5KG</small><strong id="etqPreco">24,90</strong></div>
+          </div>
+          <span class="selo" id="selo">Preço travado</span>
+          <button class="simular pressionavel" id="simular">Simular leitura</button>
+        </div>
+        <div class="sc-folha">
+          <div id="scConteudo" style="position:relative"><div class="sc-vazio">Aponte a câmera para a etiqueta.</div></div>
+          <div class="sc-acoes">
+            <button class="btn-contorno pressionavel" id="desfazer" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Desfazer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fundo-folha" id="fundoFolha"></div>
+    <div class="folha" id="folha" role="dialog" aria-label="Detalhe do item">
+      <div class="alca-zona" id="alca"><div class="alca"></div></div>
+      <h4 id="folhaTitulo">Molho de tomate</h4>
+      <div class="campo"><label>Nome</label><div class="caixa-campo" id="folhaNome">Molho de tomate</div><small id="folhaCru">Na etiqueta: MOLHO DE TOMATE PIZZA QUERO 240G</small></div>
+      <div class="seg" id="seg"><div class="polegar" id="polegar"></div><button aria-pressed="true" data-i="0">Por unidade</button><button aria-pressed="false" data-i="1">Por quilo</button></div>
+      <button class="btn-primario pressionavel" id="salvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Molas (massa 1). Mesmos números de motion.md ----------
+const MOLAS = {
+  toque:       {r:0.20, z:0.90},
+  selecao:     {r:0.25, z:0.85},
+  cartao:      {r:0.35, z:0.82},
+  confirmacao: {r:0.38, z:0.70},
+  navegacao:   {r:0.42, z:0.92},
+  folha:       {r:0.45, z:0.88},
+};
+for (const k in MOLAS){ const m=MOLAS[k]; m.k=Math.pow(2*Math.PI/m.r,2); m.c=4*Math.PI*m.z/m.r; }
+document.getElementById('molas').innerHTML = Object.entries(MOLAS).map(([n,m]) =>
+  `<li><b>${n}</b> · response ${m.r.toFixed(2)} · amort. ${m.z.toFixed(2)} · rigidez ${Math.round(m.k)} · atrito ${m.c.toFixed(1)}</li>`).join('');
+
+let escalaTempo = 1, reduzido = false;
+document.getElementById('lenta').onchange = e => escalaTempo = e.target.checked ? 0.25 : 1;
+document.getElementById('reduzido').onchange = e => reduzido = e.target.checked;
+
+const ativas = new Set();
+let ultimo = null;
+function quadro(t){
+  const dtReal = ultimo == null ? 0 : Math.min((t - ultimo)/1000, 1/30);
+  ultimo = t;
+  const dt = dtReal * escalaTempo;
+  for (const s of [...ativas]) s.passo(dt);
+  if (ativas.size) requestAnimationFrame(quadro); else ultimo = null;
+}
+class Mola {
+  constructor(valor, aoMudar){ this.x=valor; this.v=0; this.alvo=valor; this.aoMudar=aoMudar; }
+  para(alvo, nome, opts={}){
+    this.alvo = alvo; this.m = MOLAS[nome];
+    if (opts.velocidade != null) this.v = opts.velocidade;
+    this.fim = opts.fim || null;
+    if (reduzido || opts.instantaneo){ this.x=alvo; this.v=0; this.aoMudar(this.x); ativas.delete(this); this.fim && this.fim(); return this; }
+    if (!ativas.size) requestAnimationFrame(quadro);
+    ativas.add(this); return this;
+  }
+  definir(valor){ this.x=valor; this.v=0; this.alvo=valor; ativas.delete(this); this.aoMudar(valor); }
+  passo(dt){
+    const n = Math.max(1, Math.ceil(dt/0.004)), h = dt/n;
+    for (let i=0;i<n;i++){ const a = -this.m.k*(this.x-this.alvo) - this.m.c*this.v; this.v += a*h; this.x += this.v*h; }
+    if (Math.abs(this.x-this.alvo) < 0.0005*Math.max(1,Math.abs(this.alvo)) && Math.abs(this.v) < 0.01){
+      this.x=this.alvo; this.v=0; ativas.delete(this); this.aoMudar(this.x); const f=this.fim; this.fim=null; f && f(); return;
+    }
+    this.aoMudar(this.x);
+  }
+}
+// transição simples (cor/opacidade/contagem): ease-out cubic-bezier(.2,0,0,1) aproximado
+function tween(de, para, ms, aoMudar, fim){
+  if (reduzido && ms > 0){ aoMudar(para); fim && fim(); return; }
+  const ini = performance.now(); let dec = 0, ult = ini;
+  function f(t){ dec += (t-ult)*escalaTempo; ult = t; const p = Math.min(1, dec/ms); const e = 1-Math.pow(1-p,3);
+    aoMudar(de+(para-de)*e); if (p<1) requestAnimationFrame(f); else fim && fim(); }
+  requestAnimationFrame(f);
+}
+const esperar = ms => new Promise(r => setTimeout(r, ms/escalaTempo));
+const reais = v => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+// ---------- M1 · Pressionar ----------
+document.querySelectorAll('.pressionavel').forEach(el => {
+  const m = new Mola(1, v => el.style.transform = `scale(${v})`);
+  el.addEventListener('pointerdown', () => { if (el.disabled) return; el.classList.add('press'); m.para(0.97, 'toque'); });
+  const soltar = () => { el.classList.remove('press'); m.para(1, 'toque'); };
+  el.addEventListener('pointerup', soltar); el.addEventListener('pointerleave', soltar); el.addEventListener('pointercancel', soltar);
+});
+
+// ---------- Estado ----------
+const ORCAMENTO = 150;
+let carrinho = [
+  {nome:'Pão francês', apoio:'0,250 kg · R$ 12,00/kg', preco:3.00, cru:'PAO FRANCES KG'},
+  {nome:'Molho de tomate', apoio:'Quero · 240 g', preco:3.00, cru:'MOLHO DE TOMATE PIZZA QUERO 240G'},
+  {nome:'Frango', apoio:'Bandeja', preco:19.50, cru:'FRANGO BDJ'},
+];
+const FILA = [
+  {nome:'Arroz', apoio:'Camil · 5 kg', preco:24.90, cru:'ARROZ TIPO 1 CAMIL 5KG'},
+  {nome:'Café', apoio:'500 g', preco:18.50, cru:'CAFE TORRADO MOIDO 500G'},
+  {nome:'Leite', apoio:'Integral · 1 L', preco:5.49, cru:'LEITE UHT INTEGRAL 1L'},
+  {nome:'Detergente', apoio:'500 ml', preco:2.39, cru:'DETERGENTE LIQ NEUTRO 500ML'},
+];
+let iFila = 0, pendentes = [];
+const soma = () => carrinho.reduce((a,b)=>a+b.preco,0);
+
+const elItens = document.getElementById('itens');
+function criarLinha(item){
+  const w = document.createElement('div'); w.className = 'item-wrap';
+  w.innerHTML = `<button class="item"><span class="nome"><b>${item.nome}</b><span>${item.apoio}</span></span><span class="preco">${reais(item.preco)}</span></button>`;
+  const btn = w.querySelector('button');
+  const m = new Mola(1, v => btn.style.transform = `scale(${v})`);
+  btn.addEventListener('pointerdown', () => { btn.style.background='var(--surface-soft)'; m.para(0.98,'toque'); });
+  const s = () => { btn.style.background=''; m.para(1,'toque'); };
+  btn.addEventListener('pointerup', s); btn.addEventListener('pointerleave', s);
+  btn.addEventListener('click', () => abrirFolha(item));
+  item.el = w; return w;
+}
+carrinho.forEach(it => elItens.appendChild(criarLinha(it)));
+
+// ---------- M4 · Total ----------
+const elTotal = document.getElementById('total'), elScTotal = document.getElementById('scTotal');
+const pulso = new Mola(1, v => { elTotal.style.transform = `scale(${v})`; elScTotal.style.transform = `scale(${v})`; });
+let totalMostrado = soma();
+function atualizarTotal(){
+  const novo = soma(), de = totalMostrado; totalMostrado = novo;
+  const n = carrinho.length;
+  document.getElementById('rotuloTotal').textContent = `Total · ${n} ${n===1?'item':'itens'}`;
+  document.getElementById('scQtd').textContent = `${n} ${n===1?'item':'itens'}`;
+  const escrever = v => { elTotal.textContent = reais(v); elScTotal.textContent = reais(v); };
+  tween(de, novo, 350, escrever);
+  pulso.x = 1; pulso.v = 1.4; pulso.para(1, 'confirmacao');
+  barra.para(Math.min(100, novo/ORCAMENTO*100), 'cartao');
+  const f = ORCAMENTO - novo;
+  document.getElementById('falta').textContent = f >= 0 ? `Faltam ${reais(f)}` : `Passou ${reais(-f)}`;
+}
+// ---------- M9 · Barra ----------
+const elBarra = document.getElementById('barra');
+const barra = new Mola(0, v => elBarra.style.width = v + '%');
+barra.definir(soma()/ORCAMENTO*100);
+
+// ---------- M2 · Abrir/fechar scanner ----------
+const fone = document.getElementById('fone'), scanner = document.getElementById('scanner'), comprar = document.getElementById('comprar'), veu = document.getElementById('veu');
+const btnScan = document.getElementById('abrirScanner'), scTopo = document.getElementById('scTopo');
+let origem = null;
+const morph = new Mola(0, p => {
+  const o = origem; if (!o) return;
+  const L = o.l*(1-p), T = o.t*(1-p), W = o.w + (390-o.w)*p, H = o.h + (844-o.h)*p, R = 16*(1-p) + 40*p;
+  Object.assign(scanner.style, {left:L+'px', top:T+'px', width:W+'px', height:H+'px', borderRadius:R+'px'});
+  const interno = document.getElementById('scInterno');
+  interno.style.transform = `translate(${-o.l*(1-p)}px, ${-o.t*(1-p)}px)`;
+  comprar.style.transform = `scale(${1-0.06*p})`;
+  veu.style.opacity = 0.3*p;
+});
+function retanguloBotao(){ const f = fone.getBoundingClientRect(), b = btnScan.getBoundingClientRect(), s = f.width/390;
+  return {l:(b.left-f.left)/s, t:(b.top-f.top)/s, w:b.width/s, h:b.height/s}; }
+btnScan.addEventListener('click', () => {
+  origem = retanguloBotao(); scanner.style.display = 'block'; scTopo.style.opacity = 0;
+  if (reduzido){ morph.definir(1); scanner.style.opacity = 0; tween(0,1,150,v=>scanner.style.opacity=v); scTopo.style.opacity=1; return; }
+  scanner.style.opacity = 1; morph.x = 0; morph.aoMudar(0); morph.para(1, 'navegacao');
+  esperar(120).then(() => tween(0, 1, 200, v => scTopo.style.opacity = v));
+});
+document.getElementById('fecharScanner').addEventListener('click', () => {
+  origem = retanguloBotao();
+  const depois = () => { scanner.style.display = 'none'; inserirPendentes(); };
+  if (reduzido){ tween(1,0,150,v=>scanner.style.opacity=v, () => { morph.definir(0); depois(); }); return; }
+  tween(1, 0, 120, v => scTopo.style.opacity = v);
+  morph.para(0, 'navegacao', {fim: depois});
+});
+
+// ---------- M3 · Travar e adicionar ----------
+const cantos = ['ca','cb','cc','cd'].map(id => document.getElementById(id));
+const inset = new Mola(0, v => {
+  const [a,b,c,d] = cantos;
+  a.style.left = v+'px'; a.style.top = v*0.55+'px';
+  b.style.right = v+'px'; b.style.top = v*0.55+'px';
+  c.style.right = v+'px'; c.style.bottom = v*0.55+'px';
+  d.style.left = v+'px'; d.style.bottom = v*0.55+'px';
+});
+inset.definir(0);
+const selo = document.getElementById('selo'), scConteudo = document.getElementById('scConteudo');
+const btnDesfazer = document.getElementById('desfazer');
+let ocupado = false;
+
+function htmlItem(it){ return `<div class="sc-item"><div class="info">
+  <span class="ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>Adicionado ao carrinho</span>
+  <b>${it.nome}</b><span class="apoio">${it.apoio}</span></div><span class="p">${reais(it.preco)}</span></div>`; }
+
+function trocarConteudo(html){
+  const velho = scConteudo.firstElementChild;
+  if (velho){ velho.style.position='absolute'; velho.style.left='0'; velho.style.right='0';
+    tween(0, 1, 150, p => { velho.style.opacity = 1-p; velho.style.transform = `translateY(${-12*p}px)`; }, () => velho.remove()); }
+  const novo = document.createElement('div'); novo.innerHTML = html; novo.style.opacity = 0; scConteudo.appendChild(novo);
+  const y = new Mola(16, v => novo.style.transform = `translateY(${v}px)`); y.para(0, 'confirmacao');
+  tween(0, 1, 180, v => novo.style.opacity = v);
+  const check = novo.querySelector('.ok svg');
+  if (check){ const s = new Mola(0.6, v => check.style.transform = `scale(${v})`); s.para(1, 'confirmacao'); }
+}
+
+document.getElementById('simular').addEventListener('click', async () => {
+  if (ocupado) return; ocupado = true;
+  const it = {...FILA[iFila % FILA.length]}; iFila++;
+  document.getElementById('etqTexto').textContent = it.cru;
+  document.getElementById('etqPreco').textContent = it.preco.toFixed(2).replace('.', ',');
+  // M3a
+  inset.para(26, 'cartao');
+  tween(0, 1, 150, v => selo.style.opacity = v);
+  if (navigator.vibrate) navigator.vibrate(8);
+  await esperar(80);
+  // M3b + M4
+  trocarConteudo(htmlItem(it));
+  carrinho.push(it); pendentes.push(it);
+  atualizarTotal();
+  btnDesfazer.disabled = false;
+  await esperar(600);
+  inset.para(0, 'cartao');
+  tween(1, 0, 150, v => selo.style.opacity = v);
+  ocupado = false;
+});
+
+// ---------- M8 · Desfazer ----------
+btnDesfazer.addEventListener('click', () => {
+  const it = carrinho.pop(); if (!it) return;
+  const ip = pendentes.indexOf(it);
+  if (ip >= 0) pendentes.splice(ip, 1); else removerLinha(it);
+  const ant = pendentes[pendentes.length-1];
+  trocarConteudo(ant ? htmlItem(ant) : '<div class="sc-vazio">Aponte a câmera para a etiqueta.</div>');
+  btnDesfazer.disabled = pendentes.length === 0;
+  atualizarTotal();
+});
+
+// ---------- M3c · Linhas entrando no carrinho ----------
+async function inserirPendentes(){
+  const lista = pendentes.splice(0); btnDesfazer.disabled = true;
+  scConteudo.innerHTML = '<div class="sc-vazio">Aponte a câmera para a etiqueta.</div>';
+  for (const it of lista){
+    const w = criarLinha(it); const btn = w.querySelector('button');
+    w.style.height = '0px'; btn.style.opacity = 0;
+    elItens.insertBefore(w, elItens.firstChild);
+    const alvo = btn.offsetHeight;
+    const h = new Mola(0, v => w.style.height = v + 'px');
+    h.para(alvo, 'cartao', {fim: () => w.style.height = ''});
+    const y = new Mola(-8, v => btn.style.transform = `translateY(${v}px)`); y.para(0, 'cartao');
+    tween(0, 1, 200, v => btn.style.opacity = v);
+    await esperar(40);
+  }
+}
+function removerLinha(it){
+  const w = it.el; if (!w) return;
+  const h0 = w.offsetHeight; const btn = w.querySelector('button');
+  tween(0, 1, 150, p => { btn.style.opacity = 1-p; btn.style.transform = `translateX(${-40*p}px)`; });
+  const h = new Mola(h0, v => w.style.height = v + 'px'); h.para(0, 'cartao', {fim: () => w.remove()});
+}
+
+// ---------- M5 · Folha com arraste ----------
+const folha = document.getElementById('folha'), fundoFolha = document.getElementById('fundoFolha');
+let alturaFolha = 0, itemAberto = null;
+const fy = new Mola(1, v => { folha.style.transform = `translateY(${v*alturaFolha}px)`; fundoFolha.style.opacity = 0.4*(1-Math.min(1,Math.max(0,v))); });
+function abrirFolha(it){
+  itemAberto = it;
+  document.getElementById('folhaTitulo').textContent = it.nome;
+  document.getElementById('folhaNome').textContent = it.nome;
+  document.getElementById('folhaCru').textContent = 'Na etiqueta: ' + it.cru;
+  folha.style.display = 'flex'; fundoFolha.style.pointerEvents = 'auto';
+  alturaFolha = folha.offsetHeight; fy.definir(1);
+  posicionarPolegar(true);
+  if (reduzido){ folha.style.opacity=0; fy.definir(0); tween(0,1,150,v=>folha.style.opacity=v); return; }
+  folha.style.opacity = 1; fy.para(0, 'folha');
+}
+function fecharFolha(vel=0){
+  fundoFolha.style.pointerEvents = 'none';
+  const fim = () => { folha.style.display = 'none'; };
+  if (reduzido){ tween(1,0,150,v=>folha.style.opacity=v, () => { fy.definir(1); fim(); }); return; }
+  fy.para(1, 'folha', {velocidade: vel, fim});
+}
+fundoFolha.addEventListener('click', () => fecharFolha());
+document.getElementById('salvar').addEventListener('click', () => fecharFolha());
+
+let arrasto = null;
+function inicioArrasto(e){ arrasto = {y0:e.clientY, v0:fy.x, amostras:[{t:performance.now(), y:e.clientY}]}; ativas.delete(fy); fy.v = 0; e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId); }
+function moverArrasto(e){
+  if (!arrasto) return;
+  const s = fone.getBoundingClientRect().width/390;
+  let d = (e.clientY - arrasto.y0)/s/alturaFolha + arrasto.v0;
+  if (d < 0) d = d*0.3;
+  fy.x = d; fy.aoMudar(d);
+  arrasto.amostras.push({t:performance.now(), y:e.clientY}); if (arrasto.amostras.length > 5) arrasto.amostras.shift();
+}
+function fimArrasto(){
+  if (!arrasto) return;
+  const a = arrasto.amostras, p = a[0], u = a[a.length-1], s = fone.getBoundingClientRect().width/390;
+  const vpx = (u.t-p.t) > 0 ? (u.y-p.y)/s/((u.t-p.t)/1000) : 0;
+  const vNorm = vpx / alturaFolha;
+  arrasto = null;
+  if (fy.x > 0.3 || vpx > 800) fecharFolha(vNorm); else fy.para(0, 'folha', {velocidade: vNorm});
+}
+const alca = document.getElementById('alca');
+[alca, document.getElementById('folhaTitulo')].forEach(el => {
+  el.addEventListener('pointerdown', inicioArrasto);
+});
+window.addEventListener('pointermove', moverArrasto);
+window.addEventListener('pointerup', fimArrasto);
+
+// ---------- M6 · Segmentado ----------
+const seg = document.getElementById('seg'), polegar = document.getElementById('polegar');
+let segIdx = 0;
+const px = new Mola(0, v => polegar.style.transform = `translateX(${v}px)`);
+function posicionarPolegar(inst){
+  const w = (seg.clientWidth - 8)/2; polegar.style.width = w + 'px';
+  if (inst) px.definir(segIdx*w); else px.para(segIdx*w, 'selecao');
+}
+seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  segIdx = +b.dataset.i;
+  seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+  posicionarPolegar(false);
+}));
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tino · Listas</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#16221F}
+a{color:#246B55}a:hover{color:#1C5946}
+</style>
+<style>html{background:#D6E1DB}body{display:flex;justify-content:center;padding:24px 0}</style>
+</head>
+<body>
+<!-- Referência visual. Valores vêm de tokens/tokens.json; ver specs/telas.md. -->
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F7F6; display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #16221F;">
+
+  <div style="flex-grow: 1; display: flex; flex-direction: column; padding: 48px 16px 16px; gap: 16px;">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <h1 style="margin: 0; font-size: 24px; line-height: 32px; font-weight: 700;">Listas</h1>
+      <button type="button" style="height: 40px; padding: 0 14px 0 10px; border: 0; border-radius: 999px; background: #246B55; color: #FFFFFF; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif; display: flex; align-items: center; gap: 6px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+        Nova lista
+      </button>
+    </div>
+
+    <a href="08-lista.html" style="border-radius: 20px; background: #FFFFFF; border: 1px solid #D6E1DB; padding: 16px; display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: #16221F;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="flex-grow: 1; display: flex; flex-direction: column;">
+          <span style="font-size: 18px; line-height: 26px; font-weight: 600;">Compras de hoje</span>
+          <span style="font-size: 14px; line-height: 20px; font-weight: 500; color: #52655E;">6 itens · em uso no carrinho</span>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52655E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div aria-hidden="true" style="height: 6px; border-radius: 999px; background: #EAF1EE; overflow: hidden;">
+          <div style="width: 33%; height: 6px; border-radius: 999px; background: #246B55;"></div>
+        </div>
+        <span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E;">2 de 6 no carrinho</span>
+      </div>
+    </a>
+
+    <a href="08-lista.html" style="border-radius: 20px; background: #FFFFFF; border: 1px solid #D6E1DB; padding: 16px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #16221F;">
+      <div style="flex-grow: 1; display: flex; flex-direction: column;">
+        <span style="font-size: 18px; line-height: 26px; font-weight: 600;">Compra do mês</span>
+        <span style="font-size: 14px; line-height: 20px; font-weight: 500; color: #52655E;">24 itens · usada há 12 dias</span>
+      </div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52655E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+    </a>
+
+    <a href="08-lista.html" style="border-radius: 20px; background: #FFFFFF; border: 1px solid #D6E1DB; padding: 16px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #16221F;">
+      <div style="flex-grow: 1; display: flex; flex-direction: column;">
+        <span style="font-size: 18px; line-height: 26px; font-weight: 600;">Churrasco</span>
+        <span style="font-size: 14px; line-height: 20px; font-weight: 500; color: #52655E;">8 itens</span>
+      </div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52655E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+    </a>
+
+    <p style="margin: 8px 0 0; font-size: 14px; line-height: 20px; font-weight: 500; color: #52655E; text-align: center; padding: 0 16px;">Com uma lista ativa, cada item escaneado sai dela sozinho.</p>
+  </div>
+
+  <nav aria-label="Navegação principal" style="height: 76px; box-sizing: border-box; border-top: 1px solid #D6E1DB; background: #FFFFFF; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px 8px 16px;">
+    <a href="04-comprar-carrinho.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #52655E; text-decoration: none; font-size: 12px; line-height: 16px; font-weight: 500;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M7 12h10"></path></svg>
+      Comprar
+    </a>
+    <a href="07-listas.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #246B55; text-decoration: none; font-size: 12px; line-height: 16px; font-weight: 600;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path></svg>
+      Listas
+    </a>
+    <a href="09-historico.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #52655E; text-decoration: none; font-size: 12px; line-height: 16px; font-weight: 500;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
+      Histórico
+    </a>
+  </nav>
+</div>
+</body>
+</html>
