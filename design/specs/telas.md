@@ -22,7 +22,7 @@ Animações: ver `motion/motion.md`. Cada tela abaixo cita as interações pelo 
 | Botão primário | altura 52 (padrão) ou 64 (Escanear), raio 12 / 16 | fundo `action`, texto `on-action` 16/600; pressionado `action-pressed` + M1 |
 | Botão contornado | altura 48, raio 12 | borda 1 `border-strong`, texto `text-primary` ou `action` |
 | Botão de texto | altura 48 | sem fundo, texto `action` 14/600 |
-| Chip | altura 40, raio pílula | borda `border-strong`, ícone 18 + rótulo 14/600 |
+| Chip | altura 40, raio pílula | borda `border-strong`, ícone 20 (compacto) + rótulo 14/600 |
 | Botão só ícone | 48 × 48 | sempre com rótulo de acessibilidade |
 | Input | altura 52, raio 12 | borda `border-strong`, rótulo acima 14/600 |
 | Cartão | raio 20 (principal) ou 16 (compacto), padding 16 | fundo `surface`, borda 1 `border`, sem sombra |

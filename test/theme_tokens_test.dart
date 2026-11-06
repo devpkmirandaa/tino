@@ -43,6 +43,7 @@ void main() {
       'on-action': c.onAction,
       'action-pressed': c.actionPressed,
       'info': c.info,
+      'scrim': c.scrim,
       'jade-tint': c.jadeTint,
       'blue-tint': c.blueTint,
     };

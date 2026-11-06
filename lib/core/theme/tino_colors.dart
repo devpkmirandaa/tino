@@ -46,6 +46,7 @@ class TinoColorScheme extends ThemeExtension<TinoColorScheme> {
     required this.actionPressed,
     required this.info,
     required this.onInfo,
+    required this.scrim,
     this.jadeTint,
     this.blueTint,
   });
@@ -65,6 +66,10 @@ class TinoColorScheme extends ThemeExtension<TinoColorScheme> {
 
   /// Texto sobre [info]: grafite-profundo nos dois temas (12:1).
   final Color onInfo;
+
+  /// Camada atrás de folhas, modais e scanner. Opaca: a opacidade fica no
+  /// componente (0,5 nas folhas).
+  final Color scrim;
 
   /// Só no escuro: o manual não define valor para o claro.
   final Color? jadeTint;
@@ -86,6 +91,7 @@ class TinoColorScheme extends ThemeExtension<TinoColorScheme> {
     actionPressed: TinoTokens.actionPressed,
     info: TinoTokens.info,
     onInfo: TinoColors.ink,
+    scrim: TinoColors.ink,
   );
 
   static const dark = TinoColorScheme(
@@ -102,6 +108,7 @@ class TinoColorScheme extends ThemeExtension<TinoColorScheme> {
     actionPressed: Color(0xFF8DBCA8),
     info: TinoColors.glacialBlue,
     onInfo: TinoColors.ink,
+    scrim: Color(0xFF060909),
     jadeTint: Color(0xFF29483D),
     blueTint: Color(0xFF283D46),
   );
