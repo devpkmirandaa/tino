@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/theme/tino_theme.dart';
 import '../features/history/presentation/history_page.dart';
 import '../features/history/presentation/purchase_detail_page.dart';
-import '../features/home/presentation/home_page.dart';
 import '../features/lists/presentation/list_detail_page.dart';
 import '../features/lists/presentation/lists_page.dart';
 import '../features/onboarding/data/onboarding_preference.dart';
@@ -46,8 +46,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/escanear',
-        pageBuilder: (context, state) => _fadePage(state, const ScannerPage()),
+        // O scanner atual foi desenhado sobre o tema claro; o visual sempre
+        // escuro da spec chega na etapa do scanner.
+        pageBuilder: (context, state) => _fadePage(
+          state,
+          Theme(data: buildTinoLightTheme(), child: const ScannerPage()),
+        ),
       ),
+      GoRoute(
+        path: '/ajustes',
+        pageBuilder: (context, state) =>
+            _fadePage(state, const SettingsScreen()),
+      ),
+      // Endereço antigo da aba Comprar, que agora é a inicial.
+      GoRoute(path: '/comprar', redirect: (context, state) => '/'),
       StatefulShellRoute(
         pageBuilder: (context, state, shell) =>
             _fadePage(state, TinoShell(navigationShell: shell)),
@@ -60,7 +72,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: '/',
                 pageBuilder: (context, state) => NoTransitionPage(
                   key: state.pageKey,
-                  child: const HomePage(),
+                  child: const ShoppingPage(),
                 ),
               ),
             ],
@@ -90,17 +102,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/comprar',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const ShoppingPage(),
-                ),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
                 path: '/historico',
                 pageBuilder: (context, state) => NoTransitionPage(
                   key: state.pageKey,
@@ -117,17 +118,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                     ),
                   ),
                 ],
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/ajustes',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const SettingsPage(),
-                ),
               ),
             ],
           ),

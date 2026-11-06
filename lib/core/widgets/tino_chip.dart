@@ -50,7 +50,16 @@ class TinoChip extends StatelessWidget {
                 Icon(icon, size: TinoSize.iconCompact, color: color),
                 const SizedBox(width: TinoSpace.s8),
               ],
-              Text(label, style: TinoType.label.withColor(color)),
+              // Último recurso: quem quebra linha é o Wrap de fora; o rótulo
+              // só encurta se nem sozinho na linha o chip couber.
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TinoType.label.withColor(color),
+                ),
+              ),
             ],
           ),
         ),

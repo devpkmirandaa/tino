@@ -3,8 +3,42 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/tino_theme.dart';
 import '../../../core/widgets/area_page.dart';
+import '../../../core/widgets/tino_widgets.dart';
 import '../data/lab_mode.dart';
+
+/// Ajustes fora das abas: abre pela engrenagem do Comprar e volta para ele.
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              TinoSpace.s4,
+              TinoSpace.s4,
+              TinoSpace.s4,
+              0,
+            ),
+            child: TinoIconButton(
+              key: const ValueKey('settings-back'),
+              icon: LucideIcons.arrowLeft,
+              semanticLabel: 'Voltar',
+              onPressed: () =>
+                  context.canPop() ? context.pop() : context.go('/'),
+            ),
+          ),
+          const Expanded(child: SettingsPage()),
+        ],
+      ),
+    ),
+  );
+}
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -16,8 +50,9 @@ class SettingsPage extends StatelessWidget {
     icon: LucideIcons.settings2,
     message: 'Uma experiência mais leve',
     detail:
-        'O Tino usa o tema claro. Preferências de aparência, permissões e '
-        'gerenciamento de dados ainda não estão disponíveis.',
+        'O Tino segue o tema claro ou escuro do aparelho. Escolher a '
+        'aparência, permissões e gerenciamento de dados ainda não estão '
+        'disponíveis.',
     footer: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

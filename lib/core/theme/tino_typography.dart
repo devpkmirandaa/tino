@@ -20,6 +20,10 @@ abstract final class TinoType {
   /// variação do corpo.
   static const corpoForte = TinoTypeStyle(16, 24, FontWeight.w600);
 
+  /// Total do carrinho em Comprar, 40/48/700. Provisório: foge da escala do
+  /// manual e aguarda aprovação de marca (design/README.md).
+  static const total = TinoTypeStyle(40, 48, FontWeight.w700);
+
   static const all = {
     'display': display,
     'tela': tela,

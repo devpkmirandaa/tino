@@ -217,7 +217,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
-                                                  if (index == 0) ...[
+                                                  // Sem wordmark no escuro até o SVG negativo ser corrigido.
+                                                  if (index == 0 &&
+                                                      context.tino.brightness ==
+                                                          Brightness.light) ...[
                                                     const TinoWordmark(
                                                       width: 96,
                                                     ),
@@ -335,8 +338,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                                                       height: 8,
                                                       decoration: BoxDecoration(
                                                         color: Color.lerp(
-                                                          TinoColors.lightJade,
-                                                          TinoColors.jade,
+                                                          context.tino.border,
+                                                          context.tino.action,
                                                           weight,
                                                         ),
                                                         borderRadius:

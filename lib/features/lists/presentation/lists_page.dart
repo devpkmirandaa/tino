@@ -88,10 +88,10 @@ class _Empty extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: TinoSpace.s32),
-        const Icon(
+        Icon(
           LucideIcons.listChecks,
           size: 48,
-          color: TinoTokens.textSecondary,
+          color: context.tino.textSecondary,
         ),
         const SizedBox(height: TinoSpace.s16),
         Text('Nenhuma lista ainda', style: text.titleMedium),
@@ -116,8 +116,8 @@ class _ListCards extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: TinoTokens.surface,
-        border: Border.all(color: TinoTokens.border),
+        color: context.tino.surface,
+        border: Border.all(color: context.tino.border),
         borderRadius: BorderRadius.circular(TinoRadius.card),
       ),
       child: Column(
@@ -144,10 +144,10 @@ class _ListCards extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         LucideIcons.chevronRight,
                         size: 20,
-                        color: TinoTokens.textSecondary,
+                        color: context.tino.textSecondary,
                       ),
                     ],
                   ),

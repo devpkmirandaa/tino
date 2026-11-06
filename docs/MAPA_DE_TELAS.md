@@ -8,19 +8,19 @@ mapa é o destino do MVP, não autorização para construir tudo numa tarefa.
 
 ## Navegação principal
 
-**Início · Listas · Comprar · Histórico · Ajustes**, com Comprar como ação central.
+Três abas: **Comprar (inicial) · Listas · Histórico** (design/specs/telas.md).
+Ajustes abre pela engrenagem no topo do Comprar. O antigo Início virou o Comprar.
 
 | Área | Função |
 | --- | --- |
-| Início | Resumo do orçamento, compra em andamento, acesso rápido às listas, botão para começar a comprar. |
+| Comprar | Aba inicial: total, orçamento, lista em uso, escanear ou digitar preços, carrinho. |
 | Listas | Criar, editar e gerenciar listas e seus produtos. |
-| Comprar | Iniciar compra, escanear etiquetas, reconhecer preços, adicionar produtos, acompanhar o total em tempo real. |
 | Histórico | Compras anteriores, valores, datas e detalhe dos itens. |
-| Ajustes | Tema claro/escuro, preferências, permissões, dados locais, informações do app. |
+| Ajustes (fora das abas) | Tema claro/escuro, preferências, permissões, dados locais, informações do app. |
 
 ## Fluxo de compra
 
-1. Início → tocar em Comprar.
+1. Abrir o app (já cai no Comprar).
 2. Nova compra → definir orçamento (opcional).
 3. Scanner → apontar a câmera para a etiqueta.
 4. Produto identificado → confirmar ou corrigir, se preciso.

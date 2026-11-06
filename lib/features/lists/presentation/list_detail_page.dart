@@ -215,7 +215,9 @@ class _Body extends StatelessWidget {
         if (arranged.done.isNotEmpty) ...[
           Text(
             'Marcados (${arranged.done.length})',
-            style: text.titleMedium?.copyWith(color: TinoTokens.textSecondary),
+            style: text.titleMedium?.copyWith(
+              color: context.tino.textSecondary,
+            ),
           ),
           const SizedBox(height: TinoSpace.s8),
           _Group(listId: list.id, items: arranged.done),
@@ -236,8 +238,8 @@ class _Group extends ConsumerWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: TinoTokens.surface,
-        border: Border.all(color: TinoTokens.border),
+        color: context.tino.surface,
+        border: Border.all(color: context.tino.border),
         borderRadius: BorderRadius.circular(TinoRadius.card),
       ),
       child: Column(
@@ -260,8 +262,8 @@ class _Group extends ConsumerWidget {
                             : LucideIcons.circle,
                         size: 24,
                         color: item.done
-                            ? TinoTokens.action
-                            : TinoTokens.borderStrong,
+                            ? context.tino.action
+                            : context.tino.borderStrong,
                         semanticLabel: item.done ? 'Marcado' : 'Não marcado',
                       ),
                       const SizedBox(width: TinoSpace.s12),
@@ -272,7 +274,9 @@ class _Group extends ConsumerWidget {
                             decoration: item.done
                                 ? TextDecoration.lineThrough
                                 : null,
-                            color: item.done ? TinoTokens.textSecondary : null,
+                            color: item.done
+                                ? context.tino.textSecondary
+                                : null,
                           ),
                         ),
                       ),

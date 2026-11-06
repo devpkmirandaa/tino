@@ -36,15 +36,12 @@ class HistoryPage extends StatelessWidget {
             AsyncData(:final value) when value.isEmpty => Container(
               padding: const EdgeInsets.all(TinoSpace.s24),
               decoration: BoxDecoration(
-                color: TinoTokens.surfaceSoft,
+                color: context.tino.surfaceSoft,
                 borderRadius: BorderRadius.circular(TinoRadius.card),
               ),
               child: Column(
                 children: [
-                  const Icon(
-                    LucideIcons.history,
-                    color: TinoTokens.textSecondary,
-                  ),
+                  Icon(LucideIcons.history, color: context.tino.textSecondary),
                   const SizedBox(height: TinoSpace.s12),
                   Text('Nenhuma compra finalizada', style: text.titleMedium),
                   const SizedBox(height: TinoSpace.s4),
@@ -86,8 +83,8 @@ class ItemsCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     clipBehavior: Clip.antiAlias,
     decoration: BoxDecoration(
-      color: TinoTokens.surface,
-      border: Border.all(color: TinoTokens.border),
+      color: context.tino.surface,
+      border: Border.all(color: context.tino.border),
       borderRadius: BorderRadius.circular(TinoRadius.card),
     ),
     child: Column(
@@ -131,10 +128,10 @@ class _PurchaseRow extends StatelessWidget {
             ),
             Text(purchase.cart.total.format(), style: text.bodyLarge?.money),
             const SizedBox(width: TinoSpace.s8),
-            const Icon(
+            Icon(
               LucideIcons.chevronRight,
               size: 20,
-              color: TinoTokens.textSecondary,
+              color: context.tino.textSecondary,
             ),
           ],
         ),

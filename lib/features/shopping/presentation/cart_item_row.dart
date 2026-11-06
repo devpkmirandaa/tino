@@ -4,6 +4,13 @@ import '../../../core/theme/tino_theme.dart';
 import '../domain/cart.dart';
 import '../domain/decimal_input.dart';
 
+/// Linha de apoio do item: "2 × R$ 3,99" ou "0,250 kg × R$ 12,00/kg".
+String cartItemDetail(CartItem item) => switch (item) {
+  UnitItem(:final quantity, :final price) => '$quantity × ${price.format()}',
+  WeightItem(:final grams, :final pricePerKg) =>
+    '${formatKg(grams)} × ${pricePerKg.format()}/kg',
+};
+
 class CartItemRow extends StatelessWidget {
   const CartItemRow(this.item, {super.key, this.onTap});
   final CartItem item;
@@ -12,12 +19,7 @@ class CartItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final detail = switch (item) {
-      UnitItem(:final quantity, :final price) =>
-        '$quantity × ${price.format()}',
-      WeightItem(:final grams, :final pricePerKg) =>
-        '${formatKg(grams)} × ${pricePerKg.format()}/kg',
-    };
+    final detail = cartItemDetail(item);
     return InkWell(
       onTap: onTap,
       child: ConstrainedBox(

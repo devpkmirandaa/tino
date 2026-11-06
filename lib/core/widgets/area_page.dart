@@ -24,6 +24,7 @@ class AreaPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final c = context.tino;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Align(
@@ -33,9 +34,13 @@ class AreaPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-              const TinoWordmark(),
-              const SizedBox(height: 20),
+              // O SVG negativo ainda é igual ao positivo (design/README.md):
+              // no escuro, sem wordmark até corrigir.
+              if (c.brightness == Brightness.light) ...[
+                const SizedBox(height: 16),
+                const TinoWordmark(),
+                const SizedBox(height: 20),
+              ],
               Semantics(
                 header: true,
                 child: Text(title, style: text.headlineLarge),
@@ -47,8 +52,8 @@ class AreaPage extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: TinoColors.softWhite,
-                  border: Border.all(color: TinoColors.lightJade),
+                  color: c.surfaceSoft,
+                  border: Border.all(color: c.border),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Column(

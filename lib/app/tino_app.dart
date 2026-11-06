@@ -20,6 +20,8 @@ class TinoApp extends ConsumerWidget {
         title: 'Tino',
         debugShowCheckedModeBanner: false,
         theme: buildTinoLightTheme(),
+        darkTheme: buildTinoTheme(Brightness.dark),
+        themeMode: ThemeMode.system,
         home: Scaffold(
           body: SafeArea(
             child: Center(
@@ -53,7 +55,8 @@ class TinoApp extends ConsumerWidget {
       title: 'Tino',
       debugShowCheckedModeBanner: false,
       theme: buildTinoLightTheme(),
-      themeMode: ThemeMode.light,
+      darkTheme: buildTinoTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
       routerConfig: ref.watch(routerProvider),
       builder: (context, child) =>
           ListFeedbackListener(child: child ?? const SizedBox.shrink()),

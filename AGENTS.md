@@ -57,8 +57,8 @@ o tema padrão do Flutter.
 - Diferencie o que existe, o que é decisão de produto e o que é proposta nova.
 - Faça só a etapa pedida, em incrementos pequenos e executáveis. Ao concluir,
   reporte a validação e o próximo passo; não avance sozinho.
-- Cinco áreas: Início, Listas, Comprar, Histórico e Ajustes, com Comprar como
-  ação central. As ~22 telas/estados incluem modais e painéis inferiores; não
+- Três abas: Comprar (inicial), Listas e Histórico. Ajustes abre pela
+  engrenagem do Comprar; o Início não existe mais. As ~22 telas/estados incluem modais e painéis inferiores; não
   crie 22 páginas.
 - Regras de cálculo ficam separadas de widgets e OCR, com testes para cálculos,
   preço por peso, correções, duplicatas e transições de orçamento.

@@ -8,17 +8,17 @@ e [o mapa de telas](docs/MAPA_DE_TELAS.md) para decisões e pendências.
 
 ## Etapa 1 — base visual e navegação
 
-Implementado: tema claro, Plus Jakarta Sans incluída no aplicativo e ícones
-Lucide outline; cinco áreas na ordem Início, Listas, Comprar, Histórico e Ajustes.
-Comprar ocupa o centro da barra. Os atalhos do Início abrem Comprar e Listas.
+Implementado: tema claro e escuro (segue o aparelho), Plus Jakarta Sans incluída
+no aplicativo e ícones Lucide outline; três abas: Comprar (inicial), Listas e
+Histórico. Ajustes abre pela engrenagem do Comprar.
 Os recursos posteriores são indicados como indisponíveis, sem dados fictícios.
 
 Organização por funcionalidades em `lib/features/`, composição e rotas em
 `lib/app/`, tema e componentes compartilhados em `lib/core/`.
 Riverpod gerencia o ciclo de vida do GoRouter; a seleção da barra deriva da rota,
-sem manter outro estado de navegação. As cinco áreas usam ramificações persistentes
-do GoRouter: trocar de área preserva sua rolagem e mantém a barra estável.
-O botão/gesto Voltar retorna ao Início; no Início, permite sair do aplicativo.
+sem manter outro estado de navegação. As três abas usam ramificações persistentes
+do GoRouter: trocar de aba preserva seu estado e mantém a barra estável.
+O botão/gesto Voltar retorna ao Comprar; no Comprar, permite sair do aplicativo.
 Essa política de retorno é uma escolha de implementação desta etapa.
 
 Movimentos e validação em profile: [contrato da interface](docs/MOVIMENTO_INTERFACE.md).

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
+import '../../../core/widgets/tino_widgets.dart';
 import '../../lists/presentation/linked_list_card.dart';
 import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
@@ -11,145 +12,229 @@ import 'cart_item_row.dart';
 import 'scanner_page.dart';
 import 'shopping_sheets.dart';
 
-class ShoppingPage extends StatelessWidget {
+/// Aba inicial (design/specs/telas.md · 02 Comprar vazio e 04 com itens).
+class ShoppingPage extends ConsumerWidget {
   const ShoppingPage({super.key});
 
   @override
-  Widget build(BuildContext context) => Consumer(
-    builder: (context, ref, _) {
-      final session = switch (ref.watch(shoppingProvider)) {
-        AsyncData(:final value) => value,
-        AsyncError() => null,
-        _ => const ShoppingSession(),
-      };
-      if (session == null) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(TinoSpace.s16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Não deu pra abrir a compra salva.'),
-                const SizedBox(height: TinoSpace.s12),
-                OutlinedButton(
-                  onPressed: () => ref.invalidate(shoppingProvider),
-                  child: const Text('Tentar de novo'),
-                ),
-              ],
-            ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.tino;
+    final state = ref.watch(shoppingProvider);
+    if (state.hasError && !state.hasValue) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(TinoSpace.s16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Não deu pra abrir a compra salva.',
+                style: TinoType.corpo.withColor(c.textPrimary),
+              ),
+              const SizedBox(height: TinoSpace.s12),
+              TinoButton.outlined(
+                label: 'Tentar de novo',
+                onPressed: () => ref.invalidate(shoppingProvider),
+              ),
+            ],
           ),
-        );
-      }
-      final loading = !ref.watch(shoppingProvider).hasValue;
-      final items = session.cart.items;
-      final text = Theme.of(context).textTheme;
-      return Column(
+        ),
+      );
+    }
+    final loading = !state.hasValue;
+    final session = state.value ?? const ShoppingSession();
+    final items = session.cart.items;
+    final listId = session.listId;
+
+    final header = [
+      Row(
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                TinoSpace.s16,
-                TinoSpace.s24,
-                TinoSpace.s16,
-                TinoSpace.s16,
-              ),
-              child: _Width(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Semantics(
-                      header: true,
-                      child: Text('Comprar', style: text.headlineLarge),
-                    ),
-                    const SizedBox(height: TinoSpace.s16),
-                    _TotalCard(session),
-                    if (session.listId case final listId?) ...[
-                      const SizedBox(height: TinoSpace.s16),
-                      LinkedListCard(listId),
-                    ] else
-                      const UseListPrompt(),
-                    const SizedBox(height: TinoSpace.s24),
-                    if (items.isEmpty)
-                      const _EmptyCart()
-                    else ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              items.length == 1
-                                  ? '1 item'
-                                  : '${items.length} itens',
-                              style: text.titleLarge,
-                            ),
-                          ),
-                          TextButton.icon(
-                            key: const ValueKey('clear-cart'),
-                            onPressed: () => _confirmClear(context, ref),
-                            icon: const Icon(LucideIcons.trash2, size: 20),
-                            label: const Text('Limpar'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: TinoSpace.s12),
-                      _Card(
-                        padding: EdgeInsets.zero,
-                        child: Column(
-                          children: [
-                            for (final (i, item) in items.reversed.indexed) ...[
-                              if (i > 0) const Divider(indent: TinoSpace.s16),
-                              CartItemRow(
-                                item,
-                                onTap: () => showItemSheet(context, item: item),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: TinoSpace.s16),
-                      OutlinedButton(
-                        onPressed: () => showFinishSheet(context),
-                        child: const Text('Finalizar compra'),
-                      ),
-                    ],
-                  ],
-                ),
+            child: Semantics(
+              header: true,
+              child: Text(
+                'Comprar',
+                style: TinoType.tela.withColor(c.textPrimary),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              TinoSpace.s16,
-              TinoSpace.s8,
-              TinoSpace.s16,
-              TinoSpace.s16,
-            ),
-            child: _Width(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      key: const ValueKey('add-product'),
-                      onPressed: loading ? null : () => showItemSheet(context),
-                      icon: const Icon(LucideIcons.keyboard, size: 20),
-                      label: const Text('Digitar'),
-                    ),
-                  ),
-                  const SizedBox(width: TinoSpace.s12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: loading ? null : () => _scan(context),
-                      icon: const Icon(LucideIcons.scanLine, size: 20),
-                      label: const Text('Escanear'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          TinoIconButton(
+            key: const ValueKey('open-settings'),
+            icon: LucideIcons.settings2,
+            semanticLabel: 'Ajustes',
+            onPressed: () => context.push('/ajustes'),
           ),
         ],
-      );
-    },
+      ),
+      const SizedBox(height: TinoSpace.s16),
+      _TotalCard(session),
+      if (listId != null) ...[
+        const SizedBox(height: TinoSpace.s16),
+        ActiveListBand(listId),
+      ],
+    ];
+
+    return Column(
+      children: [
+        Expanded(
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  TinoSpace.s16,
+                  TinoSpace.s16,
+                  TinoSpace.s16,
+                  TinoSpace.s16,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: _Width(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ...header,
+                        if (items.isNotEmpty) ...[
+                          const SizedBox(height: TinoSpace.s16),
+                          TinoCard(
+                            padding: EdgeInsets.zero,
+                            child: Column(
+                              children: [
+                                for (final (i, item)
+                                    in items.reversed.indexed) ...[
+                                  if (i > 0) const Divider(),
+                                  TinoItemRow(
+                                    key: ValueKey('cart-item-$i'),
+                                    title: item.name,
+                                    subtitle: cartItemDetail(item),
+                                    price: item.total.format(),
+                                    onPressed: () =>
+                                        showItemSheet(context, item: item),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: TinoSpace.s16),
+                          TinoButton.outlined(
+                            key: const ValueKey('finish'),
+                            label: 'Finalizar compra',
+                            accent: true,
+                            expand: true,
+                            onPressed: () => showFinishSheet(context),
+                          ),
+                          const SizedBox(height: TinoSpace.s8),
+                          TinoButton.text(
+                            key: const ValueKey('clear-cart'),
+                            label: 'Limpar carrinho',
+                            icon: LucideIcons.trash2,
+                            onPressed: () => _confirmClear(context, ref),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (items.isEmpty)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _EmptyCart(),
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            TinoSpace.s16,
+            TinoSpace.s8,
+            TinoSpace.s16,
+            TinoSpace.s16,
+          ),
+          child: _Width(
+            child: items.isEmpty
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ScanButton(loading: loading),
+                      const SizedBox(height: TinoSpace.s4),
+                      TinoButton.text(
+                        key: const ValueKey('add-product'),
+                        label: 'Digitar preço',
+                        icon: LucideIcons.keyboard,
+                        onPressed: loading
+                            ? null
+                            : () => showItemSheet(context),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      _TypeSquareButton(
+                        onPressed: loading
+                            ? null
+                            : () => showItemSheet(context),
+                      ),
+                      const SizedBox(width: TinoSpace.s8),
+                      Expanded(child: _ScanButton(loading: loading)),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScanButton extends StatelessWidget {
+  const _ScanButton({required this.loading});
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) => TinoButton.primary(
+    key: const ValueKey('scan'),
+    label: 'Escanear preço',
+    icon: LucideIcons.scanLine,
+    size: TinoButtonSize.scan,
+    expand: true,
+    onPressed: loading ? null : () => _scan(context),
   );
+}
+
+/// Quadrado 64 "Digitar preço" ao lado do Escanear (04 · rodapé). Mesmas
+/// medidas provisórias do botão de escanear.
+class _TypeSquareButton extends StatelessWidget {
+  const _TypeSquareButton({required this.onPressed});
+  final VoidCallback? onPressed;
+
+  static const _size = 64.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    final enabled = onPressed != null;
+    return TinoPressable(
+      key: const ValueKey('add-product'),
+      onPressed: onPressed,
+      semanticLabel: 'Digitar preço',
+      excludeSemantics: true,
+      builder: (context, _) => Container(
+        width: _size,
+        height: _size,
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: BorderRadius.circular(TinoRadius.cardCompact),
+          border: Border.all(
+            color: enabled ? c.borderStrong : c.border,
+            width: TinoSize.borderWidth,
+          ),
+        ),
+        child: Icon(
+          LucideIcons.keyboard,
+          size: TinoSize.icon,
+          color: enabled ? c.action : c.textSecondary,
+        ),
+      ),
+    );
+  }
 }
 
 /// Pergunta antes de esvaziar o carrinho: não dá para desfazer.
@@ -164,13 +249,13 @@ Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {
         'O orçamento continua.',
       ),
       actions: [
-        TextButton(
+        TinoButton.text(
+          label: 'Cancelar',
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancelar'),
         ),
-        FilledButton(
+        TinoButton.primary(
+          label: 'Limpar',
           onPressed: () => Navigator.pop(context, true),
-          child: const Text('Limpar'),
         ),
       ],
     ),
@@ -205,85 +290,55 @@ class _Width extends StatelessWidget {
   );
 }
 
-class _Card extends StatelessWidget {
-  const _Card({
-    required this.child,
-    this.padding = const EdgeInsets.all(TinoSpace.s16),
-  });
-  final Widget child;
-  final EdgeInsets padding;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: padding,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      color: TinoTokens.surface,
-      border: Border.all(color: TinoTokens.border),
-      borderRadius: BorderRadius.circular(TinoRadius.card),
-    ),
-    child: child,
-  );
-}
-
-class _TotalCard extends StatelessWidget {
+class _TotalCard extends ConsumerWidget {
   const _TotalCard(this.session);
   final ShoppingSession session;
 
   @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.tino;
     final total = session.cart.total;
     final budget = session.budget;
-    return _Card(
+    final count = session.cart.items.length;
+    final label = count == 0
+        ? 'Total'
+        : 'Total · ${count == 1 ? '1 item' : '$count itens'}';
+    return TinoCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Total no carrinho', style: text.bodyMedium),
+          Text(label, style: TinoType.secundario.withColor(c.textSecondary)),
           const SizedBox(height: TinoSpace.s4),
           Text(
             total.format(),
             key: const ValueKey('cart-total'),
-            style: text.displaySmall,
+            style: TinoType.total.withColor(c.textPrimary).money,
           ),
-          const SizedBox(height: TinoSpace.s12),
-          if (budget == null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => showBudgetSheet(context),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: TinoSpace.s8),
-                ),
-                icon: const Icon(LucideIcons.wallet, size: 20),
-                label: const Text('Definir orçamento'),
-              ),
-            )
-          else ...[
-            Row(
+          if (budget != null) ...[
+            const SizedBox(height: TinoSpace.s12),
+            _BudgetMeter(session),
+          ],
+          if (budget == null || session.listId == null) ...[
+            const SizedBox(height: TinoSpace.s8),
+            Wrap(
+              spacing: TinoSpace.s8,
               children: [
-                Expanded(
-                  child: Text(
-                    'Orçamento ${budget.format()}',
-                    style: text.bodyMedium,
+                if (budget == null)
+                  TinoChip(
+                    key: const ValueKey('budget-chip'),
+                    label: 'Orçamento',
+                    icon: LucideIcons.wallet,
+                    onPressed: () => showBudgetSheet(context),
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Editar orçamento',
-                  onPressed: () => showBudgetSheet(context),
-                  icon: const Icon(LucideIcons.pencil, size: 20),
-                ),
+                if (session.listId == null)
+                  TinoChip(
+                    key: const ValueKey('use-list'),
+                    label: 'Usar uma lista',
+                    icon: LucideIcons.listChecks,
+                    onPressed: () => chooseShoppingList(context, ref),
+                  ),
               ],
             ),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(TinoRadius.chip),
-              child: LinearProgressIndicator(
-                value: (total.cents / budget.cents).clamp(0, 1).toDouble(),
-                minHeight: 8,
-              ),
-            ),
-            const SizedBox(height: TinoSpace.s12),
-            _BudgetStatus(session),
           ],
         ],
       ),
@@ -291,40 +346,59 @@ class _TotalCard extends StatelessWidget {
   }
 }
 
-class _BudgetStatus extends StatelessWidget {
-  const _BudgetStatus(this.session);
+/// Barra do orçamento (M9) + "Orçamento R$ X" / "Faltam R$ Y". Tocar edita
+/// o orçamento. Passou do limite: texto, não só cor.
+class _BudgetMeter extends StatelessWidget {
+  const _BudgetMeter(this.session);
   final ShoppingSession session;
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
+    final c = context.tino;
     final budget = session.budget!;
     final total = session.cart.total;
+    final status = session.status;
+    final over = status == BudgetStatus.over;
     final left = (budget - total).format();
-    final message = switch (session.status) {
-      BudgetStatus.over => 'Passou ${(total - budget).format()} do orçamento.',
-      BudgetStatus.near => 'Perto do limite. Faltam $left.',
-      _ => 'Faltam $left do orçamento.',
-    };
-    if (session.status == BudgetStatus.within) {
-      return Text(message, style: text.bodyMedium);
-    }
-    return Container(
-      padding: const EdgeInsets.all(TinoSpace.s12),
-      decoration: BoxDecoration(
-        color: TinoTokens.info,
-        borderRadius: BorderRadius.circular(TinoRadius.control),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            LucideIcons.triangleAlert,
-            size: 20,
-            color: TinoTokens.textPrimary,
-          ),
-          const SizedBox(width: TinoSpace.s8),
-          Expanded(child: Text(message, style: text.labelLarge)),
-        ],
+    final caption = TinoType.caption.withColor(c.textSecondary);
+    final strong = TinoType.caption
+        .withColor(c.textPrimary)
+        .weight(FontWeight.w600)
+        .money;
+    return TinoPressable(
+      key: const ValueKey('budget-meter'),
+      onPressed: () => showBudgetSheet(context),
+      scale: TinoPressScale.surface,
+      semanticLabel: over
+          ? 'Orçamento ${budget.format()}. Passou '
+                '${(total - budget).format()}. Editar orçamento'
+          : 'Orçamento ${budget.format()}. Faltam $left. Editar orçamento',
+      excludeSemantics: true,
+      builder: (context, _) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: TinoSpace.s4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TinoProgressBar(
+              value: budget.cents == 0 ? 1 : total.cents / budget.cents,
+              over: over,
+              overLabel: 'Passou ${(total - budget).format()} do orçamento.',
+            ),
+            const SizedBox(height: TinoSpace.s8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Orçamento ${budget.format()}', style: caption),
+                ),
+                if (!over) Text('Faltam $left', style: strong),
+              ],
+            ),
+            if (status == BudgetStatus.near) ...[
+              const SizedBox(height: TinoSpace.s4),
+              Text('Perto do limite do orçamento.', style: strong),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -333,26 +407,45 @@ class _BudgetStatus extends StatelessWidget {
 class _EmptyCart extends StatelessWidget {
   const _EmptyCart();
 
+  static const _iconBox = 64.0;
+
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(TinoSpace.s24),
-      decoration: BoxDecoration(
-        color: TinoTokens.surfaceSoft,
-        borderRadius: BorderRadius.circular(TinoRadius.card),
+    final c = context.tino;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        TinoSpace.s24,
+        0,
+        TinoSpace.s24,
+        TinoSpace.s16,
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(LucideIcons.shoppingCart, color: TinoTokens.textSecondary),
-          const SizedBox(height: TinoSpace.s12),
-          Text('Carrinho vazio', style: text.titleMedium),
-          const SizedBox(height: TinoSpace.s4),
+          Container(
+            width: _iconBox,
+            height: _iconBox,
+            decoration: BoxDecoration(
+              color: c.surfaceSoft,
+              borderRadius: BorderRadius.circular(TinoRadius.card),
+            ),
+            child: Icon(
+              LucideIcons.shoppingCart,
+              size: TinoSize.icon,
+              color: c.action,
+            ),
+          ),
+          const SizedBox(height: TinoSpace.s16),
           Text(
-            'Escaneie a etiqueta ou digite o primeiro produto '
-            'para acompanhar o total.',
-            style: text.bodyMedium,
+            'Carrinho vazio',
             textAlign: TextAlign.center,
+            style: TinoType.subtitulo.withColor(c.textPrimary),
+          ),
+          const SizedBox(height: TinoSpace.s8),
+          Text(
+            'Aponte a câmera para a primeira etiqueta. O resto o Tino soma.',
+            textAlign: TextAlign.center,
+            style: TinoType.secundario.withColor(c.textSecondary),
           ),
         ],
       ),
