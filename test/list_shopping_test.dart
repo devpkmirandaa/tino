@@ -126,11 +126,12 @@ void main() {
 
     final shopping = container.read(shoppingProvider.notifier);
     await container.read(shoppingProvider.future);
+    final cartId = shopping.newId();
     shopping
       ..setList(listId)
       ..add(
         UnitItem(
-          id: shopping.newId(),
+          id: cartId,
           name: 'Goma de tapioca',
           price: Money(1014),
           quantity: 1,
@@ -139,11 +140,16 @@ void main() {
     await settle();
 
     final items = await repo.items(listId);
-    expect(items.firstWhere((i) => i.name == 'Tapioca').done, isTrue);
+    final tapioca = items.firstWhere((i) => i.name == 'Tapioca');
+    expect(tapioca.done, isTrue);
     expect(items.firstWhere((i) => i.name == 'Café').done, isFalse);
     final feedback = container.read(listFeedbackProvider);
     expect(feedback, isA<AutoChecked>());
     expect(feedback!.itemName, 'Tapioca');
+    // Desfazer no scanner encontra o riscado pela linha do carrinho.
+    final checks = container.read(autoChecksProvider.notifier);
+    expect(checks.take(cartId), (listId: listId, itemId: tapioca.id));
+    expect(checks.take(cartId), isNull);
   });
 
   test('sem lista ligada: não risca, pergunta e sugere a lista', () async {

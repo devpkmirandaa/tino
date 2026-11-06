@@ -18,6 +18,8 @@ import '../domain/cart.dart';
 import '../domain/money.dart';
 import '../domain/scan_add.dart';
 import '../domain/tag_reader.dart';
+import '../../lists/application/list_shopping_link.dart';
+import '../../lists/application/lists_providers.dart';
 import 'cart_entrance.dart';
 
 /// Resultado do scanner: leitura para completar, pedido para digitar ou
@@ -89,8 +91,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   TagReading? _scanReading;
   ScanAddResult? _applied;
   var _scanLock = 0;
-  var _undos = 0;
-  var _undone = false;
+
+  /// Aviso na folha depois de desfazer ou de manter o item atual.
+  ({String title, String detail})? _notice;
+  var _notices = 0;
 
   // Adição automática agendada para este travamento.
   Timer? _autoTimer;
@@ -246,7 +250,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       _scanReading = r;
       _scanLock = _locks;
       _applied = null;
-      _undone = false;
+      _notice = null;
       _quantity = 1;
     });
     _apply(first: true);
@@ -267,9 +271,31 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   }
 
   void _resolve(ConflictChoice choice) {
-    _scan = _scan!.copyWith(choice: choice);
-    _apply();
+    final scan = _scan!;
+    if (choice == ConflictChoice.keepCurrent) {
+      // Carrinho fica como está; a leitura nova é descartada.
+      final current = scan.conflict!;
+      setState(() {
+        _scan = null;
+        _scanReading = null;
+        _notice = (
+          title: 'Mantido ${current.price.format()} no carrinho',
+          detail: 'A leitura nova foi descartada.',
+        );
+        _notices++;
+      });
+    } else {
+      _scan = scan.copyWith(choice: choice);
+      _apply();
+    }
     _scheduleAuto();
+  }
+
+  /// Varejo ou atacado trocado depois de adicionar: refaz com o novo preço.
+  void _setAddedMode(PriceMode mode) {
+    ref.read(priceModeProvider.notifier).set(mode);
+    final scan = _scan;
+    if (scan != null) _setAddedQuantity(scan.item.quantity);
   }
 
   /// Contador da folha depois de adicionar: refaz a adição com outra
@@ -293,15 +319,27 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     if (scan == null) return;
     ref.read(shoppingProvider.notifier).setCart(scan.before);
     final line = _applied?.lineId;
-    if (line != null) ref.read(cartEntranceProvider.notifier).unmark(line);
+    if (line != null) {
+      ref.read(cartEntranceProvider.notifier).unmark(line);
+      // Linha nova que riscou um item da lista sozinha: desmarca.
+      final check = ref.read(autoChecksProvider.notifier).take(line);
+      if (check != null) {
+        ref
+            .read(listsActionsProvider)
+            .setDone(check.listId, check.itemId, false);
+      }
+    }
     _guard.clear();
     TinoHaptics.light();
     setState(() {
       _scan = null;
       _scanReading = null;
       _applied = null;
-      _undone = true;
-      _undos++;
+      _notice = (
+        title: 'Item tirado do carrinho',
+        detail: 'Aponte para a próxima etiqueta.',
+      );
+      _notices++;
     });
     _scheduleAuto();
   }
@@ -406,7 +444,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           name: scan.item.name,
           detail: switch (scan.choice) {
             ConflictChoice.useNew => 'Preço do carrinho atualizado',
-            ConflictChoice.keepCurrent => 'Mantido o preço do carrinho',
+            ConflictChoice.keepCurrent => null,
             ConflictChoice.separate => 'Somado como outro item',
             null when scan.item.quantity > 1 =>
               '${applied.unitPrice.format()} cada',
@@ -415,12 +453,9 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           price: (applied.unitPrice * scan.item.quantity).format(),
         ),
       ),
-      null when _undone => (
-        ValueKey('undo-$_undos'),
-        const _Message(
-          title: 'Item tirado do carrinho',
-          detail: 'Aponte para a próxima etiqueta.',
-        ),
+      null when _notice != null => (
+        ValueKey('notice-$_notices'),
+        _Message(title: _notice!.title, detail: _notice!.detail),
       ),
       null => (
         const ValueKey('search'),
@@ -435,14 +470,16 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       ),
     };
 
-    final modeToggle = TinoSegmented<PriceMode>(
-      segments: const [
-        (value: PriceMode.retail, label: 'Varejo'),
-        (value: PriceMode.bulk, label: 'Atacado'),
-      ],
-      selected: mode,
-      onChanged: _setMode,
-    );
+    // Varejo ou atacado só aparece quando a etiqueta tem atacado.
+    Widget priceToggle(TagReading r, ValueChanged<PriceMode> onChanged) =>
+        TinoSegmented<PriceMode>(
+          segments: [
+            (value: PriceMode.retail, label: 'Varejo ${r.price!.format()}'),
+            (value: PriceMode.bulk, label: 'Atacado ${r.bulkPrice!.format()}'),
+          ],
+          selected: mode,
+          onChanged: onChanged,
+        );
 
     final actions = switch (found) {
       _ when error != null => Row(
@@ -540,18 +577,14 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           ),
         ],
       ),
-      null => Row(
-        children: [
-          Expanded(child: modeToggle),
-          const SizedBox(width: TinoSpace.s8),
-          TinoButton.outlined(
-            label: 'Digitar',
-            icon: LucideIcons.keyboard,
-            onPressed: () => context.pop(const ScanTypeInstead()),
-          ),
-        ],
+      null => TinoButton.outlined(
+        label: 'Digitar',
+        icon: LucideIcons.keyboard,
+        expand: true,
+        onPressed: () => context.pop(const ScanTypeInstead()),
       ),
     };
+    final addedReading = _scanReading;
     final showAdded =
         found == null && error == null && conflict == null && applied != null;
 
@@ -559,23 +592,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       children: [
         // Etiqueta dupla: os dois preços lado a lado, um toque troca.
         if (found != null && found.bulkPrice != null && conflict == null)
-          TinoSegmented<PriceMode>(
-            segments: [
-              (
-                value: PriceMode.retail,
-                label: 'Varejo ${found.price!.format()}',
-              ),
-              (
-                value: PriceMode.bulk,
-                label: 'Atacado ${found.bulkPrice!.format()}',
-              ),
-            ],
-            selected: mode,
-            onChanged: _setMode,
-          )
-        // Varejo ou atacado continua à mão depois de adicionar.
-        else if (showAdded)
-          modeToggle,
+          priceToggle(found, _setMode)
+        // Depois de adicionar, troca o preço do item que entrou.
+        else if (showAdded && addedReading?.bulkPrice != null)
+          priceToggle(addedReading!, _setAddedMode),
         _Swap(id: key, child: item),
         // Atacado lido sem o mínimo: campo vazio para digitar.
         if (found != null &&

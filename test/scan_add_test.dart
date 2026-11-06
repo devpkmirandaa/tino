@@ -51,14 +51,15 @@ void main() {
       expect(r.cart.items.length, 2);
     });
 
-    test('manter o preço atual só soma a quantidade', () {
+    test('manter o atual descarta a leitura nova', () {
       final r = ScanAdd(
         before: before,
         item: unit('n', 'Molho de tomate', 350),
         choice: ConflictChoice.keepCurrent,
       ).apply()!;
       final line = r.cart.items.first as UnitItem;
-      expect((line.price, line.quantity), (Money(300), 3));
+      expect((line.price, line.quantity), (Money(300), 2));
+      expect(r.cart.total, before.total);
       expect(r.unitPrice, Money(300));
     });
 

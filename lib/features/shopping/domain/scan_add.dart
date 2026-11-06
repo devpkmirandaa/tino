@@ -6,7 +6,7 @@ enum ConflictChoice {
   /// "Usar R$ X": a linha existente passa ao preço novo e soma a quantidade.
   useNew,
 
-  /// "Manter R$ Y": a linha existente fica no preço dela e soma a quantidade.
+  /// "Manter R$ Y": o carrinho fica como está e a leitura nova é descartada.
   keepCurrent,
 
   /// "Somar como outro": entra como linha separada, no preço novo.
@@ -60,7 +60,7 @@ final class ScanAdd {
             unitPrice: item.price,
           ),
           ConflictChoice.keepCurrent => (
-            cart: before.replace(existing.copyWith(quantity: quantity)),
+            cart: before,
             lineId: existing.id,
             unitPrice: existing.price,
           ),

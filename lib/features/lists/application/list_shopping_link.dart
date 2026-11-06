@@ -65,18 +65,46 @@ final listShoppingLinkProvider = Provider<void>((ref) {
     final known = {for (final i in before.cart.items) i.id};
     final added = [
       for (final i in after.cart.items)
-        if (!known.contains(i.id)) i.name,
+        if (!known.contains(i.id)) (id: i.id, name: i.name),
     ];
     if (added.isNotEmpty) _check(ref, after.listId, added);
   });
 });
 
-Future<void> _check(Ref ref, int? linked, List<String> names) async {
+/// Item da lista riscado sozinho por uma linha do carrinho.
+typedef AutoCheck = ({int listId, int itemId});
+
+/// Riscados sozinhos, pelo id da linha do carrinho que os riscou: desfazer a
+/// adição no scanner desmarca o item da lista.
+final autoChecksProvider = NotifierProvider<AutoChecks, Map<String, AutoCheck>>(
+  AutoChecks.new,
+);
+
+class AutoChecks extends Notifier<Map<String, AutoCheck>> {
+  @override
+  Map<String, AutoCheck> build() => const {};
+
+  void put(String cartItemId, AutoCheck check) =>
+      state = {...state, cartItemId: check};
+
+  /// Tira e devolve o riscado da linha, se houver.
+  AutoCheck? take(String cartItemId) {
+    final check = state[cartItemId];
+    if (check != null) state = {...state}..remove(cartItemId);
+    return check;
+  }
+}
+
+Future<void> _check(
+  Ref ref,
+  int? linked,
+  List<({String id, String name})> added,
+) async {
   try {
     final repo = ref.read(listsRepositoryProvider);
     final pairs = await ref.read(learnedPairsProvider.future);
     final categories = await ref.read(learnedCategoriesProvider.future);
-    for (final name in names) {
+    for (final (:id, :name) in added) {
       if (linked != null) {
         final items = await repo.items(linked);
         final match = bestMatch(
@@ -97,6 +125,10 @@ Future<void> _check(Ref ref, int? linked, List<String> names) async {
           await ref
               .read(listsActionsProvider)
               .setDone(linked, match.item.id, true);
+          ref.read(autoChecksProvider.notifier).put(id, (
+            listId: linked,
+            itemId: match.item.id,
+          ));
           ref
               .read(listFeedbackProvider.notifier)
               .set(
