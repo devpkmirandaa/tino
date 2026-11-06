@@ -56,6 +56,10 @@ class ShoppingController extends AsyncNotifier<ShoppingSession> {
   void replace(CartItem item) =>
       _set(_session.cart.replace(item), _session.budget);
 
+  /// Troca o carrinho inteiro: adição do scanner refeita ou desfeita
+  /// (ver `ScanAdd`).
+  void setCart(Cart cart) => _set(cart, _session.budget);
+
   void remove(String id) => _set(_session.cart.remove(id), _session.budget);
 
   void setBudget(Money? budget) => _set(_session.cart, budget);

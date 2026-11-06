@@ -16,13 +16,17 @@ import '../application/scan_reader.dart';
 import '../application/shopping_controller.dart';
 import '../domain/cart.dart';
 import '../domain/money.dart';
+import '../domain/scan_add.dart';
 import '../domain/tag_reader.dart';
+import 'cart_entrance.dart';
 
-/// Resultado do scanner: leitura confirmada ou pedido para digitar.
+/// Resultado do scanner: leitura para completar, pedido para digitar ou
+/// item do carrinho para corrigir.
 sealed class ScanResult {
   const ScanResult();
 }
 
+/// Leitura que precisa de peso, nome ou correção antes de entrar.
 final class ScanRead extends ScanResult {
   const ScanRead(this.reading);
   final TagReading reading;
@@ -30,6 +34,12 @@ final class ScanRead extends ScanResult {
 
 final class ScanTypeInstead extends ScanResult {
   const ScanTypeInstead();
+}
+
+/// Item que entrou pelo scanner e o usuário quer corrigir.
+final class ScanEdit extends ScanResult {
+  const ScanEdit(this.itemId);
+  final String itemId;
 }
 
 /// Preço preferido em etiquetas com varejo e atacado.
@@ -47,15 +57,16 @@ class PriceModeNotifier extends Notifier<PriceMode> {
   void set(PriceMode mode) => state = mode;
 }
 
-/// Último item que entrou pelo scanner, mostrado na folha.
-typedef _Added = ({String name, Money price, int quantity});
-
 /// M3b: a folha troca de conteúdo 80 ms depois do travamento.
 const _swapDelay = Duration(milliseconds: 80);
 
+/// Espera depois do travamento antes de adicionar sozinho: nome, atacado e
+/// mínimo podem chegar uns quadros depois do preço.
+const _settle = Duration(milliseconds: 300);
+
 /// Tela do scanner (design/specs/telas.md · 03), sempre escura. A leitura
-/// (câmera, OCR, votação) fica em [ScanReader]; aqui só a interface, a
-/// quantidade e a escolha de varejo ou atacado.
+/// (câmera, OCR, votação) fica em [ScanReader]; aqui a interface e a
+/// adição: item por unidade com nome lido entra sozinho ao travar.
 class ScannerPage extends ConsumerStatefulWidget {
   const ScannerPage({super.key});
 
@@ -67,12 +78,25 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     with TickerProviderStateMixin {
   late final ScanReader _reader;
   var _quantity = 1;
-  _Added? _added;
-  var _adds = 0;
 
   /// Travamentos de preço novos; cada um dispara o M3a no visor.
   var _locks = 0;
   Money? _lockedPrice;
+
+  // Última adição: aplicada ([_applied]) ou esperando a escolha do conflito.
+  final _guard = RepeatGuard();
+  ScanAdd? _scan;
+  TagReading? _scanReading;
+  ScanAddResult? _applied;
+  var _scanLock = 0;
+  var _undos = 0;
+  var _undone = false;
+
+  // Adição automática agendada para este travamento.
+  Timer? _autoTimer;
+  var _autoFor = -1;
+
+  bool get _conflictPending => _scan != null && _applied == null;
 
   // M2: controles do topo descem de −16 e aparecem, 140 ms depois de abrir.
   late final _topY = AnimationController.unbounded(vsync: this);
@@ -123,10 +147,39 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     // como movimento. Só vibra quando o item entra no carrinho.
     if (price != null && price != _lockedPrice) _locks++;
     _lockedPrice = price;
+    _scheduleAuto();
   }
 
   /// Por unidade e com nome lido: dá para adicionar sem sair da câmera.
   bool _direct(TagReading r) => !r.perKg && r.name != null;
+
+  /// Entra sozinho: por unidade, com nome, e sem faltar o mínimo do atacado
+  /// quando o atacado foi escolhido.
+  bool _auto(TagReading r) =>
+      _direct(r) &&
+      !(_mode == PriceMode.bulk && r.bulkPrice != null && r.bulkMin == null);
+
+  void _scheduleAuto() {
+    final s = _reader.stable;
+    if (s == null ||
+        _conflictPending ||
+        _autoFor == _locks ||
+        !_auto(_withMin(s))) {
+      return;
+    }
+    _autoFor = _locks;
+    _autoTimer?.cancel();
+    _autoTimer = Timer(_settle, () {
+      final s = _reader.stable;
+      if (!mounted) return;
+      if (s == null || _conflictPending || !_auto(_withMin(s))) {
+        // Tenta de novo se o nome ou o mínimo chegarem depois.
+        _autoFor = -1;
+        return;
+      }
+      _add(_withMin(s));
+    });
+  }
 
   PriceMode get _mode => ref.read(priceModeProvider);
 
@@ -150,9 +203,12 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
   /// Atacado escolhido vale sempre; no varejo, o atacado só entra se a
   /// quantidade atingir o mínimo da etiqueta.
-  Money _priceOf(TagReading r) => _mode == PriceMode.bulk && r.bulkPrice != null
+  Money _priceFor(TagReading r, int quantity) =>
+      _mode == PriceMode.bulk && r.bulkPrice != null
       ? r.bulkPrice!
-      : r.priceFor(_quantity)!;
+      : r.priceFor(quantity)!;
+
+  Money _priceOf(TagReading r) => _priceFor(r, _quantity);
 
   TagReading _chosen(TagReading r) =>
       TagReading(name: r.name, price: _priceOf(r), perKg: r.perKg);
@@ -163,36 +219,96 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     setState(() {
       if (found != null) _quantity = _startQuantity(_withMin(found));
     });
+    _scheduleAuto();
   }
 
+  /// Leva a leitura ao carrinho (sozinho ou pelo botão). Mesmo produto com
+  /// outro preço fica na folha esperando a escolha.
   void _add(TagReading r) {
     final controller = ref.read(shoppingProvider.notifier);
-    final price = _priceOf(r);
-    final result = controller.add(
-      UnitItem(
-        id: controller.newId(),
-        name: r.name!,
-        price: price,
-        quantity: _quantity,
-      ),
+    final cart = ref.read(shoppingProvider).value?.cart;
+    if (cart == null) return;
+    _autoTimer?.cancel();
+    final item = UnitItem(
+      id: controller.newId(),
+      name: r.name!,
+      price: _priceOf(r),
+      quantity: _quantity,
     );
-    if (result is PriceConflict) {
-      // Mesmo produto com outro preço: o painel pergunta o que fazer.
-      context.pop(ScanRead(_chosen(r)));
-      return;
-    }
+    final now = DateTime.now();
     _reader.accept();
-    TinoHaptics.success();
+    _lockedPrice = null;
+    // Mesma etiqueta lida de novo logo em seguida: não duplica.
+    if (_guard.blocks(item, now)) return setState(() {});
+    _guard.record(item, now);
     setState(() {
-      _added = (name: r.name!, price: price * _quantity, quantity: _quantity);
-      _adds++;
-      _lockedPrice = null;
+      _scan = ScanAdd(before: cart, item: item);
+      _scanReading = r;
+      _scanLock = _locks;
+      _applied = null;
+      _undone = false;
       _quantity = 1;
     });
+    _apply(first: true);
+  }
+
+  /// Aplica [_scan] ao carrinho; com conflito sem escolha, só mostra o aviso.
+  void _apply({bool first = false}) {
+    final result = _scan?.apply();
+    if (result == null) return setState(() {});
+    ref.read(shoppingProvider.notifier).setCart(result.cart);
+    final entrance = ref.read(cartEntranceProvider.notifier);
+    final old = _applied?.lineId;
+    if (old != null && old != result.lineId) entrance.unmark(old);
+    // Só linha nova entra no Comprar com M3c; soma em linha existente não.
+    if (result.lineId == _scan!.item.id) entrance.mark(result.lineId);
+    if (first || _applied == null) TinoHaptics.success();
+    setState(() => _applied = result);
+  }
+
+  void _resolve(ConflictChoice choice) {
+    _scan = _scan!.copyWith(choice: choice);
+    _apply();
+    _scheduleAuto();
+  }
+
+  /// Contador da folha depois de adicionar: refaz a adição com outra
+  /// quantidade (o preço pode mudar no atacado).
+  void _setAddedQuantity(int quantity) {
+    final scan = _scan;
+    final reading = _scanReading;
+    if (scan == null || reading == null) return;
+    _scan = scan.copyWith(
+      item: scan.item.copyWith(
+        quantity: quantity,
+        price: _priceFor(reading, quantity),
+      ),
+    );
+    _apply();
+  }
+
+  /// M8: volta o carrinho para antes desta adição.
+  void _undo() {
+    final scan = _scan;
+    if (scan == null) return;
+    ref.read(shoppingProvider.notifier).setCart(scan.before);
+    final line = _applied?.lineId;
+    if (line != null) ref.read(cartEntranceProvider.notifier).unmark(line);
+    _guard.clear();
+    TinoHaptics.light();
+    setState(() {
+      _scan = null;
+      _scanReading = null;
+      _applied = null;
+      _undone = true;
+      _undos++;
+    });
+    _scheduleAuto();
   }
 
   @override
   void dispose() {
+    _autoTimer?.cancel();
     _topTimer?.cancel();
     _topY.dispose();
     _topFade.dispose();
@@ -256,27 +372,54 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   Widget _sheet(TagReading? read, TagReading? found) {
     final mode = ref.watch(priceModeProvider);
     final error = _reader.error;
-    final bulk = found?.bulkPrice;
+    final scan = _scan;
+    final applied = _applied;
+    final conflict = _conflictPending ? scan!.conflict : null;
+    // Lido e adicionado no mesmo travamento dividem a chave: o item fica no
+    // lugar e só entra o "Adicionado ao carrinho".
     final (Key key, Widget item) = switch (found) {
       _ when error != null => (
         const ValueKey('error'),
         _Message(title: error, detail: 'Quer digitar o preço?'),
       ),
+      _ when conflict != null => (
+        ValueKey('conflict-$_scanLock'),
+        _Message(
+          title: '${conflict.name} já está no carrinho',
+          detail:
+              'No carrinho: ${conflict.price.format()} · '
+              'Nesta etiqueta: ${scan!.item.price.format()}',
+        ),
+      ),
       final f? => (
-        ValueKey('found-${f.price?.cents}'),
+        ValueKey('lock-$_locks'),
         _ReadItem(
           name: f.name ?? 'Nome não lido.',
           detail: _detail(f, mode),
           price: f.perKg ? '${_priceOf(f).format()}/kg' : _priceOf(f).format(),
         ),
       ),
-      null when _added != null => (
-        ValueKey('added-$_adds'),
+      null when scan != null && applied != null => (
+        ValueKey('lock-$_scanLock'),
         _ReadItem(
           added: true,
-          name: _added!.name,
-          detail: _added!.quantity == 1 ? null : '× ${_added!.quantity}',
-          price: _added!.price.format(),
+          name: scan.item.name,
+          detail: switch (scan.choice) {
+            ConflictChoice.useNew => 'Preço do carrinho atualizado',
+            ConflictChoice.keepCurrent => 'Mantido o preço do carrinho',
+            ConflictChoice.separate => 'Somado como outro item',
+            null when scan.item.quantity > 1 =>
+              '${applied.unitPrice.format()} cada',
+            null => null,
+          },
+          price: (applied.unitPrice * scan.item.quantity).format(),
+        ),
+      ),
+      null when _undone => (
+        ValueKey('undo-$_undos'),
+        const _Message(
+          title: 'Item tirado do carrinho',
+          detail: 'Aponte para a próxima etiqueta.',
         ),
       ),
       null => (
@@ -291,6 +434,15 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         ),
       ),
     };
+
+    final modeToggle = TinoSegmented<PriceMode>(
+      segments: const [
+        (value: PriceMode.retail, label: 'Varejo'),
+        (value: PriceMode.bulk, label: 'Atacado'),
+      ],
+      selected: mode,
+      onChanged: _setMode,
+    );
 
     final actions = switch (found) {
       _ when error != null => Row(
@@ -310,6 +462,27 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
               expand: true,
               onPressed: _reader.open,
             ),
+          ),
+        ],
+      ),
+      _ when conflict != null => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TinoButton.primary(
+            label: 'Usar ${scan!.item.price.format()}',
+            expand: true,
+            onPressed: () => _resolve(ConflictChoice.useNew),
+          ),
+          const SizedBox(height: TinoSpace.s8),
+          TinoButton.outlined(
+            label: 'Manter ${conflict.price.format()}',
+            expand: true,
+            onPressed: () => _resolve(ConflictChoice.keepCurrent),
+          ),
+          TinoButton.text(
+            label: 'Somar como outro',
+            expand: true,
+            onPressed: () => _resolve(ConflictChoice.separate),
           ),
         ],
       ),
@@ -344,18 +517,32 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           ),
         ],
       ),
-      null => Row(
+      null when scan != null && applied != null => Row(
         children: [
+          TinoQuantityStepper(
+            value: scan.item.quantity,
+            onChanged: _setAddedQuantity,
+          ),
+          const SizedBox(width: TinoSpace.s8),
           Expanded(
-            child: TinoSegmented<PriceMode>(
-              segments: const [
-                (value: PriceMode.retail, label: 'Varejo'),
-                (value: PriceMode.bulk, label: 'Atacado'),
-              ],
-              selected: mode,
-              onChanged: _setMode,
+            child: TinoButton.outlined(
+              label: 'Desfazer',
+              icon: LucideIcons.undo2,
+              expand: true,
+              onPressed: _undo,
             ),
           ),
+          const SizedBox(width: TinoSpace.s8),
+          _OutlinedIconButton(
+            icon: LucideIcons.pencil,
+            semanticLabel: 'Corrigir item',
+            onPressed: () => context.pop(ScanEdit(applied.lineId)),
+          ),
+        ],
+      ),
+      null => Row(
+        children: [
+          Expanded(child: modeToggle),
           const SizedBox(width: TinoSpace.s8),
           TinoButton.outlined(
             label: 'Digitar',
@@ -365,25 +552,36 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         ],
       ),
     };
+    final showAdded =
+        found == null && error == null && conflict == null && applied != null;
 
     return _SheetFrame(
       children: [
         // Etiqueta dupla: os dois preços lado a lado, um toque troca.
-        if (found != null && bulk != null)
+        if (found != null && found.bulkPrice != null && conflict == null)
           TinoSegmented<PriceMode>(
             segments: [
               (
                 value: PriceMode.retail,
                 label: 'Varejo ${found.price!.format()}',
               ),
-              (value: PriceMode.bulk, label: 'Atacado ${bulk.format()}'),
+              (
+                value: PriceMode.bulk,
+                label: 'Atacado ${found.bulkPrice!.format()}',
+              ),
             ],
             selected: mode,
             onChanged: _setMode,
-          ),
+          )
+        // Varejo ou atacado continua à mão depois de adicionar.
+        else if (showAdded)
+          modeToggle,
         _Swap(id: key, child: item),
         // Atacado lido sem o mínimo: campo vazio para digitar.
-        if (found != null && read!.bulkPrice != null && read.bulkMin == null)
+        if (found != null &&
+            conflict == null &&
+            read!.bulkPrice != null &&
+            read.bulkMin == null)
           _MinField(
             key: ValueKey(read.price),
             applied:
@@ -394,10 +592,11 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
               _manualMin = m;
               _minFor = read.price;
               if (_mode == PriceMode.bulk && m != null) _quantity = m;
+              _scheduleAuto();
             }),
           ),
         actions,
-        if (found == null && _added != null && error == null)
+        if (showAdded)
           Text(
             'Já pode apontar para a próxima etiqueta.',
             textAlign: TextAlign.center,

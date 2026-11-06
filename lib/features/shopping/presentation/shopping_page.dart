@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +10,7 @@ import '../../../core/widgets/tino_widgets.dart';
 import '../../lists/presentation/linked_list_card.dart';
 import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
+import 'cart_entrance.dart';
 import 'cart_item_row.dart';
 import 'scanner_page.dart';
 import 'scanner_route.dart';
@@ -46,6 +49,7 @@ class ShoppingPage extends ConsumerWidget {
     final session = state.value ?? const ShoppingSession();
     final items = session.cart.items;
     final listId = session.listId;
+    final entering = ref.watch(cartEntranceProvider).playing;
 
     final header = [
       Row(
@@ -102,13 +106,17 @@ class ShoppingPage extends ConsumerWidget {
                                 for (final (i, item)
                                     in items.reversed.indexed) ...[
                                   if (i > 0) const Divider(),
-                                  TinoItemRow(
-                                    key: ValueKey('cart-item-$i'),
-                                    title: item.name,
-                                    subtitle: cartItemDetail(item),
-                                    price: item.total.format(),
-                                    onPressed: () =>
-                                        showItemSheet(context, item: item),
+                                  CartRowEntrance(
+                                    key: ValueKey('cart-row-${item.id}'),
+                                    play: entering.contains(item.id),
+                                    child: TinoItemRow(
+                                      key: ValueKey('cart-item-$i'),
+                                      title: item.name,
+                                      subtitle: cartItemDetail(item),
+                                      price: item.total.format(),
+                                      onPressed: () =>
+                                          showItemSheet(context, item: item),
+                                    ),
                                   ),
                                 ],
                               ],
@@ -272,9 +280,17 @@ Future<void> _scan(BuildContext context) async {
   }
   final result = await context.push<ScanResult>('/escanear');
   if (!context.mounted) return;
+  final container = ProviderScope.containerOf(context, listen: false);
+  // Linhas que entraram pelo scanner fazem o M3c enquanto ele fecha.
+  final entrance = container.read(cartEntranceProvider.notifier)..release();
+  Timer(const Duration(seconds: 1), entrance.settle);
   switch (result) {
     case ScanRead(:final reading):
       await showItemSheet(context, draft: reading);
+    case ScanEdit(:final itemId):
+      final items = container.read(shoppingProvider).value?.cart.items;
+      final item = items?.where((i) => i.id == itemId).firstOrNull;
+      if (item != null) await showItemSheet(context, item: item);
     case ScanTypeInstead():
       await showItemSheet(context);
     case null:
