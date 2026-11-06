@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/theme/tino_theme.dart';
 import '../features/history/presentation/history_page.dart';
 import '../features/history/presentation/purchase_detail_page.dart';
 import '../features/lists/presentation/list_detail_page.dart';
@@ -10,7 +9,7 @@ import '../features/lists/presentation/lists_page.dart';
 import '../features/onboarding/data/onboarding_preference.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/settings/presentation/settings_page.dart';
-import '../features/shopping/presentation/scanner_page.dart';
+import '../features/shopping/presentation/scanner_route.dart';
 import '../features/shopping/presentation/shopping_page.dart';
 import 'area_content.dart';
 import 'tino_shell.dart';
@@ -46,12 +45,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/escanear',
-        // O scanner atual foi desenhado sobre o tema claro; o visual sempre
-        // escuro da spec chega na etapa do scanner.
-        pageBuilder: (context, state) => _fadePage(
-          state,
-          Theme(data: buildTinoLightTheme(), child: const ScannerPage()),
-        ),
+        pageBuilder: (context, state) => scannerPage(state),
       ),
       GoRoute(
         path: '/ajustes',
@@ -61,8 +55,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Endereço antigo da aba Comprar, que agora é a inicial.
       GoRoute(path: '/comprar', redirect: (context, state) => '/'),
       StatefulShellRoute(
-        pageBuilder: (context, state, shell) =>
-            _fadePage(state, TinoShell(navigationShell: shell)),
+        pageBuilder: (context, state, shell) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          transitionDuration: const Duration(milliseconds: 180),
+          reverseTransitionDuration: const Duration(milliseconds: 180),
+          child: TinoShell(navigationShell: shell),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              ScannerBackdrop(
+                animation: secondaryAnimation,
+                child: MediaQuery.disableAnimationsOf(context)
+                    ? child
+                    : FadeTransition(
+                        opacity: animation.drive(
+                          CurveTween(curve: Curves.easeOutCubic),
+                        ),
+                        child: child,
+                      ),
+              ),
+        ),
         navigatorContainerBuilder: (context, shell, children) =>
             AreaContent(index: shell.currentIndex, children: children),
         branches: [

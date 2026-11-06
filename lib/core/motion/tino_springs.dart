@@ -76,6 +76,21 @@ abstract final class TinoCurves {
   static const easeOut = Cubic(0.2, 0, 0, 1);
 }
 
+/// Uma das [TinoSprings] de 0 a 1 como curva, para transições com duração
+/// fixa (rotas, AnimatedSwitcher). [duration] deve cobrir o assentamento da
+/// mola; a curva termina exatamente em 1.
+class TinoSpringCurve extends Curve {
+  TinoSpringCurve(SpringDescription spring, this.duration)
+    : _sim = SpringSimulation(spring, 0, 1, 0);
+
+  final Duration duration;
+  final SpringSimulation _sim;
+
+  @override
+  double transformInternal(double t) =>
+      _sim.x(t * duration.inMicroseconds / Duration.microsecondsPerSecond);
+}
+
 abstract final class TinoMotion {
   /// Defasagem entre elementos de um mesmo grupo.
   static const stagger = Duration(milliseconds: 60);

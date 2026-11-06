@@ -10,6 +10,7 @@ import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
 import 'cart_item_row.dart';
 import 'scanner_page.dart';
+import 'scanner_route.dart';
 import 'shopping_sheets.dart';
 
 /// Aba inicial (design/specs/telas.md · 02 Comprar vazio e 04 com itens).
@@ -264,7 +265,11 @@ Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {
 }
 
 /// Abre o scanner e leva a leitura (ou um pedido para digitar) ao painel.
+/// O scanner cresce a partir do botão tocado ([context]) (M2).
 Future<void> _scan(BuildContext context) async {
+  if (context.findRenderObject() case final RenderBox box? when box.hasSize) {
+    ScannerOrigin.rect = box.localToGlobal(Offset.zero) & box.size;
+  }
   final result = await context.push<ScanResult>('/escanear');
   if (!context.mounted) return;
   switch (result) {
