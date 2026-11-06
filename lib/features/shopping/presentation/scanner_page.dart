@@ -50,9 +50,6 @@ class PriceModeNotifier extends Notifier<PriceMode> {
 /// Último item que entrou pelo scanner, mostrado na folha.
 typedef _Added = ({String name, Money price, int quantity});
 
-/// Tema da folha, criado uma vez: a tela reconstrói a cada leitura.
-final _sheetTheme = buildTinoTheme(Brightness.light);
-
 /// M3b: a folha troca de conteúdo 80 ms depois do travamento.
 const _swapDelay = Duration(milliseconds: 80);
 
@@ -122,10 +119,9 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     }
     if (stable != null) _quantity = _startQuantity(_withMin(stable));
     final price = stable?.price;
-    if (price != null && price != _lockedPrice) {
-      _locks++;
-      TinoHaptics.light();
-    }
+    // Sem háptico aqui: a vibração desfoca a câmera e o giroscópio a conta
+    // como movimento. Só vibra quando o item entra no carrinho.
+    if (price != null && price != _lockedPrice) _locks++;
     _lockedPrice = price;
   }
 
@@ -249,11 +245,8 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Theme(
-              // A folha é clara sobre o scanner escuro (03-scanner.html).
-              data: _sheetTheme,
-              child: _sheet(read, found),
-            ),
+            // Escura como o resto: "O Scanner é sempre escuro" (specs).
+            child: _sheet(read, found),
           ),
         ],
       ),
