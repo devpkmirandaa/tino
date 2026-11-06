@@ -30,6 +30,48 @@ ItemCategory suggestCategory(
   return ItemCategory.outros;
 }
 
+/// Palavras que identificam o produto: sem acento, sem "de/com/kg" e sem
+/// números ("Leite Integral 1L" → leite, integral).
+List<String> nameWords(String name) => [
+  for (final w in _words(name))
+    if (w.length >= 2 && !_stopWords.contains(w) && !_isNumberish(w)) w,
+];
+
+/// Mesma palavra: igual, no plural, com uma letra trocada (palavras
+/// longas), da mesma família ("dente"/"dental", "tomate"/"tomatinho": o
+/// começo em comum cobre ao menos 3/4 da menor) ou sinônimo conhecido
+/// ("refri"/"refrigerante", "pasta"/"creme" de dente).
+bool sameWord(String a, String b) {
+  if (a == b) return true;
+  final sa = _synonyms[_singular(a)] ?? _singular(a);
+  final sb = _synonyms[_singular(b)] ?? _singular(b);
+  if (sa == sb) return true;
+  if (a.length >= 5 && b.length >= 5 && _withinOne(a, b)) return true;
+  final shorter = sa.length < sb.length ? sa.length : sb.length;
+  if (shorter < 4) return false;
+  var common = 0;
+  while (common < shorter && sa[common] == sb[common]) {
+    common++;
+  }
+  return common >= 4 && common * 4 >= shorter * 3;
+}
+
+/// Sinônimos de mercado, já no singular e sem acento.
+const _synonyms = {
+  'refri': 'refrigerante',
+  'pasta': 'creme',
+  'xampu': 'shampoo',
+  'mucarela': 'mussarela',
+  'muzzarela': 'mussarela',
+  'aipim': 'mandioca',
+  'macaxeira': 'mandioca',
+  'bergamota': 'tangerina',
+  'mexerica': 'tangerina',
+  'ponkan': 'tangerina',
+  'bolacha': 'biscoito',
+  'catchup': 'ketchup',
+};
+
 /// Chave do nome inteiro para aprender a escolha do usuário.
 String categoryKey(String name) => _words(name).join(' ');
 

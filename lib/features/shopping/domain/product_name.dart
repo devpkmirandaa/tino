@@ -66,7 +66,11 @@ String? _lookup(String key) {
   var bestDistance = limit + 1;
   var tie = false;
   for (final e in _byPlain.entries) {
-    if ((e.key.length - key.length).abs() > limit) continue;
+    // Palavra curta da lista não captura palavra lida: "macia" não vira
+    // "maçã".
+    if (e.key.length < 5 || (e.key.length - key.length).abs() > limit) {
+      continue;
+    }
     final d = _distance(key, e.key, limit);
     if (d < bestDistance) {
       best = e.value;
@@ -174,7 +178,13 @@ const _vocabulary = [
   'shampoo', 'condicionador', 'sabonete', 'dental', 'desodorante',
   'absorvente', 'fralda', 'limpador', 'multiuso',
   // Embalagem
-  'pacote', 'caixa', 'unidade', 'sachê', 'refil', 'bandeja',
+  'pacote', 'caixa', 'unidade', 'unidades', 'sachê', 'refil', 'bandeja',
+  // Adjetivos comuns: ficam protegidos de correção errada.
+  'macia', 'macio', 'média', 'médio', 'dura', 'duro', 'suave', 'forte',
+  'fino', 'fina', 'grosso', 'grossa', 'grande', 'pequeno', 'pequena',
+  'branca', 'branco', 'preta', 'preto', 'escuro', 'claro', 'novo', 'nova',
+  'mole', 'firme', 'leve', 'denso', 'cremoso', 'cremosa', 'crocante',
+  'escova', 'dental', 'dente', 'dentes', 'bucal', 'oral', 'kit',
   // Marcas frequentes
   'nestlé', 'lacta', 'garoto', 'sadia', 'perdigão', 'seara', 'aurora',
   'piracanjuba', 'italac', 'parmalat', 'elegê', 'tirol', 'vigor', 'danone',

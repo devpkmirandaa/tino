@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
+import '../../lists/presentation/linked_list_card.dart';
 import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
 import 'cart_item_row.dart';
@@ -62,6 +63,11 @@ class ShoppingPage extends StatelessWidget {
                     ),
                     const SizedBox(height: TinoSpace.s16),
                     _TotalCard(session),
+                    if (session.listId case final listId?) ...[
+                      const SizedBox(height: TinoSpace.s16),
+                      LinkedListCard(listId),
+                    ] else
+                      const UseListPrompt(),
                     const SizedBox(height: TinoSpace.s24),
                     if (items.isEmpty)
                       const _EmptyCart()

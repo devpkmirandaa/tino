@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/tino_theme.dart';
+import '../features/lists/application/list_shopping_link.dart';
+import '../features/lists/presentation/list_feedback_listener.dart';
 import '../features/onboarding/data/onboarding_preference.dart';
 import 'router.dart';
 
@@ -11,6 +13,8 @@ class TinoApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final access = ref.watch(initialAccessProvider);
+    // Risca na lista o que entra no carrinho de uma compra com lista.
+    ref.watch(listShoppingLinkProvider);
     if (!access.hasValue) {
       return MaterialApp(
         title: 'Tino',
@@ -51,6 +55,8 @@ class TinoApp extends ConsumerWidget {
       theme: buildTinoLightTheme(),
       themeMode: ThemeMode.light,
       routerConfig: ref.watch(routerProvider),
+      builder: (context, child) =>
+          ListFeedbackListener(child: child ?? const SizedBox.shrink()),
     );
   }
 }

@@ -25,6 +25,11 @@ final learnedCategoriesProvider = FutureProvider<Map<String, ItemCategory>>(
   (ref) => ref.watch(listsRepositoryProvider).learnedCategories(),
 );
 
+/// Pares produto → item respondidos pelo usuário.
+final learnedPairsProvider = FutureProvider<Map<String, bool>>(
+  (ref) => ref.watch(listsRepositoryProvider).learnedPairs(),
+);
+
 final listsActionsProvider = Provider<ListsActions>(ListsActions.new);
 
 /// Alterações nas listas: gravam no banco e recarregam o que mudou.
@@ -81,6 +86,15 @@ class ListsActions {
   Future<void> learnCategory(String name, ItemCategory category) async {
     await _repo.learnCategory(name, category);
     _ref.invalidate(learnedCategoriesProvider);
+  }
+
+  Future<void> learnPair(
+    String productName,
+    String itemName,
+    bool matches,
+  ) async {
+    await _repo.learnPair(productName, itemName, matches);
+    _ref.invalidate(learnedPairsProvider);
   }
 
   Future<void> setDone(int listId, int id, bool done) =>

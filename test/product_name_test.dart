@@ -22,6 +22,10 @@ void main() {
     expect(tidyProductName('ARROZ TIPO 1 5KG'), 'Arroz tipo 1 5KG');
   });
 
+  test('caso real: "MACIA" não vira "maçã"', () {
+    expect(tidyProductName('ESCOVA DENTAL MACIA'), 'Escova dental macia');
+  });
+
   test('marca ou palavra desconhecida fica como foi lida', () {
     expect(tidyProductName('Detergente Ypê'), 'Detergente Ypê');
     expect(tidyProductName('Chocolate Lacta'), 'Chocolate Lacta');

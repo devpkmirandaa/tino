@@ -9,13 +9,18 @@ import '../domain/money.dart';
 
 /// Compra em andamento.
 final class ShoppingSession {
-  const ShoppingSession({this.cart = const Cart(), this.budget});
+  const ShoppingSession({this.cart = const Cart(), this.budget, this.listId});
 
   final Cart cart;
   final Money? budget;
 
+  /// Lista usada nesta compra: itens adicionados são riscados nela.
+  final int? listId;
+
   BudgetStatus get status => budgetStatus(cart.total, budget);
 }
+
+const _keep = Object();
 
 final shoppingProvider =
     AsyncNotifierProvider<ShoppingController, ShoppingSession>(
@@ -58,6 +63,10 @@ class ShoppingController extends AsyncNotifier<ShoppingSession> {
   /// Esvazia o carrinho da compra ativa; o orçamento continua.
   void clear() => _set(const Cart(), _session.budget);
 
+  /// Liga (ou desliga, com nulo) uma lista à compra ativa.
+  void setList(int? listId) =>
+      _set(_session.cart, _session.budget, listId: listId);
+
   /// Grava o que falta, finaliza a compra ativa e começa uma nova, vazia.
   Future<void> finish() async {
     await _saving;
@@ -69,8 +78,12 @@ class ShoppingController extends AsyncNotifier<ShoppingSession> {
   /// Aguarda as gravações pendentes (usado em testes).
   Future<void> flush() => _saving;
 
-  void _set(Cart cart, Money? budget) {
-    final session = ShoppingSession(cart: cart, budget: budget);
+  void _set(Cart cart, Money? budget, {Object? listId = _keep}) {
+    final session = ShoppingSession(
+      cart: cart,
+      budget: budget,
+      listId: identical(listId, _keep) ? _session.listId : listId as int?,
+    );
     state = AsyncData(session);
     final repository = ref.read(shoppingRepositoryProvider);
     _saving = _saving

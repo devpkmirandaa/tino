@@ -33,6 +33,7 @@ class ShoppingRepository {
     return ShoppingSession(
       cart: Cart([for (final r in rows) _toItem(r)]),
       budget: _budget(purchase.budgetCents),
+      listId: purchase.listId,
     );
   }
 
@@ -43,7 +44,10 @@ class ShoppingRepository {
             .into(_db.purchases)
             .insert(PurchasesCompanion.insert(startedAt: DateTime.now()));
     await (_db.update(_db.purchases)..where((p) => p.id.equals(id))).write(
-      PurchasesCompanion(budgetCents: Value(session.budget?.cents)),
+      PurchasesCompanion(
+        budgetCents: Value(session.budget?.cents),
+        listId: Value(session.listId),
+      ),
     );
     await (_db.delete(
       _db.purchaseItems,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
+import '../../shopping/application/shopping_controller.dart';
 import '../application/lists_providers.dart';
 import '../domain/shopping_list.dart';
 import 'lists_sheets.dart';
@@ -135,18 +136,37 @@ class ListDetailPage extends ConsumerWidget {
               TinoSpace.s16,
               TinoSpace.s16,
             ),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                key: const ValueKey('add-list-item'),
-                onPressed: () => showListItemSheet(context, listId: id),
-                icon: const Icon(LucideIcons.plus, size: 20),
-                label: const Text('Adicionar item'),
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('add-list-item'),
+                    onPressed: () => showListItemSheet(context, listId: id),
+                    icon: const Icon(LucideIcons.plus, size: 20),
+                    label: const Text('Item'),
+                  ),
+                ),
+                const SizedBox(width: TinoSpace.s12),
+                Expanded(
+                  child: FilledButton.icon(
+                    key: const ValueKey('shop-with-list'),
+                    onPressed: () => _shop(context, ref),
+                    icon: const Icon(LucideIcons.shoppingCart, size: 20),
+                    label: const Text('Comprar'),
+                  ),
+                ),
+              ],
             ),
           ),
       ],
     );
+  }
+
+  /// Liga esta lista à compra ativa e vai para Comprar.
+  Future<void> _shop(BuildContext context, WidgetRef ref) async {
+    await ref.read(shoppingProvider.future);
+    ref.read(shoppingProvider.notifier).setList(id);
+    if (context.mounted) context.go('/comprar');
   }
 }
 

@@ -55,12 +55,22 @@ class $PurchasesTable extends Purchases
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _listIdMeta = const VerificationMeta('listId');
+  @override
+  late final GeneratedColumn<int> listId = GeneratedColumn<int>(
+    'list_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     startedAt,
     finishedAt,
     budgetCents,
+    listId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -100,6 +110,12 @@ class $PurchasesTable extends Purchases
         ),
       );
     }
+    if (data.containsKey('list_id')) {
+      context.handle(
+        _listIdMeta,
+        listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta),
+      );
+    }
     return context;
   }
 
@@ -125,6 +141,10 @@ class $PurchasesTable extends Purchases
         DriftSqlType.int,
         data['${effectivePrefix}budget_cents'],
       ),
+      listId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}list_id'],
+      ),
     );
   }
 
@@ -139,11 +159,15 @@ class Purchase extends DataClass implements Insertable<Purchase> {
   final DateTime startedAt;
   final DateTime? finishedAt;
   final int? budgetCents;
+
+  /// Lista usada nesta compra, se houver (itens lidos são riscados nela).
+  final int? listId;
   const Purchase({
     required this.id,
     required this.startedAt,
     this.finishedAt,
     this.budgetCents,
+    this.listId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -155,6 +179,9 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     }
     if (!nullToAbsent || budgetCents != null) {
       map['budget_cents'] = Variable<int>(budgetCents);
+    }
+    if (!nullToAbsent || listId != null) {
+      map['list_id'] = Variable<int>(listId);
     }
     return map;
   }
@@ -169,6 +196,9 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       budgetCents: budgetCents == null && nullToAbsent
           ? const Value.absent()
           : Value(budgetCents),
+      listId: listId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(listId),
     );
   }
 
@@ -182,6 +212,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       startedAt: serializer.fromJson<DateTime>(json['startedAt']),
       finishedAt: serializer.fromJson<DateTime?>(json['finishedAt']),
       budgetCents: serializer.fromJson<int?>(json['budgetCents']),
+      listId: serializer.fromJson<int?>(json['listId']),
     );
   }
   @override
@@ -192,6 +223,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       'startedAt': serializer.toJson<DateTime>(startedAt),
       'finishedAt': serializer.toJson<DateTime?>(finishedAt),
       'budgetCents': serializer.toJson<int?>(budgetCents),
+      'listId': serializer.toJson<int?>(listId),
     };
   }
 
@@ -200,11 +232,13 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     DateTime? startedAt,
     Value<DateTime?> finishedAt = const Value.absent(),
     Value<int?> budgetCents = const Value.absent(),
+    Value<int?> listId = const Value.absent(),
   }) => Purchase(
     id: id ?? this.id,
     startedAt: startedAt ?? this.startedAt,
     finishedAt: finishedAt.present ? finishedAt.value : this.finishedAt,
     budgetCents: budgetCents.present ? budgetCents.value : this.budgetCents,
+    listId: listId.present ? listId.value : this.listId,
   );
   Purchase copyWithCompanion(PurchasesCompanion data) {
     return Purchase(
@@ -216,6 +250,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       budgetCents: data.budgetCents.present
           ? data.budgetCents.value
           : this.budgetCents,
+      listId: data.listId.present ? data.listId.value : this.listId,
     );
   }
 
@@ -225,13 +260,15 @@ class Purchase extends DataClass implements Insertable<Purchase> {
           ..write('id: $id, ')
           ..write('startedAt: $startedAt, ')
           ..write('finishedAt: $finishedAt, ')
-          ..write('budgetCents: $budgetCents')
+          ..write('budgetCents: $budgetCents, ')
+          ..write('listId: $listId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, startedAt, finishedAt, budgetCents);
+  int get hashCode =>
+      Object.hash(id, startedAt, finishedAt, budgetCents, listId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -239,7 +276,8 @@ class Purchase extends DataClass implements Insertable<Purchase> {
           other.id == this.id &&
           other.startedAt == this.startedAt &&
           other.finishedAt == this.finishedAt &&
-          other.budgetCents == this.budgetCents);
+          other.budgetCents == this.budgetCents &&
+          other.listId == this.listId);
 }
 
 class PurchasesCompanion extends UpdateCompanion<Purchase> {
@@ -247,29 +285,34 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
   final Value<DateTime> startedAt;
   final Value<DateTime?> finishedAt;
   final Value<int?> budgetCents;
+  final Value<int?> listId;
   const PurchasesCompanion({
     this.id = const Value.absent(),
     this.startedAt = const Value.absent(),
     this.finishedAt = const Value.absent(),
     this.budgetCents = const Value.absent(),
+    this.listId = const Value.absent(),
   });
   PurchasesCompanion.insert({
     this.id = const Value.absent(),
     required DateTime startedAt,
     this.finishedAt = const Value.absent(),
     this.budgetCents = const Value.absent(),
+    this.listId = const Value.absent(),
   }) : startedAt = Value(startedAt);
   static Insertable<Purchase> custom({
     Expression<int>? id,
     Expression<DateTime>? startedAt,
     Expression<DateTime>? finishedAt,
     Expression<int>? budgetCents,
+    Expression<int>? listId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (startedAt != null) 'started_at': startedAt,
       if (finishedAt != null) 'finished_at': finishedAt,
       if (budgetCents != null) 'budget_cents': budgetCents,
+      if (listId != null) 'list_id': listId,
     });
   }
 
@@ -278,12 +321,14 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     Value<DateTime>? startedAt,
     Value<DateTime?>? finishedAt,
     Value<int?>? budgetCents,
+    Value<int?>? listId,
   }) {
     return PurchasesCompanion(
       id: id ?? this.id,
       startedAt: startedAt ?? this.startedAt,
       finishedAt: finishedAt ?? this.finishedAt,
       budgetCents: budgetCents ?? this.budgetCents,
+      listId: listId ?? this.listId,
     );
   }
 
@@ -302,6 +347,9 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     if (budgetCents.present) {
       map['budget_cents'] = Variable<int>(budgetCents.value);
     }
+    if (listId.present) {
+      map['list_id'] = Variable<int>(listId.value);
+    }
     return map;
   }
 
@@ -311,7 +359,8 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
           ..write('id: $id, ')
           ..write('startedAt: $startedAt, ')
           ..write('finishedAt: $finishedAt, ')
-          ..write('budgetCents: $budgetCents')
+          ..write('budgetCents: $budgetCents, ')
+          ..write('listId: $listId')
           ..write(')'))
         .toString();
   }
@@ -1933,6 +1982,219 @@ class CategoryHintsCompanion extends UpdateCompanion<CategoryHintRow> {
   }
 }
 
+class $ListPairsTable extends ListPairs
+    with TableInfo<$ListPairsTable, ListPairRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ListPairsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _matchesMeta = const VerificationMeta(
+    'matches',
+  );
+  @override
+  late final GeneratedColumn<bool> matches = GeneratedColumn<bool>(
+    'matches',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("matches" IN (0, 1))',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, matches];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'list_pairs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ListPairRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('matches')) {
+      context.handle(
+        _matchesMeta,
+        matches.isAcceptableOrUnknown(data['matches']!, _matchesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_matchesMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  ListPairRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ListPairRow(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      matches: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}matches'],
+      )!,
+    );
+  }
+
+  @override
+  $ListPairsTable createAlias(String alias) {
+    return $ListPairsTable(attachedDatabase, alias);
+  }
+}
+
+class ListPairRow extends DataClass implements Insertable<ListPairRow> {
+  final String key;
+  final bool matches;
+  const ListPairRow({required this.key, required this.matches});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['matches'] = Variable<bool>(matches);
+    return map;
+  }
+
+  ListPairsCompanion toCompanion(bool nullToAbsent) {
+    return ListPairsCompanion(key: Value(key), matches: Value(matches));
+  }
+
+  factory ListPairRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ListPairRow(
+      key: serializer.fromJson<String>(json['key']),
+      matches: serializer.fromJson<bool>(json['matches']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'matches': serializer.toJson<bool>(matches),
+    };
+  }
+
+  ListPairRow copyWith({String? key, bool? matches}) =>
+      ListPairRow(key: key ?? this.key, matches: matches ?? this.matches);
+  ListPairRow copyWithCompanion(ListPairsCompanion data) {
+    return ListPairRow(
+      key: data.key.present ? data.key.value : this.key,
+      matches: data.matches.present ? data.matches.value : this.matches,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ListPairRow(')
+          ..write('key: $key, ')
+          ..write('matches: $matches')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, matches);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ListPairRow &&
+          other.key == this.key &&
+          other.matches == this.matches);
+}
+
+class ListPairsCompanion extends UpdateCompanion<ListPairRow> {
+  final Value<String> key;
+  final Value<bool> matches;
+  final Value<int> rowid;
+  const ListPairsCompanion({
+    this.key = const Value.absent(),
+    this.matches = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ListPairsCompanion.insert({
+    required String key,
+    required bool matches,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       matches = Value(matches);
+  static Insertable<ListPairRow> custom({
+    Expression<String>? key,
+    Expression<bool>? matches,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (matches != null) 'matches': matches,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ListPairsCompanion copyWith({
+    Value<String>? key,
+    Value<bool>? matches,
+    Value<int>? rowid,
+  }) {
+    return ListPairsCompanion(
+      key: key ?? this.key,
+      matches: matches ?? this.matches,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (matches.present) {
+      map['matches'] = Variable<bool>(matches.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ListPairsCompanion(')
+          ..write('key: $key, ')
+          ..write('matches: $matches, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$TinoDatabase extends GeneratedDatabase {
   _$TinoDatabase(QueryExecutor e) : super(e);
   $TinoDatabaseManager get managers => $TinoDatabaseManager(this);
@@ -1941,6 +2203,7 @@ abstract class _$TinoDatabase extends GeneratedDatabase {
   late final $ShoppingListsTable shoppingLists = $ShoppingListsTable(this);
   late final $ListItemsTable listItems = $ListItemsTable(this);
   late final $CategoryHintsTable categoryHints = $CategoryHintsTable(this);
+  late final $ListPairsTable listPairs = $ListPairsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1951,6 +2214,7 @@ abstract class _$TinoDatabase extends GeneratedDatabase {
     shoppingLists,
     listItems,
     categoryHints,
+    listPairs,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -1976,12 +2240,14 @@ typedef $$PurchasesTableCreateCompanionBuilder = PurchasesCompanion Function({
   required DateTime startedAt,
   Value<DateTime?> finishedAt,
   Value<int?> budgetCents,
+  Value<int?> listId,
 });
 typedef $$PurchasesTableUpdateCompanionBuilder = PurchasesCompanion Function({
   Value<int> id,
   Value<DateTime> startedAt,
   Value<DateTime?> finishedAt,
   Value<int?> budgetCents,
+  Value<int?> listId,
 });
 
 final class $$PurchasesTableReferences
@@ -2033,6 +2299,11 @@ class $$PurchasesTableFilterComposer
 
   ColumnFilters<int> get budgetCents => $composableBuilder(
     column: $table.budgetCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get listId => $composableBuilder(
+    column: $table.listId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2090,6 +2361,11 @@ class $$PurchasesTableOrderingComposer
     column: $table.budgetCents,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get listId => $composableBuilder(
+    column: $table.listId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PurchasesTableAnnotationComposer
@@ -2116,6 +2392,9 @@ class $$PurchasesTableAnnotationComposer
     column: $table.budgetCents,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get listId =>
+      $composableBuilder(column: $table.listId, builder: (column) => column);
 
   Expression<T> purchaseItemsRefs<T extends Object>(
     Expression<T> Function($$PurchaseItemsTableAnnotationComposer a) f,
@@ -2175,11 +2454,13 @@ class $$PurchasesTableTableManager
                 Value<DateTime> startedAt = const Value.absent(),
                 Value<DateTime?> finishedAt = const Value.absent(),
                 Value<int?> budgetCents = const Value.absent(),
+                Value<int?> listId = const Value.absent(),
               }) => PurchasesCompanion(
                 id: id,
                 startedAt: startedAt,
                 finishedAt: finishedAt,
                 budgetCents: budgetCents,
+                listId: listId,
               ),
           createCompanionCallback:
               ({
@@ -2187,11 +2468,13 @@ class $$PurchasesTableTableManager
                 required DateTime startedAt,
                 Value<DateTime?> finishedAt = const Value.absent(),
                 Value<int?> budgetCents = const Value.absent(),
+                Value<int?> listId = const Value.absent(),
               }) => PurchasesCompanion.insert(
                 id: id,
                 startedAt: startedAt,
                 finishedAt: finishedAt,
                 budgetCents: budgetCents,
+                listId: listId,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -3472,6 +3755,151 @@ typedef $$CategoryHintsTableProcessedTableManager =
       CategoryHintRow,
       PrefetchHooks Function()
     >;
+typedef $$ListPairsTableCreateCompanionBuilder = ListPairsCompanion Function({
+  required String key,
+  required bool matches,
+  Value<int> rowid,
+});
+typedef $$ListPairsTableUpdateCompanionBuilder = ListPairsCompanion Function({
+  Value<String> key,
+  Value<bool> matches,
+  Value<int> rowid,
+});
+
+class $$ListPairsTableFilterComposer
+    extends Composer<_$TinoDatabase, $ListPairsTable> {
+  $$ListPairsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get matches => $composableBuilder(
+    column: $table.matches,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ListPairsTableOrderingComposer
+    extends Composer<_$TinoDatabase, $ListPairsTable> {
+  $$ListPairsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get matches => $composableBuilder(
+    column: $table.matches,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ListPairsTableAnnotationComposer
+    extends Composer<_$TinoDatabase, $ListPairsTable> {
+  $$ListPairsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<bool> get matches =>
+      $composableBuilder(column: $table.matches, builder: (column) => column);
+}
+
+class $$ListPairsTableTableManager
+    extends
+        RootTableManager<
+          _$TinoDatabase,
+          $ListPairsTable,
+          ListPairRow,
+          $$ListPairsTableFilterComposer,
+          $$ListPairsTableOrderingComposer,
+          $$ListPairsTableAnnotationComposer,
+          $$ListPairsTableCreateCompanionBuilder,
+          $$ListPairsTableUpdateCompanionBuilder,
+          (
+            ListPairRow,
+            BaseReferences<_$TinoDatabase, $ListPairsTable, ListPairRow>,
+          ),
+          ListPairRow,
+          PrefetchHooks Function()
+        > {
+  $$ListPairsTableTableManager(_$TinoDatabase db, $ListPairsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ListPairsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ListPairsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ListPairsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> key = const Value.absent(),
+            Value<bool> matches = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) => ListPairsCompanion(key: key, matches: matches, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String key,
+                required bool matches,
+                Value<int> rowid = const Value.absent(),
+              }) => ListPairsCompanion.insert(
+                key: key,
+                matches: matches,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ListPairsTable, ListPairRow>(table),
+                  BaseReferences<_$TinoDatabase, $ListPairsTable, ListPairRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ListPairsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TinoDatabase,
+      $ListPairsTable,
+      ListPairRow,
+      $$ListPairsTableFilterComposer,
+      $$ListPairsTableOrderingComposer,
+      $$ListPairsTableAnnotationComposer,
+      $$ListPairsTableCreateCompanionBuilder,
+      $$ListPairsTableUpdateCompanionBuilder,
+      (
+        ListPairRow,
+        BaseReferences<_$TinoDatabase, $ListPairsTable, ListPairRow>,
+      ),
+      ListPairRow,
+      PrefetchHooks Function()
+    >;
 
 class $TinoDatabaseManager {
   final _$TinoDatabase _db;
@@ -3486,4 +3914,6 @@ class $TinoDatabaseManager {
       $$ListItemsTableTableManager(_db, _db.listItems);
   $$CategoryHintsTableTableManager get categoryHints =>
       $$CategoryHintsTableTableManager(_db, _db.categoryHints);
+  $$ListPairsTableTableManager get listPairs =>
+      $$ListPairsTableTableManager(_db, _db.listPairs);
 }

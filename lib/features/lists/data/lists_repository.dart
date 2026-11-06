@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/tino_database.dart';
 import '../domain/category_suggester.dart';
+import '../domain/list_matcher.dart';
 import '../domain/shopping_list.dart';
 
 final listsRepositoryProvider = Provider<ListsRepository>(
@@ -73,6 +74,21 @@ class ListsRepository {
           );
         }
       });
+
+  /// Pares produto → item já respondidos (true = casa, false = não casa).
+  Future<Map<String, bool>> learnedPairs() async => {
+    for (final r in await _db.select(_db.listPairs).get()) r.key: r.matches,
+  };
+
+  Future<void> learnPair(String productName, String itemName, bool matches) =>
+      _db
+          .into(_db.listPairs)
+          .insertOnConflictUpdate(
+            ListPairsCompanion.insert(
+              key: pairKey(productName, itemName),
+              matches: matches,
+            ),
+          );
 
   Future<int> createList(String name) {
     final now = _now();

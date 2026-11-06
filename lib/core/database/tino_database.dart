@@ -10,6 +10,9 @@ class Purchases extends Table {
   DateTimeColumn get startedAt => dateTime()();
   DateTimeColumn get finishedAt => dateTime().nullable()();
   IntColumn get budgetCents => integer().nullable()();
+
+  /// Lista usada nesta compra, se houver (itens lidos são riscados nela).
+  IntColumn get listId => integer().nullable()();
 }
 
 /// Item: [kind] 0 = unidade (preço, quantidade), 1 = peso (preço/kg, gramas).
@@ -66,15 +69,33 @@ class CategoryHints extends Table {
   Set<Column> get primaryKey => {key};
 }
 
+/// Par produto → item de lista confirmado (true) ou desfeito (false) pelo
+/// usuário; [key] é `produto>item`, nomes normalizados.
+@DataClassName('ListPairRow')
+class ListPairs extends Table {
+  TextColumn get key => text()();
+  BoolColumn get matches => boolean()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
 @DriftDatabase(
-  tables: [Purchases, PurchaseItems, ShoppingLists, ListItems, CategoryHints],
+  tables: [
+    Purchases,
+    PurchaseItems,
+    ShoppingLists,
+    ListItems,
+    CategoryHints,
+    ListPairs,
+  ],
 )
 class TinoDatabase extends _$TinoDatabase {
   TinoDatabase([QueryExecutor? executor])
     : super(executor ?? driftDatabase(name: 'tino'));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -84,6 +105,8 @@ class TinoDatabase extends _$TinoDatabase {
         await m.createTable(listItems);
       }
       if (from < 3) await m.createTable(categoryHints);
+      if (from < 4) await m.addColumn(purchases, purchases.listId);
+      if (from < 5) await m.createTable(listPairs);
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );
