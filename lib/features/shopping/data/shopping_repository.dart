@@ -104,12 +104,14 @@ class ShoppingRepository {
           name: r.name,
           pricePerKg: Money(r.priceCents),
           grams: r.amount,
+          tagText: r.tagText,
         )
       : UnitItem(
           id: r.id,
           name: r.name,
           price: Money(r.priceCents),
           quantity: r.amount,
+          tagText: r.tagText,
         );
 
   static PurchaseItemsCompanion _toRow(CartItem item, int purchaseId, int i) =>
@@ -127,5 +129,6 @@ class ShoppingRepository {
           UnitItem(:final quantity) => quantity,
           WeightItem(:final grams) => grams,
         },
+        tagText: Value(item.tagText),
       );
 }

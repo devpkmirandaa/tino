@@ -27,10 +27,13 @@ abstract final class TinoSheetMotion {
 /// Abre uma folha (M5): sobe com a mola `folha`, `scrim` a 0,5, tela de trás
 /// recua se houver um [TinoSheetScope] acima de [context], e os [blocks]
 /// entram em cascata (y 24 → 0 + opacidade, 60 ms, mola `cartao`).
+/// [onDisposed] roda quando a folha sai de vez (depois da animação de
+/// fechar): hora de liberar controladores compartilhados entre os blocos.
 Future<T?> showTinoSheet<T>(
   BuildContext context, {
   required List<Widget> blocks,
   String barrierLabel = 'Fechar',
+  VoidCallback? onDisposed,
 }) {
   final navigator = Navigator.of(context);
   return navigator.push(
@@ -39,6 +42,7 @@ Future<T?> showTinoSheet<T>(
       backdrop: TinoSheetScope.maybeProgressOf(context),
       barrierLabel: barrierLabel,
       themes: InheritedTheme.capture(from: context, to: navigator.context),
+      onDisposed: onDisposed,
     ),
   );
 }
@@ -49,8 +53,10 @@ class _TinoSheetRoute<T> extends PopupRoute<T> {
     required this.backdrop,
     required this.barrierLabel,
     required this.themes,
+    this.onDisposed,
   });
 
+  final VoidCallback? onDisposed;
   final List<Widget> blocks;
   final TinoSheetBackdrop? backdrop;
   final CapturedThemes themes;
@@ -108,6 +114,7 @@ class _TinoSheetRoute<T> extends PopupRoute<T> {
     backdrop?.update(0);
     _lift?.dispose();
     super.dispose();
+    onDisposed?.call();
   }
 
   /// A folha está fora do lugar (descendo ou erguida com resistência).

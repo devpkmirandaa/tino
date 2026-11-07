@@ -19,7 +19,11 @@ class TinoInput extends StatelessWidget {
     this.onSubmitted,
     this.autofocus = false,
     this.money = false,
+    this.valueStyle,
   });
+
+  /// Estilo do valor digitado no lugar do corpo 16 (ex.: preço 18/700).
+  final TinoTypeStyle? valueStyle;
 
   final String label;
   final TextEditingController? controller;
@@ -44,7 +48,8 @@ class TinoInput extends StatelessWidget {
       borderRadius: BorderRadius.circular(TinoRadius.control),
       borderSide: BorderSide(color: color, width: width),
     );
-    final text = TinoType.corpo.withColor(c.textPrimary);
+    final type = valueStyle ?? TinoType.corpo;
+    final text = type.withColor(c.textPrimary);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -70,10 +75,10 @@ class TinoInput extends StatelessWidget {
             suffixText: suffix,
             suffixStyle: TinoType.secundario.withColor(c.textSecondary),
             constraints: const BoxConstraints(minHeight: TinoSize.inputHeight),
-            // 14 vertical centraliza o texto de 24 px na altura de 52.
-            contentPadding: const EdgeInsets.symmetric(
+            // Centraliza a linha do texto na altura de 52 (14 para 24 px).
+            contentPadding: EdgeInsets.symmetric(
               horizontal: TinoSpace.s16,
-              vertical: 14,
+              vertical: (TinoSize.inputHeight - type.lineHeight) / 2,
             ),
             border: border(c.borderStrong, TinoSize.borderWidth),
             enabledBorder: border(c.borderStrong, TinoSize.borderWidth),

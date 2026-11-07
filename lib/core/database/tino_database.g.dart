@@ -444,6 +444,17 @@ class $PurchaseItemsTable extends PurchaseItems
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _tagTextMeta = const VerificationMeta(
+    'tagText',
+  );
+  @override
+  late final GeneratedColumn<String> tagText = GeneratedColumn<String>(
+    'tag_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -453,6 +464,7 @@ class $PurchaseItemsTable extends PurchaseItems
     kind,
     priceCents,
     amount,
+    tagText,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -519,6 +531,12 @@ class $PurchaseItemsTable extends PurchaseItems
     } else if (isInserting) {
       context.missing(_amountMeta);
     }
+    if (data.containsKey('tag_text')) {
+      context.handle(
+        _tagTextMeta,
+        tagText.isAcceptableOrUnknown(data['tag_text']!, _tagTextMeta),
+      );
+    }
     return context;
   }
 
@@ -556,6 +574,10 @@ class $PurchaseItemsTable extends PurchaseItems
         DriftSqlType.int,
         data['${effectivePrefix}amount'],
       )!,
+      tagText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag_text'],
+      ),
     );
   }
 
@@ -573,6 +595,9 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
   final int kind;
   final int priceCents;
   final int amount;
+
+  /// Nome como lido na etiqueta (só itens do scanner).
+  final String? tagText;
   const PurchaseItem({
     required this.id,
     required this.purchaseId,
@@ -581,6 +606,7 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
     required this.kind,
     required this.priceCents,
     required this.amount,
+    this.tagText,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -592,6 +618,9 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
     map['kind'] = Variable<int>(kind);
     map['price_cents'] = Variable<int>(priceCents);
     map['amount'] = Variable<int>(amount);
+    if (!nullToAbsent || tagText != null) {
+      map['tag_text'] = Variable<String>(tagText);
+    }
     return map;
   }
 
@@ -604,6 +633,9 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
       kind: Value(kind),
       priceCents: Value(priceCents),
       amount: Value(amount),
+      tagText: tagText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tagText),
     );
   }
 
@@ -620,6 +652,7 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
       kind: serializer.fromJson<int>(json['kind']),
       priceCents: serializer.fromJson<int>(json['priceCents']),
       amount: serializer.fromJson<int>(json['amount']),
+      tagText: serializer.fromJson<String?>(json['tagText']),
     );
   }
   @override
@@ -633,6 +666,7 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
       'kind': serializer.toJson<int>(kind),
       'priceCents': serializer.toJson<int>(priceCents),
       'amount': serializer.toJson<int>(amount),
+      'tagText': serializer.toJson<String?>(tagText),
     };
   }
 
@@ -644,6 +678,7 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
     int? kind,
     int? priceCents,
     int? amount,
+    Value<String?> tagText = const Value.absent(),
   }) => PurchaseItem(
     id: id ?? this.id,
     purchaseId: purchaseId ?? this.purchaseId,
@@ -652,6 +687,7 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
     kind: kind ?? this.kind,
     priceCents: priceCents ?? this.priceCents,
     amount: amount ?? this.amount,
+    tagText: tagText.present ? tagText.value : this.tagText,
   );
   PurchaseItem copyWithCompanion(PurchaseItemsCompanion data) {
     return PurchaseItem(
@@ -666,6 +702,7 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
           ? data.priceCents.value
           : this.priceCents,
       amount: data.amount.present ? data.amount.value : this.amount,
+      tagText: data.tagText.present ? data.tagText.value : this.tagText,
     );
   }
 
@@ -678,14 +715,23 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
           ..write('name: $name, ')
           ..write('kind: $kind, ')
           ..write('priceCents: $priceCents, ')
-          ..write('amount: $amount')
+          ..write('amount: $amount, ')
+          ..write('tagText: $tagText')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, purchaseId, position, name, kind, priceCents, amount);
+  int get hashCode => Object.hash(
+    id,
+    purchaseId,
+    position,
+    name,
+    kind,
+    priceCents,
+    amount,
+    tagText,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -696,7 +742,8 @@ class PurchaseItem extends DataClass implements Insertable<PurchaseItem> {
           other.name == this.name &&
           other.kind == this.kind &&
           other.priceCents == this.priceCents &&
-          other.amount == this.amount);
+          other.amount == this.amount &&
+          other.tagText == this.tagText);
 }
 
 class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
@@ -707,6 +754,7 @@ class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
   final Value<int> kind;
   final Value<int> priceCents;
   final Value<int> amount;
+  final Value<String?> tagText;
   final Value<int> rowid;
   const PurchaseItemsCompanion({
     this.id = const Value.absent(),
@@ -716,6 +764,7 @@ class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
     this.kind = const Value.absent(),
     this.priceCents = const Value.absent(),
     this.amount = const Value.absent(),
+    this.tagText = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PurchaseItemsCompanion.insert({
@@ -726,6 +775,7 @@ class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
     required int kind,
     required int priceCents,
     required int amount,
+    this.tagText = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        purchaseId = Value(purchaseId),
@@ -742,6 +792,7 @@ class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
     Expression<int>? kind,
     Expression<int>? priceCents,
     Expression<int>? amount,
+    Expression<String>? tagText,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -752,6 +803,7 @@ class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
       if (kind != null) 'kind': kind,
       if (priceCents != null) 'price_cents': priceCents,
       if (amount != null) 'amount': amount,
+      if (tagText != null) 'tag_text': tagText,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -764,6 +816,7 @@ class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
     Value<int>? kind,
     Value<int>? priceCents,
     Value<int>? amount,
+    Value<String?>? tagText,
     Value<int>? rowid,
   }) {
     return PurchaseItemsCompanion(
@@ -774,6 +827,7 @@ class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
       kind: kind ?? this.kind,
       priceCents: priceCents ?? this.priceCents,
       amount: amount ?? this.amount,
+      tagText: tagText ?? this.tagText,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -802,6 +856,9 @@ class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
     if (amount.present) {
       map['amount'] = Variable<int>(amount.value);
     }
+    if (tagText.present) {
+      map['tag_text'] = Variable<String>(tagText.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -818,6 +875,7 @@ class PurchaseItemsCompanion extends UpdateCompanion<PurchaseItem> {
           ..write('kind: $kind, ')
           ..write('priceCents: $priceCents, ')
           ..write('amount: $amount, ')
+          ..write('tagText: $tagText, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2544,6 +2602,7 @@ typedef $$PurchaseItemsTableCreateCompanionBuilder =
       required int kind,
       required int priceCents,
       required int amount,
+      Value<String?> tagText,
       Value<int> rowid,
     });
 typedef $$PurchaseItemsTableUpdateCompanionBuilder =
@@ -2555,6 +2614,7 @@ typedef $$PurchaseItemsTableUpdateCompanionBuilder =
       Value<int> kind,
       Value<int> priceCents,
       Value<int> amount,
+      Value<String?> tagText,
       Value<int> rowid,
     });
 
@@ -2623,6 +2683,11 @@ class $$PurchaseItemsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get tagText => $composableBuilder(
+    column: $table.tagText,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$PurchasesTableFilterComposer get purchaseId {
     final $$PurchasesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -2686,6 +2751,11 @@ class $$PurchaseItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get tagText => $composableBuilder(
+    column: $table.tagText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$PurchasesTableOrderingComposer get purchaseId {
     final $$PurchasesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -2738,6 +2808,9 @@ class $$PurchaseItemsTableAnnotationComposer
 
   GeneratedColumn<int> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get tagText =>
+      $composableBuilder(column: $table.tagText, builder: (column) => column);
 
   $$PurchasesTableAnnotationComposer get purchaseId {
     final $$PurchasesTableAnnotationComposer composer = $composerBuilder(
@@ -2798,6 +2871,7 @@ class $$PurchaseItemsTableTableManager
                 Value<int> kind = const Value.absent(),
                 Value<int> priceCents = const Value.absent(),
                 Value<int> amount = const Value.absent(),
+                Value<String?> tagText = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PurchaseItemsCompanion(
                 id: id,
@@ -2807,6 +2881,7 @@ class $$PurchaseItemsTableTableManager
                 kind: kind,
                 priceCents: priceCents,
                 amount: amount,
+                tagText: tagText,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2818,6 +2893,7 @@ class $$PurchaseItemsTableTableManager
                 required int kind,
                 required int priceCents,
                 required int amount,
+                Value<String?> tagText = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PurchaseItemsCompanion.insert(
                 id: id,
@@ -2827,6 +2903,7 @@ class $$PurchaseItemsTableTableManager
                 kind: kind,
                 priceCents: priceCents,
                 amount: amount,
+                tagText: tagText,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

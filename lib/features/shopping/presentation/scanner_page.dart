@@ -196,6 +196,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       ? r
       : TagReading(
           name: r.name,
+          tagText: r.tagText,
           price: r.price,
           perKg: r.perKg,
           bulkPrice: r.bulkPrice,
@@ -214,8 +215,12 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
   Money _priceOf(TagReading r) => _priceFor(r, _quantity, _mode);
 
-  TagReading _chosen(TagReading r) =>
-      TagReading(name: r.name, price: _priceOf(r), perKg: r.perKg);
+  TagReading _chosen(TagReading r) => TagReading(
+    name: r.name,
+    tagText: r.tagText,
+    price: _priceOf(r),
+    perKg: r.perKg,
+  );
 
   void _setMode(PriceMode mode) {
     final found = _reader.stable;
@@ -238,6 +243,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       name: r.name!,
       price: _priceOf(r),
       quantity: _quantity,
+      tagText: r.tagText,
     );
     final now = DateTime.now();
     _reader.accept();

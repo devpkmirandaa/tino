@@ -24,6 +24,7 @@ Box _box(OcrLine l) =>
 final class TagReading {
   const TagReading({
     this.name,
+    this.tagText,
     this.price,
     this.perKg = false,
     this.bulkPrice,
@@ -41,6 +42,9 @@ final class TagReading {
   });
 
   final String? name;
+
+  /// Linha de onde saiu [name], como o OCR leu (para "Na etiqueta: …").
+  final String? tagText;
   final Money? price;
   final bool perKg;
 
@@ -93,6 +97,7 @@ final class TagReading {
       ? this
       : TagReading(
           name: name ?? other.name,
+          tagText: name == null ? other.tagText : tagText,
           price: price,
           perKg: perKg || other.perKg,
           bulkPrice: bulkPrice ?? other.bulkPrice,
@@ -301,8 +306,10 @@ TagReading readTag(List<OcrLine> lines, {bool region = false}) {
     final b => _minQuantity(b.line, lines),
   };
 
+  final nameLine = _nameLine(lines, retail.line);
   return TagReading(
-    name: _name(lines, retail.line),
+    name: nameLine == null ? null : tidyProductName(nameLine.text),
+    tagText: nameLine?.text.trim(),
     price: retail.price,
     // "kg" no próprio preço, ou em linha sem preço ("/ KG", "PREÇO POR
     // QUILO"). Linha com outro preço e "kg" é referência, não conta.
@@ -512,7 +519,8 @@ int? _minQuantity(OcrLine price, List<OcrLine> lines) {
   return null;
 }
 
-String? _name(List<OcrLine> lines, OcrLine price) {
+/// Linha do nome do produto: a mais alta acima do preço.
+OcrLine? _nameLine(List<OcrLine> lines, OcrLine price) {
   OcrLine? best;
   for (final l in lines) {
     final text = l.text.trim();
@@ -524,7 +532,7 @@ String? _name(List<OcrLine> lines, OcrLine price) {
     }
     if (best == null || l.height > best.height * 1.05) best = l;
   }
-  return best == null ? null : tidyProductName(best.text);
+  return best;
 }
 
 bool _isWords(String text) {
@@ -755,14 +763,22 @@ class ReadingConsensus {
     final keep = old != null && old.price == price;
     final bulk =
         _confirmed(mine, (f) => f.bulkPrice) ?? (keep ? old.bulkPrice : null);
+    // Nome confirmado por 2 quadros vence; senão mantém o já mostrado ou
+    // usa o mais votado como provisório.
+    final name =
+        _confirmed(mine, (f) => f.name) ??
+        (keep ? old.name : null) ??
+        _mostCommon(mine, (f) => f.name);
     return TagReading(
       price: price,
-      // Nome confirmado por 2 quadros vence; senão mantém o já mostrado ou
-      // usa o mais votado como provisório.
-      name:
-          _confirmed(mine, (f) => f.name) ??
-          (keep ? old.name : null) ??
-          _mostCommon(mine, (f) => f.name),
+      name: name,
+      // Texto cru mais lido entre os quadros que deram esse nome.
+      tagText:
+          _mostCommon([
+            for (final f in mine)
+              if (f.name == name) f,
+          ], (f) => f.tagText) ??
+          (keep && old.name == name ? old.tagText : null),
       // "kg" visto em 2 quadros, ou em 1 se estava na linha do próprio preço.
       perKg:
           mine.where((f) => f.perKg).length >= 2 ||

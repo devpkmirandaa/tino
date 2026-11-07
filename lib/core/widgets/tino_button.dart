@@ -41,16 +41,18 @@ class TinoButton extends StatelessWidget {
   }) : _variant = _Variant.outlined,
        size = TinoButtonSize.regular;
 
-  /// Altura 48, sem fundo, texto `action` 14/600.
+  /// Altura 48, sem fundo, texto `action` 14/600. [muted]: texto
+  /// `text-secondary`, para ação secundária ("Tirar do carrinho").
   const TinoButton.text({
     super.key,
     required this.label,
     required this.onPressed,
     this.icon,
     this.expand = false,
+    bool muted = false,
   }) : _variant = _Variant.text,
        size = TinoButtonSize.regular,
-       accent = true;
+       accent = !muted;
 
   final String label;
   final VoidCallback? onPressed;
@@ -94,7 +96,10 @@ class TinoButton extends StatelessWidget {
             Colors.transparent,
             accent ? c.action : c.textPrimary,
           ),
-          _Variant.text => (Colors.transparent, c.action),
+          _Variant.text => (
+            Colors.transparent,
+            accent ? c.action : c.textSecondary,
+          ),
         };
         final content = Row(
           mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,

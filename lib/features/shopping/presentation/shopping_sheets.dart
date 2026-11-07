@@ -35,11 +35,7 @@ Future<void> _sheet(BuildContext context, Widget child) => showModalBottomSheet(
   ),
 );
 
-/// Valor inteiro na escala dada, para edição: 1290 (2) → "12,90".
-String _plain(int value, int scale) {
-  final s = value.toString().padLeft(scale + 1, '0');
-  return '${s.substring(0, s.length - scale)},${s.substring(s.length - scale)}';
-}
+String _plain(int value, int scale) => plainScaled(value, scale);
 
 enum _Conflict { update, separate }
 
@@ -92,14 +88,22 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
     if (name.isEmpty || price == null || amount == null || amount < 1) {
       return null;
     }
+    final tagText = _item?.tagText ?? _draft?.tagText;
     return _byWeight
         ? WeightItem(
             id: _id,
             name: name,
             pricePerKg: Money(price),
             grams: amount,
+            tagText: tagText,
           )
-        : UnitItem(id: _id, name: name, price: Money(price), quantity: amount);
+        : UnitItem(
+            id: _id,
+            name: name,
+            price: Money(price),
+            quantity: amount,
+            tagText: tagText,
+          );
   }
 
   Future<void> _save() async {

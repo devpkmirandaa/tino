@@ -17,6 +17,12 @@ int? parseScaled(String input, int scale) {
   return int.parse(m[1]! + frac.padRight(scale, '0'));
 }
 
+/// Valor inteiro na escala dada, para edição: 1290 (2) → "12,90".
+String plainScaled(int value, int scale) {
+  final s = value.toString().padLeft(scale + 1, '0');
+  return '${s.substring(0, s.length - scale)},${s.substring(s.length - scale)}';
+}
+
 /// Gramas em quilos no formato brasileiro: 347 → "0,347 kg".
 String formatKg(int grams) =>
     '${grams ~/ 1000},${(grams % 1000).toString().padLeft(3, '0')} kg';

@@ -26,6 +26,9 @@ class PurchaseItems extends Table {
   IntColumn get priceCents => integer()();
   IntColumn get amount => integer()();
 
+  /// Nome como lido na etiqueta (só itens do scanner).
+  TextColumn get tagText => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -95,7 +98,7 @@ class TinoDatabase extends _$TinoDatabase {
     : super(executor ?? driftDatabase(name: 'tino'));
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -107,6 +110,9 @@ class TinoDatabase extends _$TinoDatabase {
       if (from < 3) await m.createTable(categoryHints);
       if (from < 4) await m.addColumn(purchases, purchases.listId);
       if (from < 5) await m.createTable(listPairs);
+      if (from < 6) {
+        await m.addColumn(purchaseItems, purchaseItems.tagText);
+      }
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );

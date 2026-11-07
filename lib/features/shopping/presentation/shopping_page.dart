@@ -10,8 +10,11 @@ import '../../../core/widgets/tino_widgets.dart';
 import '../../lists/presentation/linked_list_card.dart';
 import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
+import '../domain/cart.dart';
 import 'cart_entrance.dart';
 import 'cart_item_row.dart';
+import 'cart_removal.dart';
+import 'item_detail_sheet.dart';
 import 'scanner_page.dart';
 import 'scanner_route.dart';
 import 'shopping_sheets.dart';
@@ -50,6 +53,7 @@ class ShoppingPage extends ConsumerWidget {
     final items = session.cart.items;
     final listId = session.listId;
     final entering = ref.watch(cartEntranceProvider).playing;
+    final leaving = ref.watch(cartRemovalProvider).leaving;
 
     final header = [
       Row(
@@ -79,75 +83,103 @@ class ShoppingPage extends ConsumerWidget {
       ],
     ];
 
+    final scroll = CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            TinoSpace.s16,
+            TinoSpace.s16,
+            TinoSpace.s16,
+            TinoSpace.s16,
+          ),
+          sliver: SliverToBoxAdapter(
+            child: _Width(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ...header,
+                  if (items.isNotEmpty || leaving.isNotEmpty) ...[
+                    const SizedBox(height: TinoSpace.s16),
+                    TinoCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (final (i, row) in _rows(
+                            items,
+                            leaving,
+                          ).indexed) ...[
+                            if (i > 0) const Divider(),
+                            switch (row) {
+                              (item: final item, leaving: true) => CartRowExit(
+                                key: ValueKey('cart-exit-${item.id}'),
+                                onDone: () => ref
+                                    .read(cartRemovalProvider.notifier)
+                                    .settle(item.id),
+                                child: TinoItemRow(
+                                  title: item.name,
+                                  subtitle: cartItemDetail(item),
+                                  price: item.total.format(),
+                                ),
+                              ),
+                              (item: final item, leaving: false) =>
+                                CartRowEntrance(
+                                  key: ValueKey('cart-row-${item.id}'),
+                                  play: entering.contains(item.id),
+                                  child: TinoItemRow(
+                                    key: ValueKey('cart-item-$i'),
+                                    title: item.name,
+                                    subtitle: cartItemDetail(item),
+                                    price: item.total.format(),
+                                    onPressed: () =>
+                                        showItemDetailSheet(context, item),
+                                  ),
+                                ),
+                            },
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (items.isNotEmpty) ...[
+                    const SizedBox(height: TinoSpace.s16),
+                    TinoButton.outlined(
+                      key: const ValueKey('finish'),
+                      label: 'Finalizar compra',
+                      accent: true,
+                      expand: true,
+                      onPressed: () => showFinishSheet(context),
+                    ),
+                    const SizedBox(height: TinoSpace.s8),
+                    TinoButton.text(
+                      key: const ValueKey('clear-cart'),
+                      label: 'Limpar carrinho',
+                      icon: LucideIcons.trash2,
+                      onPressed: () => _confirmClear(context, ref),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (items.isEmpty && leaving.isEmpty)
+          const SliverFillRemaining(hasScrollBody: false, child: _EmptyCart()),
+      ],
+    );
+
     return Column(
       children: [
         Expanded(
-          child: CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  TinoSpace.s16,
-                  TinoSpace.s16,
-                  TinoSpace.s16,
-                  TinoSpace.s16,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: _Width(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ...header,
-                        if (items.isNotEmpty) ...[
-                          const SizedBox(height: TinoSpace.s16),
-                          TinoCard(
-                            padding: EdgeInsets.zero,
-                            child: Column(
-                              children: [
-                                for (final (i, item)
-                                    in items.reversed.indexed) ...[
-                                  if (i > 0) const Divider(),
-                                  CartRowEntrance(
-                                    key: ValueKey('cart-row-${item.id}'),
-                                    play: entering.contains(item.id),
-                                    child: TinoItemRow(
-                                      key: ValueKey('cart-item-$i'),
-                                      title: item.name,
-                                      subtitle: cartItemDetail(item),
-                                      price: item.total.format(),
-                                      onPressed: () =>
-                                          showItemSheet(context, item: item),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: TinoSpace.s16),
-                          TinoButton.outlined(
-                            key: const ValueKey('finish'),
-                            label: 'Finalizar compra',
-                            accent: true,
-                            expand: true,
-                            onPressed: () => showFinishSheet(context),
-                          ),
-                          const SizedBox(height: TinoSpace.s8),
-                          TinoButton.text(
-                            key: const ValueKey('clear-cart'),
-                            label: 'Limpar carrinho',
-                            icon: LucideIcons.trash2,
-                            onPressed: () => _confirmClear(context, ref),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
+          child: Stack(
+            children: [
+              Positioned.fill(child: scroll),
+              // Aviso do M8 logo acima dos botões do rodapé.
+              const Positioned(
+                left: TinoSpace.s16,
+                right: TinoSpace.s16,
+                bottom: TinoSpace.s8,
+                child: _Width(child: CartUndoToast()),
               ),
-              if (items.isEmpty)
-                const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: _EmptyCart(),
-                ),
             ],
           ),
         ),
@@ -191,6 +223,21 @@ class ShoppingPage extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Linhas do carrinho, a mais nova no topo, com as que estão saindo (M8)
+/// de volta no lugar que ocupavam até terminarem a animação.
+List<({CartItem item, bool leaving})> _rows(
+  List<CartItem> items,
+  List<RemovedItem> leaving,
+) {
+  final rows = [for (final i in items.reversed) (item: i, leaving: false)];
+  for (final l in leaving) {
+    // Posição na ordem invertida de antes da remoção.
+    final position = rows.length - l.index;
+    rows.insert(position.clamp(0, rows.length), (item: l.item, leaving: true));
+  }
+  return rows;
 }
 
 class _ScanButton extends StatelessWidget {
@@ -290,7 +337,7 @@ Future<void> _scan(BuildContext context) async {
     case ScanEdit(:final itemId):
       final items = container.read(shoppingProvider).value?.cart.items;
       final item = items?.where((i) => i.id == itemId).firstOrNull;
-      if (item != null) await showItemSheet(context, item: item);
+      if (item != null) await showItemDetailSheet(context, item);
     case ScanTypeInstead():
       await showItemSheet(context);
     case null:
