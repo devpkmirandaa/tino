@@ -160,6 +160,11 @@ void main() {
       expect(line.price, Money(699));
       expect(line.quantity, 2);
       expect(updated.lineId, 'a');
+      // "Somar como outro": linha nova no preço digitado.
+      final separate = scan.copyWith(choice: ConflictChoice.separate).apply()!;
+      expect(separate.cart.items.map((i) => i.id), ['a', 'n']);
+      expect(separate.lineId, 'n');
+      expect(separate.unitPrice, Money(699));
     });
   });
 

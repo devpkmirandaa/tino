@@ -541,6 +541,12 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             expand: true,
             onPressed: () => _resolve(ConflictChoice.keepCurrent),
           ),
+          TinoButton.text(
+            key: const ValueKey('scan-conflict-separate'),
+            label: 'Somar como outro',
+            expand: true,
+            onPressed: () => _resolve(ConflictChoice.separate),
+          ),
         ],
       ),
       final f? => Row(

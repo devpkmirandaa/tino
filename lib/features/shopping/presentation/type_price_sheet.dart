@@ -287,6 +287,16 @@ class _ActionBlock extends ConsumerWidget {
               // O carrinho fica como está; o que foi digitado é descartado.
               onPressed: () => Navigator.pop(context),
             ),
+            TinoButton.text(
+              key: const ValueKey('type-price-separate'),
+              label: 'Somar como outro',
+              expand: true,
+              onPressed: () => _finish(
+                context,
+                ref,
+                pending.copyWith(choice: ConflictChoice.separate).apply()!,
+              ),
+            ),
           ],
         );
       }

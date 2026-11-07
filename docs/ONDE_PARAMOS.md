@@ -1,6 +1,6 @@
 # Onde paramos (7 nov 2026)
 
-**Pronto:** etapas 1–4 do design (tema claro/escuro, componentes, três abas, Comprar, Scanner). Scanner escuro com visor sobre a moldura do OCR, folha inferior e M2, M3 (a–c) e M4; leitura isolada em `ScanReader`. Item por unidade com nome entra sozinho ao travar (sem duplicar em 3 s); Desfazer volta o carrinho e desmarca a lista; preço diferente pergunta na folha ("Atualizar para R$ X" · "Manter R$ Y", que descarta a leitura nova; "Somar como outro" saiu como botão no commit `10d10d2`, conforme `docs/design-scanner` 3a, e segue só na regra).
+**Pronto:** etapas 1–4 do design (tema claro/escuro, componentes, três abas, Comprar, Scanner). Scanner escuro com visor sobre a moldura do OCR, folha inferior e M2, M3 (a–c) e M4; leitura isolada em `ScanReader`. Item por unidade com nome entra sozinho ao travar (sem duplicar em 3 s); Desfazer volta o carrinho e desmarca a lista; preço diferente pergunta na folha ("Atualizar para R$ X" · "Manter R$ Y", que descarta a leitura nova · "Somar como outro", botão de texto, linha separada no preço novo). Mesmos três botões na Digitar preço.
 
 **Telas complementares, etapa 1 (Tema + Ajustes):** Ajustes no visual de `telas/10`: chaves "Adicionar ao travar o preço" e "Vibrar ao ler" (ligadas por padrão, valem no scanner), Aparência Automático | Claro | Escuro guardada no aparelho (app e folha do scanner seguem a escolha), Sobre com licenças (Lucide ISC e OFL da fonte) e "Rever apresentação", rodapé com a versão (`package_info_plus`).
 
@@ -20,7 +20,7 @@
 
 **Testar no aparelho:** Orçamento pelo chip e pela barra; atalhos e valor digitado; passar de 90% com a chave ligada (vibra) e desligada (não vibra), inclusive pelo scanner; "Compra sem orçamento". Digitar preço por unidade e por quilo, com e sem nome; a folha inteira visível acima do teclado; "Informar peso" e "Dar nome" vindos do scanner; nome já no carrinho com outro preço abre o conflito; item novo entra no topo com M3c. Etiqueta com "A partir de 10 UN" mostra o nome do produto, não a linha do atacado. Abrir um item do Comprar, corrigir preço, quantidade, trocar para Por quilo e salvar; arrastar a folha pra baixo; "Tirar do carrinho" e "Desfazer"; item escaneado mostra "Na etiqueta: …" (itens antigos não têm). Migração do banco 5 → 6 roda na primeira abertura.
 
-**Próximo passo:** etapa 5, câmera e falha de leitura (`telas/14`, `telas/15`, `telas/03c`). Pendente de decisão: devolver ou não "Somar como outro" como botão. A memória de nomes corrigidos fica para uma etapa própria.
+**Próximo passo:** etapa 5, câmera e falha de leitura (`telas/14`, `telas/15`, `telas/03c`). A memória de nomes corrigidos fica para uma etapa própria.
 
 **Depois das 9 etapas (aguardam decisão, não implementar):**
 - Sons: o app não toca som; falta decidir se haverá e quais.
