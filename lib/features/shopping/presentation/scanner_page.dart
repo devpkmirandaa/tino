@@ -44,20 +44,12 @@ final class ScanEdit extends ScanResult {
   final String itemId;
 }
 
-/// Preço preferido em etiquetas com varejo e atacado.
+/// Preço escolhido em etiquetas com varejo e atacado. Cada etiqueta nova
+/// começa no varejo (docs/design-scanner/estados-do-scanner.md · 3b).
 enum PriceMode { retail, bulk }
 
-/// Lembrado enquanto o app estiver aberto.
-final priceModeProvider = NotifierProvider<PriceModeNotifier, PriceMode>(
-  PriceModeNotifier.new,
-);
-
-class PriceModeNotifier extends Notifier<PriceMode> {
-  @override
-  PriceMode build() => PriceMode.retail;
-
-  void set(PriceMode mode) => state = mode;
-}
+/// Temas da folha, que segue o sistema; câmera e topo ficam escuros.
+final _sheetThemes = {for (final b in Brightness.values) b: buildTinoTheme(b)};
 
 /// M3b: a folha troca de conteúdo 80 ms depois do travamento.
 const _swapDelay = Duration(milliseconds: 80);
@@ -66,7 +58,8 @@ const _swapDelay = Duration(milliseconds: 80);
 /// mínimo podem chegar uns quadros depois do preço.
 const _settle = Duration(milliseconds: 300);
 
-/// Tela do scanner (design/specs/telas.md · 03), sempre escura. A leitura
+/// Tela do scanner (design/specs/telas.md · 03): câmera e topo sempre
+/// escuros, folha no tema do sistema. A leitura
 /// (câmera, OCR, votação) fica em [ScanReader]; aqui a interface e a
 /// adição: item por unidade com nome lido entra sozinho ao travar.
 class ScannerPage extends ConsumerStatefulWidget {
@@ -90,6 +83,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   ScanAdd? _scan;
   TagReading? _scanReading;
   ScanAddResult? _applied;
+
+  /// Varejo ou atacado da etiqueta em leitura e do item que acabou de entrar.
+  var _mode = PriceMode.retail;
+  var _addedMode = PriceMode.retail;
   var _scanLock = 0;
 
   /// Aviso na folha depois de desfazer ou de manter o item atual.
@@ -145,11 +142,14 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       _manualMin = null;
       _minFor = stable?.price;
     }
-    if (stable != null) _quantity = _startQuantity(_withMin(stable));
     final price = stable?.price;
     // Sem háptico aqui: a vibração desfoca a câmera e o giroscópio a conta
     // como movimento. Só vibra quando o item entra no carrinho.
-    if (price != null && price != _lockedPrice) _locks++;
+    if (price != null && price != _lockedPrice) {
+      _locks++;
+      _mode = PriceMode.retail;
+    }
+    if (stable != null) _quantity = _startQuantity(_withMin(stable));
     _lockedPrice = price;
     _scheduleAuto();
   }
@@ -185,8 +185,6 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     });
   }
 
-  PriceMode get _mode => ref.read(priceModeProvider);
-
   /// Mínimo do atacado não lido e digitado no cartão; nunca preenchido
   /// sozinho.
   int? _manualMin;
@@ -207,20 +205,20 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
   /// Atacado escolhido vale sempre; no varejo, o atacado só entra se a
   /// quantidade atingir o mínimo da etiqueta.
-  Money _priceFor(TagReading r, int quantity) =>
-      _mode == PriceMode.bulk && r.bulkPrice != null
+  Money _priceFor(TagReading r, int quantity, PriceMode mode) =>
+      mode == PriceMode.bulk && r.bulkPrice != null
       ? r.bulkPrice!
       : r.priceFor(quantity)!;
 
-  Money _priceOf(TagReading r) => _priceFor(r, _quantity);
+  Money _priceOf(TagReading r) => _priceFor(r, _quantity, _mode);
 
   TagReading _chosen(TagReading r) =>
       TagReading(name: r.name, price: _priceOf(r), perKg: r.perKg);
 
   void _setMode(PriceMode mode) {
-    ref.read(priceModeProvider.notifier).set(mode);
     final found = _reader.stable;
     setState(() {
+      _mode = mode;
       if (found != null) _quantity = _startQuantity(_withMin(found));
     });
     _scheduleAuto();
@@ -249,6 +247,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       _scan = ScanAdd(before: cart, item: item);
       _scanReading = r;
       _scanLock = _locks;
+      _addedMode = _mode;
       _applied = null;
       _notice = null;
       _quantity = 1;
@@ -293,7 +292,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
   /// Varejo ou atacado trocado depois de adicionar: refaz com o novo preço.
   void _setAddedMode(PriceMode mode) {
-    ref.read(priceModeProvider.notifier).set(mode);
+    _addedMode = mode;
     final scan = _scan;
     if (scan != null) _setAddedQuantity(scan.item.quantity);
   }
@@ -307,7 +306,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     _scan = scan.copyWith(
       item: scan.item.copyWith(
         quantity: quantity,
-        price: _priceFor(reading, quantity),
+        price: _priceFor(reading, quantity, _addedMode),
       ),
     );
     _apply();
@@ -399,16 +398,21 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            // Escura como o resto: "O Scanner é sempre escuro" (specs).
-            child: _sheet(read, found),
+            // Folha no tema do sistema (design de 7/nov); o resto é escuro.
+            child: Theme(
+              data: _sheetThemes[MediaQuery.platformBrightnessOf(context)]!,
+              child: Builder(
+                builder: (context) => _sheet(context, read, found),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _sheet(TagReading? read, TagReading? found) {
-    final mode = ref.watch(priceModeProvider);
+  Widget _sheet(BuildContext context, TagReading? read, TagReading? found) {
+    final mode = _mode;
     final error = _reader.error;
     final scan = _scan;
     final applied = _applied;
@@ -422,11 +426,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       ),
       _ when conflict != null => (
         ValueKey('conflict-$_scanLock'),
-        _Message(
-          title: '${conflict.name} já está no carrinho',
-          detail:
-              'No carrinho: ${conflict.price.format()} · '
-              'Nesta etiqueta: ${scan!.item.price.format()}',
+        _ConflictItem(
+          name: conflict.name,
+          current: conflict.price,
+          next: scan!.item.price,
         ),
       ),
       final f? => (
@@ -471,15 +474,17 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     };
 
     // Varejo ou atacado só aparece quando a etiqueta tem atacado.
-    Widget priceToggle(TagReading r, ValueChanged<PriceMode> onChanged) =>
-        TinoSegmented<PriceMode>(
-          segments: [
-            (value: PriceMode.retail, label: 'Varejo ${r.price!.format()}'),
-            (value: PriceMode.bulk, label: 'Atacado ${r.bulkPrice!.format()}'),
-          ],
-          selected: mode,
-          onChanged: onChanged,
-        );
+    Widget priceToggle(
+      TagReading r,
+      PriceMode selected,
+      ValueChanged<PriceMode> onChanged,
+    ) => _PriceModeSelector(
+      retail: r.price!,
+      bulk: r.bulkPrice!,
+      bulkMin: r.bulkMin,
+      selected: selected,
+      onChanged: onChanged,
+    );
 
     final actions = switch (found) {
       _ when error != null => Row(
@@ -506,7 +511,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TinoButton.primary(
-            label: 'Usar ${scan!.item.price.format()}',
+            label: 'Atualizar para ${scan!.item.price.format()}',
             expand: true,
             onPressed: () => _resolve(ConflictChoice.useNew),
           ),
@@ -515,11 +520,6 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             label: 'Manter ${conflict.price.format()}',
             expand: true,
             onPressed: () => _resolve(ConflictChoice.keepCurrent),
-          ),
-          TinoButton.text(
-            label: 'Somar como outro',
-            expand: true,
-            onPressed: () => _resolve(ConflictChoice.separate),
           ),
         ],
       ),
@@ -590,13 +590,13 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
     return _SheetFrame(
       children: [
-        // Etiqueta dupla: os dois preços lado a lado, um toque troca.
+        _Swap(id: key, child: item),
+        // Etiqueta dupla: entre o cabeçalho e a quantidade, um toque troca.
         if (found != null && found.bulkPrice != null && conflict == null)
-          priceToggle(found, _setMode)
+          priceToggle(found, mode, _setMode)
         // Depois de adicionar, troca o preço do item que entrou.
         else if (showAdded && addedReading?.bulkPrice != null)
-          priceToggle(addedReading!, _setAddedMode),
-        _Swap(id: key, child: item),
+          priceToggle(addedReading!, _addedMode, _setAddedMode),
         // Atacado lido sem o mínimo: campo vazio para digitar.
         if (found != null &&
             conflict == null &&
@@ -616,6 +616,12 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             }),
           ),
         actions,
+        if (conflict != null)
+          Text(
+            'Confira se a etiqueta é mesmo desse produto.',
+            textAlign: TextAlign.center,
+            style: TinoType.caption.withColor(context.tino.textSecondary),
+          ),
         if (showAdded)
           Text(
             'Já pode apontar para a próxima etiqueta.',
@@ -1069,6 +1075,194 @@ class _Message extends StatelessWidget {
           const SizedBox(height: TinoSpace.s4),
           Text(detail, style: TinoType.secundario.withColor(c.textSecondary)),
         ],
+      ),
+    );
+  }
+}
+
+/// 3a · Mesmo item no carrinho com outro preço: aviso em cor secundária,
+/// nome e os dois preços lado a lado. A leitura nova tem borda de 2 px.
+class _ConflictItem extends StatelessWidget {
+  const _ConflictItem({
+    required this.name,
+    required this.current,
+    required this.next,
+  });
+  final String name;
+  final Money current;
+  final Money next;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    Widget block(String label, Money price, {required bool fresh}) => Container(
+      padding: const EdgeInsets.all(TinoSpace.s12 - _ConflictItem._edge),
+      decoration: BoxDecoration(
+        color: fresh ? c.surface : c.surfaceSoft,
+        borderRadius: BorderRadius.circular(TinoRadius.control),
+        // Borda transparente no outro bloco: os dois ficam do mesmo tamanho.
+        border: Border.all(
+          color: fresh ? c.action : c.surfaceSoft,
+          width: _ConflictItem._edge,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: fresh
+                ? TinoType.caption.withColor(c.action).weight(FontWeight.w600)
+                : TinoType.caption.withColor(c.textSecondary),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            price.format(),
+            maxLines: 1,
+            style: TinoType.secao.withColor(c.textPrimary).money,
+          ),
+        ],
+      ),
+    );
+
+    return Semantics(
+      liveRegion: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _Rise(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(LucideIcons.info, size: 16, color: c.textSecondary),
+                    const SizedBox(width: TinoSpace.s4),
+                    Flexible(
+                      child: Text(
+                        'Já está no carrinho com outro preço',
+                        style: TinoType.caption
+                            .withColor(c.textSecondary)
+                            .weight(FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: TinoSpace.s4),
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TinoType.secao.withColor(c.textPrimary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: TinoSpace.s16),
+          _Rise(
+            delay: TinoMotion.stagger,
+            child: Row(
+              children: [
+                Expanded(child: block('No carrinho', current, fresh: false)),
+                const SizedBox(width: TinoSpace.s8),
+                Expanded(child: block('Leitura nova', next, fresh: true)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const _edge = 2.0;
+}
+
+/// 3b · Varejo ou atacado: trilho `surface-soft` com 4 px de respiro, raio
+/// 14 (docs/design-scanner); opção ativa cheia em `action`. Rótulo pequeno
+/// em cima, preço embaixo.
+class _PriceModeSelector extends StatelessWidget {
+  const _PriceModeSelector({
+    required this.retail,
+    required this.bulk,
+    required this.bulkMin,
+    required this.selected,
+    required this.onChanged,
+  });
+  final Money retail;
+  final Money bulk;
+  final int? bulkMin;
+  final PriceMode selected;
+  final ValueChanged<PriceMode> onChanged;
+
+  static const _gap = TinoSpace.s4;
+  static const _radius = 14.0;
+  static const _height = TinoSize.inputHeight;
+  static const _fade = Duration(milliseconds: 150);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    Widget option(PriceMode mode, String label, Money price) {
+      final active = mode == selected;
+      return Expanded(
+        child: TinoPressable(
+          onPressed: active ? () {} : () => onChanged(mode),
+          selected: active,
+          semanticLabel: '$label, ${price.format()}',
+          excludeSemantics: true,
+          builder: (context, _) => AnimatedContainer(
+            duration: _fade,
+            curve: TinoCurves.easeOut,
+            height: _height,
+            decoration: BoxDecoration(
+              color: active ? c.action : c.action.withValues(alpha: 0),
+              borderRadius: BorderRadius.circular(_radius - _gap),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TinoType.caption
+                      .withColor(active ? c.onAction : c.textSecondary)
+                      .weight(FontWeight.w600),
+                ),
+                Text(
+                  price.format(),
+                  maxLines: 1,
+                  style: TinoType.corpo
+                      .withColor(active ? c.onAction : c.textPrimary)
+                      .money,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Semantics(
+      label: 'Tipo de preço',
+      container: true,
+      child: Container(
+        padding: const EdgeInsets.all(_gap),
+        decoration: BoxDecoration(
+          color: c.surfaceSoft,
+          borderRadius: BorderRadius.circular(_radius),
+        ),
+        child: Row(
+          children: [
+            option(PriceMode.retail, 'Varejo', retail),
+            const SizedBox(width: _gap),
+            option(
+              PriceMode.bulk,
+              bulkMin == null ? 'Atacado' : 'Atacado · $bulkMin+ un',
+              bulk,
+            ),
+          ],
+        ),
       ),
     );
   }
