@@ -339,7 +339,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       }
     }
     _guard.clear();
-    TinoHaptics.light();
+    if (ref.read(vibrateOnReadProvider).value ?? true) TinoHaptics.light();
     setState(() {
       _scan = null;
       _scanReading = null;

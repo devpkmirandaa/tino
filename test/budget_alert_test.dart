@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:tino/core/motion/tino_haptics.dart';
 import 'package:tino/features/settings/data/settings_preferences.dart';
 import 'package:tino/features/shopping/domain/budget.dart';
 import 'package:tino/features/shopping/domain/money.dart';
@@ -19,6 +20,20 @@ void main() {
         budgetBefore: from,
         budgetAfter: to ?? from,
       );
+
+  test('percentual usado arredonda para baixo', () {
+    expect(budgetUsedPercent(const Money(13740), const Money(15000)), 91);
+    expect(budgetUsedPercent(const Money(8999), budget), 89);
+    expect(budgetUsedPercent(const Money(10000), budget), 100);
+    expect(budgetUsedPercent(Money.zero, budget), 0);
+  });
+
+  test('aviso vibra em dois pulsos com o intervalo do motion.md', () {
+    final p = TinoHaptics.warningPattern;
+    expect(p.timings, hasLength(p.amplitudes.length));
+    expect(p.timings[2], TinoHaptics.warningGap.inMilliseconds);
+    expect(p.amplitudes.where((a) => a > 0), hasLength(2));
+  });
 
   group('aviso de 90%', () {
     test('passar de dentro para perto do limite avisa', () {

@@ -17,6 +17,13 @@ BudgetStatus budgetStatus(Money total, Money? budget) {
   return BudgetStatus.within;
 }
 
+/// Percentual do orçamento já usado, arredondado para baixo (nunca mostra
+/// mais do que foi gasto): 137,40 de 150,00 → 91.
+int budgetUsedPercent(Money total, Money budget) {
+  if (budget.cents <= 0) throw ArgumentError("Orçamento deve ser positivo");
+  return total.cents * 100 ~/ budget.cents;
+}
+
 /// A compra acabou de passar de 90% do orçamento por gasto: o total subiu,
 /// com o mesmo orçamento, de "dentro" para "perto". Mudar o orçamento não
 /// conta, e pular direto para "passou" fica com o aviso de 100%.

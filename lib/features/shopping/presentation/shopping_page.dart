@@ -418,8 +418,9 @@ class _TotalCard extends ConsumerWidget {
   }
 }
 
-/// Barra do orçamento (M9) + "Orçamento R$ X" / "Faltam R$ Y". Tocar edita
-/// o orçamento. Passou do limite: texto, não só cor.
+/// Orçamento no Comprar (telas/04, 04a, 04b): barra (M9), "Faltam R$ X" /
+/// "de R$ Y" e o chip "Mudar". Perto do limite: faixa `info`; passou: barra
+/// em `text-primary` e faixa invertida. Estado sempre em texto, não só cor.
 class _BudgetMeter extends StatelessWidget {
   const _BudgetMeter(this.session);
   final ShoppingSession session;
@@ -431,49 +432,131 @@ class _BudgetMeter extends StatelessWidget {
     final total = session.cart.total;
     final status = session.status;
     final over = status == BudgetStatus.over;
-    final left = (budget - total).format();
-    final caption = TinoType.caption.withColor(c.textSecondary);
-    final strong = TinoType.caption
-        .withColor(c.textPrimary)
-        .weight(FontWeight.w600)
-        .money;
-    return TinoPressable(
-      key: const ValueKey('budget-meter'),
-      onPressed: () => showBudgetSheet(context),
-      scale: TinoPressScale.surface,
-      semanticLabel: over
-          ? 'Orçamento ${budget.format()}. Passou '
-                '${(total - budget).format()}. Editar orçamento'
-          : 'Orçamento ${budget.format()}. Faltam $left. Editar orçamento',
-      excludeSemantics: true,
-      builder: (context, _) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: TinoSpace.s4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final passed = (total - budget).format();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TinoProgressBar(
+          key: const ValueKey('budget-meter'),
+          value: total.cents / budget.cents,
+          over: over,
+          semanticLabel: 'Orçamento usado',
+        ),
+        const SizedBox(height: TinoSpace.s8),
+        Row(
           children: [
-            TinoProgressBar(
-              value: budget.cents == 0 ? 1 : total.cents / budget.cents,
-              over: over,
-              overLabel: 'Passou ${(total - budget).format()} do orçamento.',
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    over
+                        ? 'Passou $passed'
+                        : 'Faltam ${(budget - total).format()}',
+                    key: const ValueKey('budget-left'),
+                    style: TinoType.label.withColor(c.textPrimary).money,
+                  ),
+                  Text(
+                    'de ${budget.format()}',
+                    style: TinoType.caption
+                        .withColor(c.textSecondary)
+                        .copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: TinoSpace.s8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text('Orçamento ${budget.format()}', style: caption),
-                ),
-                if (!over) Text('Faltam $left', style: strong),
-              ],
+            const SizedBox(width: TinoSpace.s12),
+            Semantics(
+              label: 'Mudar orçamento',
+              child: TinoChip(
+                key: const ValueKey('budget-change'),
+                label: 'Mudar',
+                icon: LucideIcons.pencil,
+                accent: true,
+                onPressed: () => showBudgetSheet(context),
+              ),
             ),
-            if (status == BudgetStatus.near) ...[
-              const SizedBox(height: TinoSpace.s4),
-              Text('Perto do limite do orçamento.', style: strong),
-            ],
           ],
         ),
-      ),
+        if (status == BudgetStatus.near) ...[
+          const SizedBox(height: TinoSpace.s12),
+          _BudgetBand(
+            key: const ValueKey('budget-near'),
+            icon: LucideIcons.circleAlert,
+            title: 'Perto do limite do orçamento',
+            detail: 'Você já usou ${budgetUsedPercent(total, budget)}%.',
+            background: c.info,
+            foreground: c.onInfo,
+          ),
+        ],
+        if (over) ...[
+          const SizedBox(height: TinoSpace.s12),
+          _BudgetBand(
+            key: const ValueKey('budget-over'),
+            icon: LucideIcons.triangleAlert,
+            title: 'Passou $passed do orçamento.',
+            detail: 'Tire um item ou mude o valor.',
+            background: c.textPrimary,
+            foreground: c.canvas,
+          ),
+        ],
+      ],
     );
   }
+}
+
+/// Faixa de estado do orçamento: raio 12, padding 12, ícone 20, título
+/// 14/700 e apoio 12/500. Anunciada pelo leitor de tela ao aparecer.
+class _BudgetBand extends StatelessWidget {
+  const _BudgetBand({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.detail,
+    required this.background,
+    required this.foreground,
+  });
+
+  final IconData icon;
+  final String title;
+  final String detail;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    container: true,
+    child: Container(
+      padding: const EdgeInsets.all(TinoSpace.s12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(TinoRadius.control),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: TinoSize.iconCompact, color: foreground),
+          const SizedBox(width: TinoSpace.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TinoType.label
+                      .withColor(foreground)
+                      .weight(FontWeight.w700),
+                ),
+                Text(detail, style: TinoType.caption.withColor(foreground)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _EmptyCart extends StatelessWidget {

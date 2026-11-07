@@ -116,8 +116,9 @@ class _TinoProgressBarState extends State<TinoProgressBar>
               widthFactor: _fill.value.clamp(0.0, 1.0),
               heightFactor: 1,
               child: DecoratedBox(
+                // Passou: barra cheia em `text-primary` (telas/04b).
                 decoration: BoxDecoration(
-                  color: c.action,
+                  color: widget.over ? c.textPrimary : c.action,
                   borderRadius: BorderRadius.circular(TinoRadius.pill),
                 ),
               ),

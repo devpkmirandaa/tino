@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Vibração direta (TinoHaptics); permissão normal, sem pedido. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:label="tino"
         android:name="${applicationName}"

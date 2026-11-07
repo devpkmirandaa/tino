@@ -12,7 +12,11 @@ class TinoChip extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.selected = false,
+    this.accent = false,
   });
+
+  /// Ícone e rótulo em `action` (ex.: "Mudar" do orçamento no Comprar).
+  final bool accent;
 
   final String label;
   final VoidCallback? onPressed;
@@ -26,7 +30,11 @@ class TinoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.tino;
-    final color = onPressed == null ? c.textSecondary : c.textPrimary;
+    final color = onPressed == null
+        ? c.textSecondary
+        : accent
+        ? c.action
+        : c.textPrimary;
     return TinoPressable(
       onPressed: onPressed,
       semanticLabel: label,
