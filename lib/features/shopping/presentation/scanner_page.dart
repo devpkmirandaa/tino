@@ -12,6 +12,7 @@ import '../../../core/motion/tino_springs.dart';
 import '../../../core/theme/tino_theme.dart';
 import '../../../core/widgets/tino_widgets.dart';
 import '../../settings/data/lab_mode.dart';
+import '../../settings/data/settings_preferences.dart';
 import '../application/scan_reader.dart';
 import '../application/shopping_controller.dart';
 import '../domain/cart.dart';
@@ -59,7 +60,7 @@ const _swapDelay = Duration(milliseconds: 80);
 const _settle = Duration(milliseconds: 300);
 
 /// Tela do scanner (design/specs/telas.md · 03): câmera e topo sempre
-/// escuros, folha no tema do sistema. A leitura
+/// escuros, folha na aparência escolhida em Ajustes. A leitura
 /// (câmera, OCR, votação) fica em [ScanReader]; aqui a interface e a
 /// adição: item por unidade com nome lido entra sozinho ao travar.
 class ScannerPage extends ConsumerStatefulWidget {
@@ -157,9 +158,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   /// Por unidade e com nome lido: dá para adicionar sem sair da câmera.
   bool _direct(TagReading r) => !r.perKg && r.name != null;
 
-  /// Entra sozinho: por unidade, com nome, e sem faltar o mínimo do atacado
-  /// quando o atacado foi escolhido.
+  /// Entra sozinho: com a chave de Ajustes ligada, por unidade, com nome, e
+  /// sem faltar o mínimo do atacado quando o atacado foi escolhido.
   bool _auto(TagReading r) =>
+      (ref.read(autoAddProvider).value ?? true) &&
       _direct(r) &&
       !(_mode == PriceMode.bulk && r.bulkPrice != null && r.bulkMin == null);
 
@@ -265,7 +267,8 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     if (old != null && old != result.lineId) entrance.unmark(old);
     // Só linha nova entra no Comprar com M3c; soma em linha existente não.
     if (result.lineId == _scan!.item.id) entrance.mark(result.lineId);
-    if (first || _applied == null) TinoHaptics.success();
+    final vibrate = ref.read(vibrateOnReadProvider).value ?? true;
+    if (vibrate && (first || _applied == null)) TinoHaptics.success();
     setState(() => _applied = result);
   }
 
@@ -361,6 +364,13 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     final read = _reader.stable;
     final found = read == null ? null : _withMin(read);
     final cart = ref.watch(shoppingProvider).value?.cart;
+    // Chaves de Ajustes: lidas na hora de adicionar; o watch só as carrega.
+    ref.watch(autoAddProvider);
+    ref.watch(vibrateOnReadProvider);
+    final sheetBrightness =
+        (ref.watch(appearanceProvider).value ?? Appearance.system).resolve(
+          MediaQuery.platformBrightnessOf(context),
+        );
     return Scaffold(
       backgroundColor: c.canvas,
       body: Stack(
@@ -398,9 +408,9 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            // Folha no tema do sistema (design de 7/nov); o resto é escuro.
+            // Folha na aparência de Ajustes (design de 7/nov); o resto é escuro.
             child: Theme(
-              data: _sheetThemes[MediaQuery.platformBrightnessOf(context)]!,
+              data: _sheetThemes[sheetBrightness]!,
               child: Builder(
                 builder: (context) => _sheet(context, read, found),
               ),

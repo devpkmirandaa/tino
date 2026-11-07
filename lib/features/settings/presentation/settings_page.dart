@@ -1,73 +1,318 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/theme/tino_theme.dart';
-import '../../../core/widgets/area_page.dart';
 import '../../../core/widgets/tino_widgets.dart';
 import '../data/lab_mode.dart';
+import '../data/settings_preferences.dart';
 
-/// Ajustes fora das abas: abre pela engrenagem do Comprar e volta para ele.
-class SettingsScreen extends StatelessWidget {
+/// Ajustes (design/telas/10-ajustes.html): fora das abas, abre pela
+/// engrenagem do Comprar e volta para ele. Só aparece o que já funciona;
+/// Sons, recortes de etiqueta e Apoiar entram quando existirem.
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              TinoSpace.s4,
-              TinoSpace.s4,
-              TinoSpace.s4,
-              0,
-            ),
-            child: TinoIconButton(
-              key: const ValueKey('settings-back'),
-              icon: LucideIcons.arrowLeft,
-              semanticLabel: 'Voltar',
-              onPressed: () =>
-                  context.canPop() ? context.pop() : context.go('/'),
-            ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.tino;
+    final autoAdd = ref.watch(autoAddProvider).value ?? true;
+    final vibrate = ref.watch(vibrateOnReadProvider).value ?? true;
+    final appearance = ref.watch(appearanceProvider).value ?? Appearance.system;
+    return Scaffold(
+      backgroundColor: c.canvas,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            TinoSpace.s16,
+            TinoSpace.s8,
+            TinoSpace.s16,
+            TinoSpace.s24,
           ),
-          const Expanded(child: SettingsPage()),
-        ],
+          children: [
+            Row(
+              children: [
+                Transform.translate(
+                  offset: const Offset(-TinoSpace.s12, 0),
+                  child: TinoIconButton(
+                    key: const ValueKey('settings-back'),
+                    icon: LucideIcons.chevronLeft,
+                    semanticLabel: 'Voltar',
+                    onPressed: () =>
+                        context.canPop() ? context.pop() : context.go('/'),
+                  ),
+                ),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    'Ajustes',
+                    style: TinoType.tela.withColor(c.textPrimary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: TinoSpace.s16),
+            _Section(
+              title: 'Na compra',
+              children: [
+                _SwitchRow(
+                  key: const ValueKey('settings-auto-add'),
+                  title: 'Adicionar ao travar o preço',
+                  detail: 'Sem precisar tocar em nada',
+                  value: autoAdd,
+                  onChanged: ref.read(autoAddProvider.notifier).set,
+                ),
+                _SwitchRow(
+                  key: const ValueKey('settings-vibrate'),
+                  title: 'Vibrar ao ler',
+                  value: vibrate,
+                  onChanged: ref.read(vibrateOnReadProvider.notifier).set,
+                ),
+              ],
+            ),
+            const SizedBox(height: TinoSpace.s24),
+            _SectionTitle('Aparência'),
+            const SizedBox(height: TinoSpace.s8),
+            TinoSegmented<Appearance>(
+              key: const ValueKey('settings-appearance'),
+              segments: const [
+                (value: Appearance.system, label: 'Automático'),
+                (value: Appearance.light, label: 'Claro'),
+                (value: Appearance.dark, label: 'Escuro'),
+              ],
+              selected: appearance,
+              onChanged: ref.read(appearanceProvider.notifier).set,
+            ),
+            const SizedBox(height: TinoSpace.s24),
+            _Section(
+              title: 'Sobre',
+              children: [
+                _LinkRow(
+                  title: 'Código aberto e licenças',
+                  onPressed: () => _showLicenses(context),
+                ),
+                _LinkRow(
+                  title: 'Rever apresentação',
+                  onPressed: () => context.push('/apresentacao?rever=true'),
+                ),
+              ],
+            ),
+            const SizedBox(height: TinoSpace.s32),
+            const _DeveloperTaps(child: _Version()),
+          ],
+        ),
       ),
+    );
+  }
+
+  static Future<void> _showLicenses(BuildContext context) async {
+    final info = await PackageInfo.fromPlatform();
+    if (!context.mounted) return;
+    showLicensePage(
+      context: context,
+      applicationName: 'Tino',
+      applicationVersion: info.version,
+      applicationLegalese:
+          'Gratuito, de código aberto e sem anúncios. Ícones: Lucide (ISC).',
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    header: true,
+    child: Text(
+      text,
+      style: TinoType.caption
+          .withColor(context.tino.textSecondary)
+          .copyWith(
+            fontWeight: FontWeight.w600,
+            fontVariations: tinoWeightAxis(FontWeight.w600),
+          ),
     ),
   );
 }
 
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+/// Rótulo 12/600 + cartão compacto com as linhas separadas por borda.
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => AreaPage(
-    title: 'Ajustes',
-    description: 'O Tino do seu jeito, com escolhas transparentes.',
-    icon: LucideIcons.settings2,
-    message: 'Uma experiência mais leve',
-    detail:
-        'O Tino segue o tema claro ou escuro do aparelho. Escolher a '
-        'aparência, permissões e gerenciamento de dados ainda não estão '
-        'disponíveis.',
-    footer: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        OutlinedButton.icon(
-          onPressed: () => context.push('/apresentacao?rever=true'),
-          icon: const Icon(LucideIcons.info, size: 24),
-          label: const Text('Sobre o Tino'),
-        ),
-        const SizedBox(height: 20),
-        const _DeveloperTaps(
-          child: Text(
-            'Tino — Comprar bem começa antes.\nGratuito, de código aberto e sem anúncios.',
+        _SectionTitle(title),
+        const SizedBox(height: TinoSpace.s8),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: BorderRadius.circular(TinoRadius.cardCompact),
+            border: Border.all(color: c.border, width: TinoSize.borderWidth),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(TinoRadius.cardCompact),
+            child: Column(
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: TinoSize.borderWidth,
+                      thickness: TinoSize.borderWidth,
+                      color: c.border,
+                    ),
+                  children[i],
+                ],
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Linha com chave: a linha inteira liga e desliga.
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
+    super.key,
+    required this.title,
+    this.detail,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String? detail;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    return MergeSemantics(
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: TinoSpace.s16,
+              vertical: TinoSpace.s8,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TinoType.corpo
+                            .withColor(c.textPrimary)
+                            .copyWith(
+                              fontWeight: FontWeight.w500,
+                              fontVariations: tinoWeightAxis(FontWeight.w500),
+                            ),
+                      ),
+                      if (detail != null)
+                        Text(
+                          detail!,
+                          style: TinoType.caption.withColor(c.textSecondary),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: TinoSpace.s12),
+                Switch(
+                  value: value,
+                  onChanged: onChanged,
+                  activeTrackColor: c.action,
+                  activeThumbColor: c.onAction,
+                  inactiveTrackColor: c.surfaceSoft,
+                  inactiveThumbColor: c.textSecondary,
+                  trackOutlineColor: WidgetStateProperty.resolveWith(
+                    (states) => states.contains(WidgetState.selected)
+                        ? c.action
+                        : c.borderStrong,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Linha que abre outra tela, com chevron 20 `text-secondary`.
+class _LinkRow extends StatelessWidget {
+  const _LinkRow({required this.title, required this.onPressed});
+  final String title;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onPressed,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: TinoSize.inputHeight),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: TinoSpace.s16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TinoType.corpo
+                        .withColor(c.textPrimary)
+                        .copyWith(
+                          fontWeight: FontWeight.w500,
+                          fontVariations: tinoWeightAxis(FontWeight.w500),
+                        ),
+                  ),
+                ),
+                const SizedBox(width: TinoSpace.s12),
+                Icon(
+                  LucideIcons.chevronRight,
+                  size: TinoSize.iconCompact,
+                  color: c.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Tino beta · versão", lida do pacote instalado.
+class _Version extends StatelessWidget {
+  const _Version();
+
+  static final _info = PackageInfo.fromPlatform();
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder(
+    future: _info,
+    builder: (context, snapshot) => Text(
+      snapshot.hasData ? 'Tino beta · ${snapshot.data!.version}' : 'Tino beta',
+      textAlign: TextAlign.center,
+      style: TinoType.caption.withColor(context.tino.textSecondary),
     ),
   );
 }

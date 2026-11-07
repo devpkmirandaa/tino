@@ -43,8 +43,7 @@ ThemeData buildTinoLightTheme() => buildTinoTheme(Brightness.light);
 
 /// Tema completo a partir dos tokens de [TinoColorScheme].
 ///
-/// O escuro já existe, mas o app segue em `ThemeMode.light` até as telas
-/// trocarem [TinoTokens] por `context.tino`.
+/// Claro ou escuro conforme a aparência escolhida em Ajustes.
 ThemeData buildTinoTheme(Brightness brightness) {
   final c = TinoColorScheme.of(brightness);
   // Erro fica no padrão do Material: o manual ainda não define token de erro.
