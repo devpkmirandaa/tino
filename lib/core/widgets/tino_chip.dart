@@ -11,11 +11,15 @@ class TinoChip extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
+    this.selected = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
+
+  /// Escolhido (ex.: atalho de valor): borda 2 `action`, mesmas medidas.
+  final bool selected;
 
   static const _height = 40.0;
 
@@ -26,6 +30,7 @@ class TinoChip extends StatelessWidget {
     return TinoPressable(
       onPressed: onPressed,
       semanticLabel: label,
+      selected: selected,
       excludeSemantics: true,
       builder: (context, _) => Padding(
         // Completa a área de toque de 48 sem mudar os 40 visíveis.
@@ -34,13 +39,16 @@ class TinoChip extends StatelessWidget {
         ),
         child: Container(
           height: _height,
-          padding: const EdgeInsets.symmetric(horizontal: TinoSpace.s12),
+          // Borda de 2 tira 1 px do respiro: o chip não muda de largura.
+          padding: EdgeInsets.symmetric(
+            horizontal: TinoSpace.s12 - (selected ? 1 : 0),
+          ),
           decoration: BoxDecoration(
             color: c.surface,
             borderRadius: BorderRadius.circular(TinoRadius.pill),
             border: Border.all(
-              color: c.borderStrong,
-              width: TinoSize.borderWidth,
+              color: selected ? c.action : c.borderStrong,
+              width: selected ? 2 : TinoSize.borderWidth,
             ),
           ),
           child: Row(

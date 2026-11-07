@@ -6,6 +6,7 @@ import '../features/lists/application/list_shopping_link.dart';
 import '../features/lists/presentation/list_feedback_listener.dart';
 import '../features/onboarding/data/onboarding_preference.dart';
 import '../features/settings/data/settings_preferences.dart';
+import '../features/shopping/application/budget_alert.dart';
 import 'router.dart';
 
 class TinoApp extends ConsumerWidget {
@@ -18,6 +19,8 @@ class TinoApp extends ConsumerWidget {
     final themeMode = _themeMode(appearance.value ?? Appearance.system);
     // Risca na lista o que entra no carrinho de uma compra com lista.
     ref.watch(listShoppingLinkProvider);
+    // Vibra ao passar de 90% do orçamento (chave na folha Orçamento).
+    ref.watch(budgetAlertProvider);
     // Espera a aparência para não piscar o tema do celular antes da escolha.
     if (!access.hasValue || appearance.isLoading) {
       return MaterialApp(

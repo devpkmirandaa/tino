@@ -3,14 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../application/shopping_controller.dart';
-import '../domain/decimal_input.dart';
-import '../domain/money.dart';
 
-// Folhas ainda no visual antigo: Orçamento (etapa 4) e Finalizar (etapa 6).
-// Item novo: type_price_sheet.dart; item do carrinho: item_detail_sheet.dart.
-
-Future<void> showBudgetSheet(BuildContext context) =>
-    _sheet(context, const _BudgetSheet());
+// Folha ainda no visual antigo: Finalizar (etapa 6). Item novo:
+// type_price_sheet.dart; item do carrinho: item_detail_sheet.dart;
+// orçamento: budget_sheet.dart.
 
 Future<void> _sheet(BuildContext context, Widget child) => showModalBottomSheet(
   context: context,
@@ -27,91 +23,6 @@ Future<void> _sheet(BuildContext context, Widget child) => showModalBottomSheet(
     child: child,
   ),
 );
-
-class _BudgetSheet extends ConsumerStatefulWidget {
-  const _BudgetSheet();
-
-  @override
-  ConsumerState<_BudgetSheet> createState() => _BudgetSheetState();
-}
-
-class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
-  late final Money? _budget = ref.read(shoppingProvider).value?.budget;
-  late final _value = TextEditingController(
-    text: switch (_budget) {
-      final b? => plainScaled(b.cents, 2),
-      null => '',
-    },
-  );
-  String? _error;
-
-  @override
-  void dispose() {
-    _value.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    final cents = parseScaled(_value.text, 2);
-    if (cents == null || cents < 1) {
-      setState(() => _error = 'Informe um valor maior que zero.');
-      return;
-    }
-    ref.read(shoppingProvider.notifier).setBudget(Money(cents));
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('Orçamento da compra', style: text.titleLarge),
-        const SizedBox(height: 8),
-        Text(
-          'Opcional. O Tino avisa ao chegar a 90% e ao passar do valor.',
-          style: text.bodyMedium,
-        ),
-        const SizedBox(height: 24),
-        TextField(
-          controller: _value,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: 'Valor',
-            prefixText: 'R\$ ',
-            errorText: _error,
-          ),
-          onSubmitted: (_) => _save(),
-        ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            if (_budget != null) ...[
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    ref.read(shoppingProvider.notifier).setBudget(null);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Remover'),
-                ),
-              ),
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              child: FilledButton(
-                onPressed: _save,
-                child: const Text('Salvar'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
 
 Future<void> showFinishSheet(BuildContext context) =>
     _sheet(context, const _FinishSheet());

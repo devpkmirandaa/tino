@@ -12,4 +12,5 @@ export 'tino_quantity_stepper.dart';
 export 'tino_segmented.dart';
 export 'tino_sheet.dart';
 export 'tino_sheet_scope.dart';
+export 'tino_switch.dart';
 export 'tino_money_counter.dart';

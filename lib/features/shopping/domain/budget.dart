@@ -16,3 +16,17 @@ BudgetStatus budgetStatus(Money total, Money? budget) {
   }
   return BudgetStatus.within;
 }
+
+/// A compra acabou de passar de 90% do orçamento por gasto: o total subiu,
+/// com o mesmo orçamento, de "dentro" para "perto". Mudar o orçamento não
+/// conta, e pular direto para "passou" fica com o aviso de 100%.
+bool reachedNearBudget({
+  required Money before,
+  required Money after,
+  required Money? budgetBefore,
+  required Money? budgetAfter,
+}) =>
+    budgetAfter != null &&
+    budgetBefore == budgetAfter &&
+    budgetStatus(before, budgetAfter) == BudgetStatus.within &&
+    budgetStatus(after, budgetAfter) == BudgetStatus.near;

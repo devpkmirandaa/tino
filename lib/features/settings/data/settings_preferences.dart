@@ -65,6 +65,18 @@ class AutoAddNotifier extends _SwitchPreference {
   String get key => 'scan_auto_add';
 }
 
+/// "Avisar quando faltar pouco" (folha Orçamento): vibra quando a compra
+/// passa de 90% do orçamento. Vale para todas as compras.
+final nearBudgetAlertProvider =
+    AsyncNotifierProvider<NearBudgetAlertNotifier, bool>(
+      NearBudgetAlertNotifier.new,
+    );
+
+class NearBudgetAlertNotifier extends _SwitchPreference {
+  @override
+  String get key => 'budget_near_alert';
+}
+
 /// "Vibrar ao ler": vibração quando o item lido entra no carrinho.
 final vibrateOnReadProvider =
     AsyncNotifierProvider<VibrateOnReadNotifier, bool>(

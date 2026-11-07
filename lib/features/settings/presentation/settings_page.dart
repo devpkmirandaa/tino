@@ -233,19 +233,7 @@ class _SwitchRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: TinoSpace.s12),
-                Switch(
-                  value: value,
-                  onChanged: onChanged,
-                  activeTrackColor: c.action,
-                  activeThumbColor: c.onAction,
-                  inactiveTrackColor: c.surfaceSoft,
-                  inactiveThumbColor: c.textSecondary,
-                  trackOutlineColor: WidgetStateProperty.resolveWith(
-                    (states) => states.contains(WidgetState.selected)
-                        ? c.action
-                        : c.borderStrong,
-                  ),
-                ),
+                TinoSwitch(value: value, onChanged: onChanged),
               ],
             ),
           ),
