@@ -4,6 +4,10 @@ import '../../../core/theme/tino_theme.dart';
 import '../domain/cart.dart';
 import '../domain/decimal_input.dart';
 
+/// Nome para mostrar: item digitado sem nome aparece como "Sem nome", em
+/// `text-secondary` (ver [CartItem.unnamed]).
+String cartItemName(CartItem item) => item.unnamed ? 'Sem nome' : item.name;
+
 /// Linha de apoio do item: "2 × R$ 3,99" ou "0,250 kg × R$ 12,00/kg".
 String cartItemDetail(CartItem item) => switch (item) {
   UnitItem(:final quantity, :final price) => '$quantity × ${price.format()}',
@@ -36,7 +40,7 @@ class CartItemRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.name,
+                      cartItemName(item),
                       style: text.bodyLarge?.weight(FontWeight.w600),
                     ),
                     const SizedBox(height: 2),

@@ -7,6 +7,7 @@ import '../../../core/widgets/tino_widgets.dart';
 import '../application/shopping_controller.dart';
 import '../domain/cart.dart';
 import '../domain/item_edit.dart';
+import 'cart_item_row.dart';
 import 'cart_removal.dart';
 
 /// Detalhe do item (design/telas/05-detalhe-item.html): corrige nome, modo,
@@ -90,8 +91,10 @@ class _Header extends StatelessWidget {
           child: Semantics(
             header: true,
             child: Text(
-              draft.original.name,
-              style: TinoType.secao.withColor(c.textPrimary),
+              cartItemName(draft.original),
+              style: TinoType.secao.withColor(
+                draft.original.unnamed ? c.textSecondary : c.textPrimary,
+              ),
             ),
           ),
         ),
@@ -122,6 +125,7 @@ class _NameBlock extends StatelessWidget {
         TinoInput(
           key: const ValueKey('item-detail-name'),
           label: 'Nome',
+          hint: 'Sem nome',
           controller: draft.name,
           textInputAction: TextInputAction.next,
         ),

@@ -29,29 +29,34 @@ ItemEdit editOf(CartItem item) => switch (item) {
   ),
 };
 
-/// Item corrigido, mesmo id e texto da etiqueta; nulo se faltar nome, preço
-/// ou peso. Por quilo, o preço digitado é o preço/kg.
-CartItem? applyEdit(CartItem original, ItemEdit edit) {
+/// Item corrigido, mesmo id e texto da etiqueta (ver [buildItem]).
+CartItem? applyEdit(CartItem original, ItemEdit edit) =>
+    buildItem(original.id, edit, tagText: original.tagText);
+
+/// Item a partir dos campos das folhas; nulo se faltar preço ou peso. Nome é
+/// opcional: vazio fica gravado vazio ("Sem nome" na tela). Por quilo, o
+/// preço digitado é o preço/kg.
+CartItem? buildItem(String id, ItemEdit edit, {String? tagText}) {
   final name = edit.name.trim();
   final price = parseScaled(edit.price, 2);
-  if (name.isEmpty || price == null) return null;
+  if (price == null) return null;
   if (!edit.byWeight) {
     if (edit.quantity < 1) return null;
     return UnitItem(
-      id: original.id,
+      id: id,
       name: name,
       price: Money(price),
       quantity: edit.quantity,
-      tagText: original.tagText,
+      tagText: tagText,
     );
   }
   final grams = parseScaled(edit.weight, 3);
   if (grams == null || grams < 1) return null;
   return WeightItem(
-    id: original.id,
+    id: id,
     name: name,
     pricePerKg: Money(price),
     grams: grams,
-    tagText: original.tagText,
+    tagText: tagText,
   );
 }

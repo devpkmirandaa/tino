@@ -20,7 +20,13 @@ class TinoInput extends StatelessWidget {
     this.autofocus = false,
     this.money = false,
     this.valueStyle,
+    this.height = TinoSize.inputHeight,
+    this.focusNode,
   });
+
+  /// Altura do campo: 52 no padrão, 56 no preço da folha Digitar preço.
+  final double height;
+  final FocusNode? focusNode;
 
   /// Estilo do valor digitado no lugar do corpo 16 (ex.: preço 18/700).
   final TinoTypeStyle? valueStyle;
@@ -58,6 +64,7 @@ class TinoInput extends StatelessWidget {
         const SizedBox(height: TinoSpace.s8),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           autofocus: autofocus,
           keyboardType: keyboardType,
           textInputAction: textInputAction,
@@ -74,11 +81,11 @@ class TinoInput extends StatelessWidget {
             hintStyle: TinoType.corpo.withColor(c.textSecondary),
             suffixText: suffix,
             suffixStyle: TinoType.secundario.withColor(c.textSecondary),
-            constraints: const BoxConstraints(minHeight: TinoSize.inputHeight),
-            // Centraliza a linha do texto na altura de 52 (14 para 24 px).
+            constraints: BoxConstraints(minHeight: height),
+            // Centraliza a linha do texto na altura (14 para 24 px em 52).
             contentPadding: EdgeInsets.symmetric(
               horizontal: TinoSpace.s16,
-              vertical: (TinoSize.inputHeight - type.lineHeight) / 2,
+              vertical: (height - type.lineHeight) / 2,
             ),
             border: border(c.borderStrong, TinoSize.borderWidth),
             enabledBorder: border(c.borderStrong, TinoSize.borderWidth),

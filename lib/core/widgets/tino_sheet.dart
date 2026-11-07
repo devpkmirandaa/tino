@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
@@ -235,7 +236,16 @@ class _TinoSheetFrameState extends State<_TinoSheetFrame> {
 
     final sheet = Container(
       key: _sheet,
-      constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
+      // Com teclado aberto, a folha cabe acima dele (e rola se precisar).
+      constraints: BoxConstraints(
+        maxHeight: math.min(
+          media.size.height * 0.9,
+          media.size.height -
+              media.viewInsets.bottom -
+              media.padding.top -
+              TinoSpace.s8,
+        ),
+      ),
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: const BorderRadius.vertical(

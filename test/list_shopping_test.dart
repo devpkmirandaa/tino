@@ -152,6 +152,25 @@ void main() {
     expect(checks.take(cartId), isNull);
   });
 
+  test('item sem nome não risca nem pergunta', () async {
+    final container = ProviderContainer(overrides: [memoryDatabase]);
+    addTearDown(container.dispose);
+    container.listen(listShoppingLinkProvider, (_, _) {});
+    final repo = container.read(listsRepositoryProvider);
+    final listId = await repo.createList('Mês');
+    await repo.addItem(listId, name: 'Café', category: ItemCategory.mercearia);
+
+    final shopping = container.read(shoppingProvider.notifier);
+    await container.read(shoppingProvider.future);
+    shopping
+      ..setList(listId)
+      ..add(UnitItem(id: shopping.newId(), name: '', price: Money(749)));
+    await settle();
+
+    expect((await repo.items(listId)).single.done, isFalse);
+    expect(container.read(listFeedbackProvider), isNull);
+  });
+
   test('sem lista ligada: não risca, pergunta e sugere a lista', () async {
     final container = ProviderContainer(overrides: [memoryDatabase]);
     addTearDown(container.dispose);

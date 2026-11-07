@@ -65,7 +65,8 @@ final listShoppingLinkProvider = Provider<void>((ref) {
     final known = {for (final i in before.cart.items) i.id};
     final added = [
       for (final i in after.cart.items)
-        if (!known.contains(i.id)) (id: i.id, name: i.name),
+        // Item sem nome não risca nada da lista.
+        if (!known.contains(i.id) && !i.unnamed) (id: i.id, name: i.name),
     ];
     if (added.isNotEmpty) _check(ref, after.listId, added);
   });

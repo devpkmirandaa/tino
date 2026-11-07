@@ -22,6 +22,7 @@ import '../domain/tag_reader.dart';
 import '../../lists/application/list_shopping_link.dart';
 import '../../lists/application/lists_providers.dart';
 import 'cart_entrance.dart';
+import 'price_conflict.dart';
 
 /// Resultado do scanner: leitura para completar, pedido para digitar ou
 /// item do carrinho para corrigir.
@@ -442,10 +443,13 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       ),
       _ when conflict != null => (
         ValueKey('conflict-$_scanLock'),
-        _ConflictItem(
+        PriceConflictBlock(
           name: conflict.name,
           current: conflict.price,
           next: scan!.item.price,
+          nextLabel: 'Leitura nova',
+          reveal: (i, child) =>
+              _Rise(delay: TinoMotion.stagger * i, child: child),
         ),
       ),
       final f? => (
@@ -1094,103 +1098,6 @@ class _Message extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 3a · Mesmo item no carrinho com outro preço: aviso em cor secundária,
-/// nome e os dois preços lado a lado. A leitura nova tem borda de 2 px.
-class _ConflictItem extends StatelessWidget {
-  const _ConflictItem({
-    required this.name,
-    required this.current,
-    required this.next,
-  });
-  final String name;
-  final Money current;
-  final Money next;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.tino;
-    Widget block(String label, Money price, {required bool fresh}) => Container(
-      padding: const EdgeInsets.all(TinoSpace.s12 - _ConflictItem._edge),
-      decoration: BoxDecoration(
-        color: fresh ? c.surface : c.surfaceSoft,
-        borderRadius: BorderRadius.circular(TinoRadius.control),
-        // Borda transparente no outro bloco: os dois ficam do mesmo tamanho.
-        border: Border.all(
-          color: fresh ? c.action : c.surfaceSoft,
-          width: _ConflictItem._edge,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: fresh
-                ? TinoType.caption.withColor(c.action).weight(FontWeight.w600)
-                : TinoType.caption.withColor(c.textSecondary),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            price.format(),
-            maxLines: 1,
-            style: TinoType.secao.withColor(c.textPrimary).money,
-          ),
-        ],
-      ),
-    );
-
-    return Semantics(
-      liveRegion: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Rise(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(LucideIcons.info, size: 16, color: c.textSecondary),
-                    const SizedBox(width: TinoSpace.s4),
-                    Flexible(
-                      child: Text(
-                        'Já está no carrinho com outro preço',
-                        style: TinoType.caption
-                            .withColor(c.textSecondary)
-                            .weight(FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: TinoSpace.s4),
-                Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TinoType.secao.withColor(c.textPrimary),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: TinoSpace.s16),
-          _Rise(
-            delay: TinoMotion.stagger,
-            child: Row(
-              children: [
-                Expanded(child: block('No carrinho', current, fresh: false)),
-                const SizedBox(width: TinoSpace.s8),
-                Expanded(child: block('Leitura nova', next, fresh: true)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static const _edge = 2.0;
 }
 
 /// 3b · Varejo ou atacado: trilho `surface-soft` com 4 px de respiro, raio

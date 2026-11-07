@@ -8,13 +8,17 @@
 
 **Etapa 2b (atacado como nome):** a escolha do nome descarta linhas de atacado/varejo ("A PARTIR DE 10 UN", "PARTIR DE 10 UN", "PREÇO ATACADO") em qualquer posição; leitura de preço intacta.
 
+**Etapa 3 (Digitar preço):** folha nova `type_price_sheet.dart` (`telas/11`), com teclado do celular e folha acima dele. Abre pelos botões "Digitar preço", pelo "Digitar" do scanner e pelo rascunho do scanner; título segue o que abriu ("Informar peso", "Dar nome" ou "Digitar preço") e o foco vai ao campo que falta. Nome opcional: vazio fica gravado vazio e aparece "Sem nome" em `text-secondary`; não soma, não abre conflito, não risca lista. Conflito de preço com o mesmo bloco e regra do scanner (`PriceConflictBlock`). Item novo entra com M3c. Folha antiga "Adicionar/Editar produto" removida.
+
+**Falta nas folhas:** ícone de balança no segmento "Por quilo" (Detalhe e Digitar preço juntas); o segmentado ainda só tem texto.
+
 **Falta no scanner:** mensagem "Não deu pra ler o preço. Quer digitar?" após tempo sem leitura (etapa 5); M8 inverso na folha; regra "50× o passo" do M4 sem definição; preço da folha em 32 (spec pede 28, fora da escala).
 
 **Etapa de atacado (pendente):** mínimo do atacado só é lido com "a partir de" completo; com o "A" perdido ("PARTIR DE 10 UN") o preço de atacado entra, mas o mínimo fica para digitar (`_bulk`/`_minQty` em `tag_reader.dart`).
 
-**Testar no aparelho:** etiqueta com "A partir de 10 UN" mostra o nome do produto, não a linha do atacado. Abrir um item do Comprar, corrigir preço, quantidade, trocar para Por quilo e salvar; arrastar a folha pra baixo; "Tirar do carrinho" e "Desfazer"; item escaneado mostra "Na etiqueta: …" (itens antigos não têm). Migração do banco 5 → 6 roda na primeira abertura.
+**Testar no aparelho:** Digitar preço por unidade e por quilo, com e sem nome; a folha inteira visível acima do teclado; "Informar peso" e "Dar nome" vindos do scanner; nome já no carrinho com outro preço abre o conflito; item novo entra no topo com M3c. Etiqueta com "A partir de 10 UN" mostra o nome do produto, não a linha do atacado. Abrir um item do Comprar, corrigir preço, quantidade, trocar para Por quilo e salvar; arrastar a folha pra baixo; "Tirar do carrinho" e "Desfazer"; item escaneado mostra "Na etiqueta: …" (itens antigos não têm). Migração do banco 5 → 6 roda na primeira abertura.
 
-**Próximo passo:** etapa 3, Digitar preço (`telas/11`): visual novo da folha "Adicionar produto", com o rascunho do scanner. A memória de nomes corrigidos fica para uma etapa própria.
+**Próximo passo:** etapa 4, Orçamento (`telas/12`). A memória de nomes corrigidos fica para uma etapa própria.
 
 **Depois das 9 etapas (aguardam decisão, não implementar):**
 - Sons: o app não toca som; falta decidir se haverá e quais.

@@ -16,9 +16,13 @@ class TinoItemRow extends StatelessWidget {
     this.price,
     this.leading,
     this.onPressed,
+    this.titleMuted = false,
   });
 
   final String title;
+
+  /// Título em `text-secondary` (ex.: "Sem nome", que não é nome de verdade).
+  final bool titleMuted;
   final String? subtitle;
 
   /// Já formatado (ex.: "R$ 7,98"). A formatação é regra do domínio.
@@ -53,7 +57,9 @@ class TinoItemRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TinoType.corpoForte.withColor(c.textPrimary),
+                  style: TinoType.corpoForte.withColor(
+                    titleMuted ? c.textSecondary : c.textPrimary,
+                  ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: TinoSpace.s4),

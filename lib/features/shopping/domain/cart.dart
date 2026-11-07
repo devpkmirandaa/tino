@@ -15,6 +15,10 @@ sealed class CartItem {
 
   /// Nome normalizado para detectar duplicatas.
   String get key => name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+  /// Item digitado sem nome: aparece como "Sem nome", nunca soma com outro,
+  /// não abre conflito de preço e não risca item de lista.
+  bool get unnamed => key.isEmpty;
 }
 
 final class UnitItem extends CartItem {
@@ -100,9 +104,10 @@ final class Cart {
 
   Money get total => items.fold(Money.zero, (sum, i) => sum + i.total);
 
-  /// Itens por peso nunca são mesclados: cada pesagem é uma embalagem.
+  /// Itens por peso nunca são mesclados: cada pesagem é uma embalagem. Item
+  /// sem nome também não: não dá pra saber se é o mesmo produto.
   AddResult add(CartItem item, {bool force = false}) {
-    if (item is UnitItem && !force) {
+    if (item is UnitItem && !force && !item.unnamed) {
       for (final e in items.whereType<UnitItem>()) {
         if (e.key != item.key) continue;
         if (e.price == item.price) {

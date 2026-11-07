@@ -18,6 +18,7 @@ import 'item_detail_sheet.dart';
 import 'scanner_page.dart';
 import 'scanner_route.dart';
 import 'shopping_sheets.dart';
+import 'type_price_sheet.dart';
 
 /// Aba inicial (design/specs/telas.md · 02 Comprar vazio e 04 com itens).
 class ShoppingPage extends ConsumerWidget {
@@ -116,7 +117,8 @@ class ShoppingPage extends ConsumerWidget {
                                     .read(cartRemovalProvider.notifier)
                                     .settle(item.id),
                                 child: TinoItemRow(
-                                  title: item.name,
+                                  title: cartItemName(item),
+                                  titleMuted: item.unnamed,
                                   subtitle: cartItemDetail(item),
                                   price: item.total.format(),
                                 ),
@@ -127,7 +129,8 @@ class ShoppingPage extends ConsumerWidget {
                                   play: entering.contains(item.id),
                                   child: TinoItemRow(
                                     key: ValueKey('cart-item-$i'),
-                                    title: item.name,
+                                    title: cartItemName(item),
+                                    titleMuted: item.unnamed,
                                     subtitle: cartItemDetail(item),
                                     price: item.total.format(),
                                     onPressed: () =>
@@ -203,7 +206,7 @@ class ShoppingPage extends ConsumerWidget {
                         icon: LucideIcons.keyboard,
                         onPressed: loading
                             ? null
-                            : () => showItemSheet(context),
+                            : () => showTypePriceSheet(context),
                       ),
                     ],
                   )
@@ -212,7 +215,7 @@ class ShoppingPage extends ConsumerWidget {
                       _TypeSquareButton(
                         onPressed: loading
                             ? null
-                            : () => showItemSheet(context),
+                            : () => showTypePriceSheet(context),
                       ),
                       const SizedBox(width: TinoSpace.s8),
                       Expanded(child: _ScanButton(loading: loading)),
@@ -333,13 +336,13 @@ Future<void> _scan(BuildContext context) async {
   Timer(const Duration(seconds: 1), entrance.settle);
   switch (result) {
     case ScanRead(:final reading):
-      await showItemSheet(context, draft: reading);
+      await showTypePriceSheet(context, draft: reading);
     case ScanEdit(:final itemId):
       final items = container.read(shoppingProvider).value?.cart.items;
       final item = items?.where((i) => i.id == itemId).firstOrNull;
       if (item != null) await showItemDetailSheet(context, item);
     case ScanTypeInstead():
-      await showItemSheet(context);
+      await showTypePriceSheet(context);
     case null:
       break;
   }

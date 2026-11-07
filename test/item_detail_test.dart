@@ -6,6 +6,7 @@ import 'package:tino/features/shopping/application/shopping_controller.dart';
 import 'package:tino/features/shopping/domain/cart.dart';
 import 'package:tino/features/shopping/domain/item_edit.dart';
 import 'package:tino/features/shopping/domain/money.dart';
+import 'package:tino/features/shopping/domain/scan_add.dart';
 import 'package:tino/features/shopping/domain/tag_reader.dart';
 import 'package:tino/features/shopping/presentation/cart_removal.dart';
 
@@ -81,13 +82,22 @@ void main() {
       expect(saved.tagText, molho.tagText);
     });
 
-    test('sem nome ou preço inválido não salva', () {
+    test('nome apagado fica vazio; preço inválido não salva', () {
       final edit = editOf(molho);
+      final unnamed = applyEdit(molho, (
+        name: '  ',
+        byWeight: false,
+        price: edit.price,
+        quantity: 1,
+        weight: '',
+      ))!;
+      expect(unnamed.name, '');
+      expect(unnamed.unnamed, isTrue);
       expect(
         applyEdit(molho, (
-          name: '  ',
+          name: edit.name,
           byWeight: false,
-          price: edit.price,
+          price: '',
           quantity: 1,
           weight: '',
         )),
@@ -103,6 +113,53 @@ void main() {
         )),
         isNull,
       );
+    });
+  });
+
+  group('Digitar preço', () {
+    test('monta item novo, com texto da etiqueta do rascunho', () {
+      final item = buildItem('n', (
+        name: 'Arroz',
+        byWeight: false,
+        price: '7,49',
+        quantity: 2,
+        weight: '',
+      ), tagText: 'ARROZ TIO JOAO') as UnitItem;
+      expect(item.total, Money(1498));
+      expect(item.tagText, 'ARROZ TIO JOAO');
+      final kg = buildItem('k', (
+        name: '',
+        byWeight: true,
+        price: '12,00',
+        quantity: 1,
+        weight: '0,5',
+      )) as WeightItem;
+      expect(kg.grams, 500);
+      expect(kg.total, Money(600));
+      expect(kg.unnamed, isTrue);
+    });
+
+    test('item sem nome nunca soma nem abre conflito', () {
+      final first = UnitItem(id: 'a', name: '', price: Money(749));
+      final cart = Cart([first]);
+      final same = UnitItem(id: 'b', name: ' ', price: Money(749));
+      final other = UnitItem(id: 'c', name: '', price: Money(999));
+      expect(cart.add(same), isA<Added>());
+      expect(cart.add(same).cart.items, hasLength(2));
+      expect(cart.add(other), isA<Added>());
+    });
+
+    test('conflito segue a regra do scanner', () {
+      final arroz = UnitItem(id: 'a', name: 'Arroz', price: Money(749));
+      final typed = UnitItem(id: 'n', name: 'arroz', price: Money(699));
+      final scan = ScanAdd(before: Cart([arroz]), item: typed);
+      expect(scan.apply(), isNull);
+      expect(scan.conflict, arroz);
+      final updated = scan.copyWith(choice: ConflictChoice.useNew).apply()!;
+      final line = updated.cart.items.single as UnitItem;
+      expect(line.price, Money(699));
+      expect(line.quantity, 2);
+      expect(updated.lineId, 'a');
     });
   });
 
