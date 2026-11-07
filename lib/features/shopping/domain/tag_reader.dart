@@ -169,9 +169,13 @@ final _letters = RegExp(r'[A-Za-zÀ-ÿ]');
 final _banner = RegExp(
   r'^(?:oferta|ofertas|promo|promoção|economize|economia|hortifruti|hortifrúti|'
   r'açougue|padaria|atacado|varejo|leve|pague|imperdível|preço|preços|por|'
-  r'de|un|unidade|unidades|cada|kg|exclusiv\w*)\b',
+  r'a\s+partir|partir|de|un|unidade|unidades|cada|kg|exclusiv\w*)\b',
   caseSensitive: false,
 );
+
+/// Linha do atacado ou do varejo ("A PARTIR DE 10 UN", "PREÇO ATACADO"), em
+/// qualquer posição, inclusive com o "A" perdido pelo OCR: nunca é nome.
+final _bulkWords = RegExp(r'atacado|varejo|partir\s+de', caseSensitive: false);
 
 typedef _Candidate = ({
   Money price,
@@ -527,6 +531,7 @@ OcrLine? _nameLine(List<OcrLine> lines, OcrLine price) {
     if (l.top >= price.top ||
         _price.hasMatch(text) ||
         _banner.hasMatch(text) ||
+        _bulkWords.hasMatch(text) ||
         !_isWords(text)) {
       continue;
     }

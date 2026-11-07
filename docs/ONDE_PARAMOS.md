@@ -6,11 +6,15 @@
 
 **Etapa 2 (Detalhe do item):** folha nova `item_detail_sheet.dart` no visual de `telas/05` (M5, M6), só para item já no carrinho: tocar na linha do Comprar ou no lápis do scanner depois de adicionar. "Na etiqueta: …" vem do texto cru do nome (`tagText`, guardado no banco, versão 6). "Tirar do carrinho": linha sai pra esquerda e aviso "Item tirado. Desfazer" por 4 s, que volta o item ao mesmo lugar (M8). Rascunho do scanner e Digitar preço seguem na folha antiga até a etapa 3.
 
+**Etapa 2b (atacado como nome):** a escolha do nome descarta linhas de atacado/varejo ("A PARTIR DE 10 UN", "PARTIR DE 10 UN", "PREÇO ATACADO") em qualquer posição; leitura de preço intacta.
+
 **Falta no scanner:** mensagem "Não deu pra ler o preço. Quer digitar?" após tempo sem leitura (etapa 5); M8 inverso na folha; regra "50× o passo" do M4 sem definição; preço da folha em 32 (spec pede 28, fora da escala).
 
-**Testar no aparelho:** abrir um item do Comprar, corrigir preço, quantidade, trocar para Por quilo e salvar; arrastar a folha pra baixo; "Tirar do carrinho" e "Desfazer"; item escaneado mostra "Na etiqueta: …" (itens antigos não têm). Migração do banco 5 → 6 roda na primeira abertura.
+**Etapa de atacado (pendente):** mínimo do atacado só é lido com "a partir de" completo; com o "A" perdido ("PARTIR DE 10 UN") o preço de atacado entra, mas o mínimo fica para digitar (`_bulk`/`_minQty` em `tag_reader.dart`).
 
-**Próximo passo:** etapa 2b, atacado lido como nome ("Partir de 10 UN"): só a escolha do nome (`_nameLine`/`_banner` em `tag_reader.dart`), sem mexer na leitura de preço, com teste de etiqueta "a partir de 10 UN". Depois, etapa 3 (Digitar preço). A memória de nomes corrigidos fica para uma etapa própria.
+**Testar no aparelho:** etiqueta com "A partir de 10 UN" mostra o nome do produto, não a linha do atacado. Abrir um item do Comprar, corrigir preço, quantidade, trocar para Por quilo e salvar; arrastar a folha pra baixo; "Tirar do carrinho" e "Desfazer"; item escaneado mostra "Na etiqueta: …" (itens antigos não têm). Migração do banco 5 → 6 roda na primeira abertura.
+
+**Próximo passo:** etapa 3, Digitar preço (`telas/11`): visual novo da folha "Adicionar produto", com o rascunho do scanner. A memória de nomes corrigidos fica para uma etapa própria.
 
 **Depois das 9 etapas (aguardam decisão, não implementar):**
 - Sons: o app não toca som; falta decidir se haverá e quais.

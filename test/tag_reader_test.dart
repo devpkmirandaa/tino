@@ -84,6 +84,38 @@ void main() {
       expect(r.name, 'Arroz branco tipo 1');
     });
 
+    group('linha do atacado não vira nome', () {
+      // Duas colunas; a linha do atacado é mais alta que o nome do produto.
+      TagReading twoColumns(String bulkLine, {double nameTop = 40}) => readTag([
+        l('MOLHO DE TOMATE QUERO', nameTop, 26, width: 380),
+        l(bulkLine, 150, 34, left: 420, width: 300),
+        l(r'R$ 3,49', 220, 90, left: 40, width: 230),
+        l(r'R$ 2,99', 220, 90, left: 420, width: 230),
+      ]);
+
+      test('"A PARTIR DE 10 UN"', () {
+        final r = twoColumns('A PARTIR DE 10 UN');
+        expect(r.name, 'Molho de tomate quero');
+        expect(r.tagText, 'MOLHO DE TOMATE QUERO');
+        expect(r.price, Money(349));
+        expect(r.bulkPrice, Money(299));
+        expect(r.bulkMin, 10);
+      });
+
+      test('"PARTIR DE 10 UN", com o "A" perdido pelo OCR', () {
+        final r = twoColumns('PARTIR DE 10 UN');
+        expect(r.name, 'Molho de tomate quero');
+        expect(r.price, Money(349));
+        expect(r.bulkPrice, Money(299));
+      });
+
+      test('nome abaixo da linha do atacado', () {
+        final r = twoColumns('10 UN A PARTIR DE', nameTop: 190);
+        expect(r.name, 'Molho de tomate quero');
+        expect(r.price, Money(349));
+      });
+    });
+
     test('mantém nomes que começam como palavras de faixa', () {
       final r = readTag([l('Detergente Ypê', 0, 30), l(r'R$ 2,99', 40, 60)]);
       expect(r.name, 'Detergente Ypê');
