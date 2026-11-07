@@ -29,15 +29,22 @@ class TinoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.tino;
+    final radius = BorderRadius.circular(
+      compact ? TinoRadius.cardCompact : TinoRadius.card,
+    );
+    // Recorta o conteúdo nos cantos (linhas com fundo próprio) e desenha a
+    // borda por cima, para o fundo das linhas não cobri-la.
     Widget surface(bool pressed) => AnimatedContainer(
       duration: tinoSurfacePressDuration,
       curve: TinoCurves.easeOut,
       padding: padding,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: pressed ? c.surfaceSoft : c.surface,
-        borderRadius: BorderRadius.circular(
-          compact ? TinoRadius.cardCompact : TinoRadius.card,
-        ),
+        borderRadius: radius,
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: radius,
         border: Border.all(color: c.border, width: TinoSize.borderWidth),
       ),
       child: child,

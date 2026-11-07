@@ -1,12 +1,16 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 /// Licenças que não vêm nos pacotes: o `lucide_icons_flutter` traz só a MIT
-/// do pacote, e os ícones são do Lucide (ISC). Aparecem em Ajustes ›
-/// Código aberto e licenças.
+/// do pacote, e os ícones são do Lucide (ISC); a Plus Jakarta Sans vem como
+/// asset, com a OFL ao lado. Aparecem em Ajustes › Código aberto e licenças.
 void registerTinoLicenses() {
-  LicenseRegistry.addLicense(
-    () => Stream.value(const LicenseEntryWithLineBreaks(['Lucide'], _lucide)),
-  );
+  LicenseRegistry.addLicense(() async* {
+    yield const LicenseEntryWithLineBreaks(['Lucide'], _lucide);
+    yield LicenseEntryWithLineBreaks([
+      'Plus Jakarta Sans',
+    ], await rootBundle.loadString('assets/fonts/OFL.txt'));
+  });
 }
 
 const _lucide = '''ISC License

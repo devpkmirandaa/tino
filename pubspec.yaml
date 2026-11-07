@@ -73,6 +73,7 @@ flutter:
 
   assets:
     - assets/branding/tino-wordmark.svg
+    - assets/fonts/OFL.txt
 
   fonts:
     - family: PlusJakartaSans

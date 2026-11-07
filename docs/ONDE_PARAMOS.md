@@ -10,4 +10,9 @@
 
 **Próximo passo:** etapa 2, Detalhe do item (`telas/05`, M5 e M6). Aprovado: passar o texto bruto da etiqueta do leitor até a folha ("Na etiqueta: …"). A memória de nomes corrigidos fica para uma etapa própria.
 
+**Depois das 9 etapas (aguardam decisão, não implementar):**
+- Sons: o app não toca som; falta decidir se haverá e quais.
+- Enviar recortes das etiquetas: coleta opcional para treinar a Saúva (desligada por padrão, só a imagem do preço).
+- Apoiar o Tino: falta definir o destino.
+
 `.vscode/` é configuração local e não vai para o Git.
