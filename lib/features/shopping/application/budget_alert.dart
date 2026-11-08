@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/motion/tino_haptics.dart';
@@ -12,9 +13,9 @@ import 'shopping_controller.dart';
 const nearBudgetAlertDelay = Duration(milliseconds: 300);
 
 /// Vibra uma vez quando a compra passa de 90% do orçamento, se "Avisar
-/// quando faltar pouco" estiver ligado. Fica no app (como o vínculo com a
-/// lista), então vale com o scanner aberto. O texto "Perto do limite" e o
-/// aviso de 100% não dependem desta chave.
+/// quando faltar pouco" estiver ligado (a mesma chave mostra ou esconde a
+/// faixa "Perto do limite"). Fica no app (como o vínculo com a lista),
+/// então vale com o scanner aberto. "Passou do orçamento" não depende dela.
 final budgetAlertProvider = Provider<void>((ref) {
   Timer? timer;
   ref.onDispose(() => timer?.cancel());
@@ -30,7 +31,17 @@ final budgetAlertProvider = Provider<void>((ref) {
       budgetBefore: before.budget,
       budgetAfter: after.budget,
     );
-    if (!crossed || !(ref.read(nearBudgetAlertProvider).value ?? true)) return;
+    final on = ref.read(nearBudgetAlertProvider).value ?? true;
+    // Log de conferência no aparelho (flutter run): só quando o estado muda.
+    if (before.status != after.status) {
+      debugPrint(
+        'tino-orçamento ${before.status.name}→${after.status.name} '
+        '${before.cart.total.format()}→${after.cart.total.format()} '
+        'de ${after.budget?.format() ?? '-'} '
+        '${crossed ? 'vibra' : 'não vibra'}${on ? '' : ' (chave desligada)'}',
+      );
+    }
+    if (!crossed || !on) return;
     timer?.cancel();
     timer = Timer(nearBudgetAlertDelay, TinoHaptics.warning);
   });

@@ -65,8 +65,9 @@ class AutoAddNotifier extends _SwitchPreference {
   String get key => 'scan_auto_add';
 }
 
-/// "Avisar quando faltar pouco" (folha Orçamento): vibra quando a compra
-/// passa de 90% do orçamento. Vale para todas as compras.
+/// "Avisar quando faltar pouco" (folha Orçamento): o aviso de 90% inteiro,
+/// faixa "Perto do limite" no Comprar e vibração. Vale para todas as
+/// compras. "Passou do orçamento" não depende dela.
 final nearBudgetAlertProvider =
     AsyncNotifierProvider<NearBudgetAlertNotifier, bool>(
       NearBudgetAlertNotifier.new,

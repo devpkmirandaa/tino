@@ -8,6 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/tino_theme.dart';
 import '../../../core/widgets/tino_widgets.dart';
 import '../../lists/presentation/linked_list_card.dart';
+import '../../settings/data/settings_preferences.dart';
 import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
 import '../domain/cart.dart';
@@ -419,15 +420,17 @@ class _TotalCard extends ConsumerWidget {
 }
 
 /// Orçamento no Comprar (telas/04, 04a, 04b): barra (M9), "Faltam R$ X" /
-/// "de R$ Y" e o chip "Mudar". Perto do limite: faixa `info`; passou: barra
-/// em `text-primary` e faixa invertida. Estado sempre em texto, não só cor.
-class _BudgetMeter extends StatelessWidget {
+/// "de R$ Y" e o chip "Mudar". Perto do limite: faixa `info`, só com "Avisar
+/// quando faltar pouco" ligado; passou: barra em `text-primary` e faixa
+/// invertida, sempre. Estado sempre em texto, não só cor.
+class _BudgetMeter extends ConsumerWidget {
   const _BudgetMeter(this.session);
   final ShoppingSession session;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.tino;
+    final nearAlert = ref.watch(nearBudgetAlertProvider).value ?? true;
     final budget = session.budget!;
     final total = session.cart.total;
     final status = session.status;
@@ -480,7 +483,7 @@ class _BudgetMeter extends StatelessWidget {
             ),
           ],
         ),
-        if (status == BudgetStatus.near) ...[
+        if (status == BudgetStatus.near && nearAlert) ...[
           const SizedBox(height: TinoSpace.s12),
           _BudgetBand(
             key: const ValueKey('budget-near'),

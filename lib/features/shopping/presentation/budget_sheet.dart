@@ -166,7 +166,7 @@ class _AlertBlock extends ConsumerWidget {
                       style: TinoType.corpoForte.withColor(c.textPrimary),
                     ),
                     Text(
-                      'Vibra quando passar de 90% do valor.',
+                      'Avisa e vibra quando passar de 90% do valor.',
                       style: TinoType.caption.withColor(c.textSecondary),
                     ),
                   ],

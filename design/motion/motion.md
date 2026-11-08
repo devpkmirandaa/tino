@@ -126,7 +126,7 @@ Sequência, a partir da leitura confirmada:
 | Desfazer | leve | — |
 | Concluir compra | sucesso | som de conclusão (opcional) |
 
-Vibração direta pelo vibrador do aparelho, com uso de mídia: vibra também no modo silencioso e não depende da "vibração ao tocar" do sistema (desliga só pela "vibração de mídia" do Android). Quem decide são os switches do Tino: "Vibrar ao ler" (item no carrinho e desfazer no scanner) e "Avisar quando faltar pouco" (aviso de 90%). Som continua respeitando o modo silencioso.
+Vibração direta pelo vibrador do aparelho, com uso de mídia: vibra também no modo silencioso e não depende da "vibração ao tocar" do sistema (desliga só pela "vibração de mídia" do Android). Quem decide são os switches do Tino: "Vibrar ao ler" (item no carrinho e desfazer no scanner) e "Avisar quando faltar pouco" (aviso de 90%, faixa e vibração; "Passou do orçamento" vibra sempre). Som continua respeitando o modo silencioso.
 
 ## Desempenho
 - Animar só transformações e opacidade sempre que possível; altura apenas em M3c e M8.

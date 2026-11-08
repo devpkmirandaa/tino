@@ -16,8 +16,10 @@ abstract final class TinoHaptics {
   /// Intervalo entre os dois pulsos do aviso.
   static const warningGap = Duration(milliseconds: 120);
 
-  /// Leve: um pulso curto e fraco.
-  static const lightPattern = (timings: [0, 20], amplitudes: [0, 80]);
+  /// Leve: um pulso curto e mais fraco que o sucesso. Com 20 ms a 80 o
+  /// Desfazer não vibrava no Moto G54 (provável pulso curto demais pro
+  /// motor); 30 ms a 140 ainda é leve.
+  static const lightPattern = (timings: [0, 30], amplitudes: [0, 140]);
 
   /// Sucesso: um pulso só, mais longo e forte.
   static const successPattern = (timings: [0, 40], amplitudes: [0, 200]);
