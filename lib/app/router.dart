@@ -9,6 +9,7 @@ import '../features/lists/presentation/lists_page.dart';
 import '../features/onboarding/data/onboarding_preference.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/settings/presentation/settings_page.dart';
+import '../features/shopping/presentation/finish_page.dart';
 import '../features/shopping/presentation/scanner_route.dart';
 import '../features/shopping/presentation/shopping_page.dart';
 import 'area_content.dart';
@@ -51,6 +52,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/ajustes',
         pageBuilder: (context, state) =>
             _fadePage(state, const SettingsScreen()),
+      ),
+      GoRoute(
+        path: '/finalizar',
+        pageBuilder: (context, state) => _fadePage(state, const FinishPage()),
       ),
       // Endereço antigo da aba Comprar, que agora é a inicial.
       GoRoute(path: '/comprar', redirect: (context, state) => '/'),

@@ -163,6 +163,15 @@ class ListsRepository {
   Future<void> setDone(int listId, int id, bool done) =>
       _changeItem(listId, id, ListItemsCompanion(done: Value(done)));
 
+  /// Desmarca todos os itens da lista (compra concluída: pronta para a
+  /// próxima). Os não marcados ficam como estão.
+  Future<void> uncheckAll(int listId) => _db.transaction(() async {
+    await (_db.update(_db.listItems)
+          ..where((i) => i.listId.equals(listId) & i.done.equals(true)))
+        .write(const ListItemsCompanion(done: Value(false)));
+    await _touch(listId, const ShoppingListsCompanion());
+  });
+
   Future<void> deleteItem(int listId, int id) => _db.transaction(() async {
     await (_db.delete(_db.listItems)..where((i) => i.id.equals(id))).go();
     await _touch(listId, const ShoppingListsCompanion());

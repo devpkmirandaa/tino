@@ -21,7 +21,6 @@ import 'cart_removal.dart';
 import 'item_detail_sheet.dart';
 import 'scanner_page.dart';
 import 'scanner_route.dart';
-import 'shopping_sheets.dart';
 import 'type_price_sheet.dart';
 
 /// Aba inicial (design/specs/telas.md · 02 Comprar vazio e 04 com itens).
@@ -154,7 +153,7 @@ class ShoppingPage extends ConsumerWidget {
                       label: 'Finalizar compra',
                       accent: true,
                       expand: true,
-                      onPressed: () => showFinishSheet(context),
+                      onPressed: () => context.push('/finalizar'),
                     ),
                     const SizedBox(height: TinoSpace.s8),
                     TinoButton.text(

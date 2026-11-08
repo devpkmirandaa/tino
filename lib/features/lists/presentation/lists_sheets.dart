@@ -1,11 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
-import '../../shopping/presentation/shopping_sheets.dart' show QuantityStepper;
 import '../application/lists_providers.dart';
 import '../domain/category_suggester.dart';
 import '../domain/shopping_list.dart';
+
+/// Quantidade inteira com − e +, sem teclado. Mínimo 1. Visual antigo das
+/// folhas de lista (etapa 7).
+class QuantityStepper extends StatelessWidget {
+  const QuantityStepper({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton.outlined(
+          tooltip: 'Diminuir',
+          constraints: const BoxConstraints.tightFor(width: 52, height: 52),
+          onPressed: value > 1 ? () => onChanged(value - 1) : null,
+          icon: const Icon(LucideIcons.minus, size: 20),
+        ),
+        SizedBox(
+          width: 44,
+          child: Semantics(
+            label: 'Quantidade',
+            value: '$value',
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: text.titleLarge,
+            ),
+          ),
+        ),
+        IconButton.outlined(
+          tooltip: 'Aumentar',
+          constraints: const BoxConstraints.tightFor(width: 52, height: 52),
+          onPressed: value < 999 ? () => onChanged(value + 1) : null,
+          icon: const Icon(LucideIcons.plus, size: 20),
+        ),
+      ],
+    );
+  }
+}
 
 Future<T?> _sheet<T>(BuildContext context, Widget child) =>
     showModalBottomSheet<T>(

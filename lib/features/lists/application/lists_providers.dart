@@ -56,6 +56,10 @@ class ListsActions {
 
   Future<void> deleteList(int id) => _then(_repo.deleteList(id), id);
 
+  /// Compra concluída com esta lista: desmarca tudo para a próxima vez.
+  Future<void> uncheckAll(int listId) =>
+      _then(_repo.uncheckAll(listId), listId);
+
   Future<int> addItem(
     int listId, {
     required String name,

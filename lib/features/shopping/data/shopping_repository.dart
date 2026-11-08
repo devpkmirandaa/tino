@@ -59,10 +59,13 @@ class ShoppingRepository {
     );
   });
 
-  /// Marca a compra ativa como finalizada agora.
-  Future<void> finishActive() =>
+  /// Marca a compra ativa como finalizada agora, com o mercado, se houver.
+  Future<void> finishActive({String? place}) =>
       (_db.update(_db.purchases)..where((p) => p.finishedAt.isNull())).write(
-        PurchasesCompanion(finishedAt: Value(DateTime.now())),
+        PurchasesCompanion(
+          finishedAt: Value(DateTime.now()),
+          place: Value(place),
+        ),
       );
 
   /// Compras finalizadas, da mais recente para a mais antiga.
@@ -92,6 +95,7 @@ class ShoppingRepository {
           finishedAt: p.finishedAt!,
           cart: Cart(items[p.id] ?? const []),
           budget: _budget(p.budgetCents),
+          place: p.place,
         ),
     ];
   }

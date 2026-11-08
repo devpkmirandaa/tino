@@ -13,6 +13,9 @@ class Purchases extends Table {
 
   /// Lista usada nesta compra, se houver (itens lidos são riscados nela).
   IntColumn get listId => integer().nullable()();
+
+  /// "Onde foi a compra?", digitado ao finalizar (opcional).
+  TextColumn get place => text().nullable()();
 }
 
 /// Item: [kind] 0 = unidade (preço, quantidade), 1 = peso (preço/kg, gramas).
@@ -98,7 +101,7 @@ class TinoDatabase extends _$TinoDatabase {
     : super(executor ?? driftDatabase(name: 'tino'));
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -113,6 +116,7 @@ class TinoDatabase extends _$TinoDatabase {
       if (from < 6) {
         await m.addColumn(purchaseItems, purchaseItems.tagText);
       }
+      if (from < 7) await m.addColumn(purchases, purchases.place);
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );

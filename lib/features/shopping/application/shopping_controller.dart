@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../lists/application/lists_providers.dart';
 import '../data/shopping_repository.dart';
 import '../domain/budget.dart';
 import '../domain/cart.dart';
@@ -71,12 +72,18 @@ class ShoppingController extends AsyncNotifier<ShoppingSession> {
   void setList(int? listId) =>
       _set(_session.cart, _session.budget, listId: listId);
 
-  /// Grava o que falta, finaliza a compra ativa e começa uma nova, vazia.
-  Future<void> finish() async {
+  /// Grava o que falta, finaliza a compra ativa (com o mercado, se houver)
+  /// e começa uma nova, vazia. A lista usada fica toda desmarcada, pronta
+  /// para a próxima compra.
+  Future<void> finish({String? place}) async {
     await _saving;
-    await ref.read(shoppingRepositoryProvider).finishActive();
+    final listId = _session.listId;
+    await ref
+        .read(shoppingRepositoryProvider)
+        .finishActive(place: cleanPlace(place));
     state = const AsyncData(ShoppingSession());
     ref.invalidate(historyProvider);
+    if (listId != null) await ref.read(listsActionsProvider).uncheckAll(listId);
   }
 
   /// Aguarda as gravações pendentes (usado em testes).
