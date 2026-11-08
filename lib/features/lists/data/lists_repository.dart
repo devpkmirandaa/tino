@@ -38,15 +38,55 @@ class ListsRepository {
             OrderingTerm.desc(_db.shoppingLists.updatedAt),
             OrderingTerm.desc(_db.shoppingLists.id),
           ]);
+    final used = await lastUsed();
     return [
       for (final r in await query.get())
         _info(
           r.readTable(_db.shoppingLists),
           r.read(total) ?? 0,
           r.read(done) ?? 0,
+          used,
         ),
     ];
   }
+
+  /// Última compra concluída com cada lista (para "usada há N dias").
+  Future<Map<int, DateTime>> lastUsed() async {
+    final last = _db.purchases.finishedAt.max();
+    final query = _db.selectOnly(_db.purchases)
+      ..addColumns([_db.purchases.listId, last])
+      ..where(
+        _db.purchases.listId.isNotNull() & _db.purchases.finishedAt.isNotNull(),
+      )
+      ..groupBy([_db.purchases.listId]);
+    return {
+      for (final r in await query.get())
+        if ((r.read(_db.purchases.listId), r.read(last)) case (
+          final id?,
+          final at?,
+        ))
+          id: at,
+    };
+  }
+
+  /// Ordem das categorias de "Por categoria" (Organizar lista).
+  Future<void> setCategoryOrder(int id, List<ItemCategory> order) => _touch(
+    id,
+    ShoppingListsCompanion(
+      categoryOrder: Value(order.map((c) => c.name).join(',')),
+    ),
+  );
+
+  /// Ordem manual: [ids] na ordem da tela viram as posições 0, 1, 2…
+  Future<void> reorderItems(int listId, List<int> ids) =>
+      _db.transaction(() async {
+        for (final (position, id) in ids.indexed) {
+          await (_db.update(_db.listItems)
+                ..where((i) => i.id.equals(id) & i.listId.equals(listId)))
+              .write(ListItemsCompanion(position: Value(position)));
+        }
+        await _touch(listId, const ShoppingListsCompanion());
+      });
 
   Future<List<ListItem>> items(int listId) async => [
     for (final r in await (_db.select(
@@ -112,7 +152,7 @@ class ListsRepository {
   Future<void> deleteList(int id) =>
       (_db.delete(_db.shoppingLists)..where((l) => l.id.equals(id))).go();
 
-  /// Novo item no fim da sua categoria.
+  /// Novo item no fim da lista (por categoria, vai pro fim da sua seção).
   Future<int> addItem(
     int listId, {
     required String name,
@@ -122,10 +162,7 @@ class ListsRepository {
     final last =
         await (_db.selectOnly(_db.listItems)
               ..addColumns([_db.listItems.position.max()])
-              ..where(
-                _db.listItems.listId.equals(listId) &
-                    _db.listItems.category.equals(category.name),
-              ))
+              ..where(_db.listItems.listId.equals(listId)))
             .map((r) => r.read(_db.listItems.position.max()))
             .getSingle();
     final id = await _db
@@ -190,19 +227,24 @@ class ListsRepository {
         change.copyWith(updatedAt: Value(_now())),
       );
 
-  ShoppingListInfo _info(ShoppingListRow row, int total, int done) =>
-      ShoppingListInfo(
-        id: row.id,
-        name: row.name,
-        updatedAt: row.updatedAt,
-        order: ListOrder.parse(row.sortMode),
-        categoryOrder: [
-          for (final c in (row.categoryOrder ?? '').split(','))
-            if (c.isNotEmpty) ItemCategory.parse(c),
-        ],
-        itemCount: total,
-        doneCount: done,
-      );
+  ShoppingListInfo _info(
+    ShoppingListRow row,
+    int total,
+    int done,
+    Map<int, DateTime> used,
+  ) => ShoppingListInfo(
+    lastUsed: used[row.id],
+    id: row.id,
+    name: row.name,
+    updatedAt: row.updatedAt,
+    order: ListOrder.parse(row.sortMode),
+    categoryOrder: [
+      for (final c in (row.categoryOrder ?? '').split(','))
+        if (c.isNotEmpty) ItemCategory.parse(c),
+    ],
+    itemCount: total,
+    doneCount: done,
+  );
 
   ListItem _item(ListItemRow r) => ListItem(
     id: r.id,

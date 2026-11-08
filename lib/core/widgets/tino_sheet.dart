@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../motion/tino_springs.dart';
 import '../theme/tino_theme.dart';
@@ -155,7 +155,14 @@ class _TinoSheetRoute<T> extends PopupRoute<T> {
     BuildContext context,
     Animation<double> animation,
     Animation<double> secondaryAnimation,
-  ) => themes.wrap(_TinoSheetFrame(route: this));
+  ) => themes.wrap(
+    // Campos de texto pedem um Material acima; transparente, não muda nada
+    // no visual (a folha desenha o próprio fundo).
+    Material(
+      type: MaterialType.transparency,
+      child: _TinoSheetFrame(route: this),
+    ),
+  );
 }
 
 class _TinoSheetFrame extends StatefulWidget {

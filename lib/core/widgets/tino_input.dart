@@ -8,7 +8,9 @@ import '../theme/tino_theme.dart';
 class TinoInput extends StatelessWidget {
   const TinoInput({
     super.key,
-    required this.label,
+    this.label,
+    this.trailing,
+    this.textCapitalization = TextCapitalization.none,
     this.controller,
     this.hint,
     this.suffix,
@@ -31,7 +33,13 @@ class TinoInput extends StatelessWidget {
   /// Estilo do valor digitado no lugar do corpo 16 (ex.: preço 18/700).
   final TinoTypeStyle? valueStyle;
 
-  final String label;
+  /// Rótulo acima (14/600). Sem rótulo, a dica ([hint]) faz o papel dele,
+  /// também para o leitor de tela (ex.: "Adicionar item" da Lista).
+  final String? label;
+
+  /// Botão dentro do campo, à direita (ex.: + da Lista).
+  final Widget? trailing;
+  final TextCapitalization textCapitalization;
   final TextEditingController? controller;
   final String? hint;
 
@@ -60,12 +68,15 @@ class TinoInput extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: TinoType.label.withColor(c.textPrimary)),
-        const SizedBox(height: TinoSpace.s8),
+        if (label case final label?) ...[
+          Text(label, style: TinoType.label.withColor(c.textPrimary)),
+          const SizedBox(height: TinoSpace.s8),
+        ],
         TextField(
           controller: controller,
           focusNode: focusNode,
           autofocus: autofocus,
+          textCapitalization: textCapitalization,
           keyboardType: keyboardType,
           textInputAction: textInputAction,
           inputFormatters: inputFormatters,
@@ -81,6 +92,11 @@ class TinoInput extends StatelessWidget {
             hintStyle: TinoType.corpo.withColor(c.textSecondary),
             suffixText: suffix,
             suffixStyle: TinoType.secundario.withColor(c.textSecondary),
+            suffixIcon: trailing,
+            suffixIconConstraints: const BoxConstraints(
+              minWidth: TinoSize.touchTarget,
+              minHeight: TinoSize.touchTarget,
+            ),
             constraints: BoxConstraints(minHeight: height),
             // Centraliza a linha do texto na altura (14 para 24 px em 52).
             contentPadding: EdgeInsets.symmetric(

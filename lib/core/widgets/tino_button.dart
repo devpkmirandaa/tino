@@ -15,6 +15,10 @@ enum TinoButtonSize {
   /// 64, raio 16. Só para "Escanear preço". Provisório: foge da escala do
   /// manual e aguarda aprovação de marca (design/README.md).
   scan,
+
+  /// 56, raio 16: ação principal no rodapé de uma página ("Comprar com
+  /// esta lista", telas/08).
+  large,
 }
 
 /// Botões base (design/specs/telas.md · Componentes base) com M1.
@@ -72,10 +76,16 @@ class TinoButton extends StatelessWidget {
     final enabled = onPressed != null;
     final scan = size == TinoButtonSize.scan;
     final height = switch (_variant) {
-      _Variant.primary => scan ? 64.0 : TinoSize.inputHeight,
+      _Variant.primary => switch (size) {
+        TinoButtonSize.scan => 64.0,
+        TinoButtonSize.large => 56.0,
+        TinoButtonSize.regular => TinoSize.inputHeight,
+      },
       _ => TinoSize.touchTarget,
     };
-    final radius = scan ? TinoRadius.cardCompact : TinoRadius.control;
+    final radius = size == TinoButtonSize.regular
+        ? TinoRadius.control
+        : TinoRadius.cardCompact;
     final style = _variant == _Variant.primary
         ? TinoType.corpoForte
         : TinoType.label;

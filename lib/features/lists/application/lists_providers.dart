@@ -54,6 +54,23 @@ class ListsActions {
   Future<void> setOrder(int id, ListOrder order) =>
       _then(_repo.setOrder(id, order));
 
+  /// "Pronto" do Organizar: ordem, ordem das categorias e, ao passar para
+  /// manual, as posições na ordem que a pessoa via ([manualIds]).
+  Future<void> organize(
+    int id, {
+    required ListOrder order,
+    required List<ItemCategory> categoryOrder,
+    List<int>? manualIds,
+  }) => _then(() async {
+    await _repo.setOrder(id, order);
+    await _repo.setCategoryOrder(id, categoryOrder);
+    if (manualIds != null) await _repo.reorderItems(id, manualIds);
+  }(), id);
+
+  /// Arrastar na ordem manual.
+  Future<void> reorderItems(int listId, List<int> ids) =>
+      _then(_repo.reorderItems(listId, ids), listId);
+
   Future<void> deleteList(int id) => _then(_repo.deleteList(id), id);
 
   /// Compra concluída com esta lista: desmarca tudo para a próxima vez.

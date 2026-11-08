@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -110,47 +111,96 @@ void main() {
       item(4, 'Banana', ItemCategory.hortifruti),
     ];
 
-    test('por categoria: seções na ordem do mercado, marcados no fim', () {
+    test('por categoria: seções na ordem do mercado, marcados no lugar', () {
       final r = arrangeList(items, ListOrder.category);
       expect(
-        [for (final s in r.pending) s.category],
-        [ItemCategory.hortifruti, ItemCategory.limpeza],
-      );
-      expect(
-        [for (final i in r.pending.first.items) i.name],
-        ['Tomate', 'Banana'],
-      );
-      expect([for (final i in r.done) i.name], ['Leite']);
-    });
-
-    test('ordem de adição: sem seções, marcados no fim', () {
-      final r = arrangeList(items, ListOrder.added);
-      expect(r.pending.single.category, isNull);
-      expect(
-        [for (final i in r.pending.single.items) i.name],
-        ['Detergente', 'Tomate', 'Banana'],
-      );
-      expect([for (final i in r.done) i.name], ['Leite']);
-    });
-
-    test('manual: ordem das categorias e posição dos itens', () {
-      final r = arrangeList(
+        [for (final s in r) s.category],
         [
-          item(1, 'Tomate', ItemCategory.hortifruti, position: 1),
-          item(2, 'Banana', ItemCategory.hortifruti, position: 0),
-          item(3, 'Detergente', ItemCategory.limpeza),
+          ItemCategory.hortifruti,
+          ItemCategory.laticinios,
+          ItemCategory.limpeza,
         ],
-        ListOrder.manual,
+      );
+      expect([for (final i in r.first.items) i.name], ['Tomate', 'Banana']);
+      // Marcado continua na sua categoria, não vai pro fim.
+      expect(r[1].items.single.name, 'Leite');
+      expect(r[1].items.single.done, isTrue);
+    });
+
+    test('ordem das categorias escolhida vem antes das outras', () {
+      final r = arrangeList(
+        items,
+        ListOrder.category,
         categoryOrder: [ItemCategory.limpeza],
       );
+      expect(r.first.category, ItemCategory.limpeza);
+      expect(r[1].category, ItemCategory.hortifruti);
+    });
+
+    test('manual: uma lista só, na posição arrastada, marcados no lugar', () {
+      final r = arrangeList([
+        item(1, 'Tomate', ItemCategory.hortifruti, position: 2),
+        item(2, 'Banana', ItemCategory.hortifruti, position: 0),
+        item(3, 'Detergente', ItemCategory.limpeza, position: 1, done: true),
+      ], ListOrder.manual);
+      expect(r.single.category, isNull);
       expect(
-        [for (final s in r.pending) s.category],
-        [ItemCategory.limpeza, ItemCategory.hortifruti],
+        [for (final i in r.single.items) i.name],
+        ['Banana', 'Detergente', 'Tomate'],
       );
+    });
+
+    test('"ordem de adição" antiga é lida como por categoria', () {
+      expect(ListOrder.parse('added'), ListOrder.category);
+      expect(ListOrder.parse('manual'), ListOrder.manual);
+      expect(ListOrder.parse(null), ListOrder.category);
+    });
+
+    test('Organizar: categorias presentes e nova ordem completa', () {
+      expect(presentCategories(items, [ItemCategory.limpeza]), [
+        ItemCategory.limpeza,
+        ItemCategory.hortifruti,
+        ItemCategory.laticinios,
+      ]);
+      final merged = mergeCategoryOrder(
+        [ItemCategory.laticinios, ItemCategory.hortifruti],
+        [ItemCategory.limpeza],
+      );
+      expect(merged.take(3), [
+        ItemCategory.laticinios,
+        ItemCategory.hortifruti,
+        ItemCategory.limpeza,
+      ]);
+      expect(merged.toSet(), ItemCategory.values.toSet());
+    });
+  });
+
+  group('cartão da lista', () {
+    final now = DateTime(2026, 11, 8, 15);
+    ShoppingListInfo info(int count, {DateTime? used}) => ShoppingListInfo(
+      id: 1,
+      name: 'Mês',
+      updatedAt: now,
+      itemCount: count,
+      lastUsed: used,
+    );
+
+    test('quantidade com contexto de uso', () {
       expect(
-        [for (final i in r.pending.last.items) i.name],
-        ['Banana', 'Tomate'],
+        listSummary(info(6), inUse: true, now: now),
+        '6 itens · em uso no carrinho',
       );
+      expect(listSummary(info(8), inUse: false, now: now), '8 itens');
+      expect(listSummary(info(1), inUse: false, now: now), '1 item');
+      expect(listSummary(info(0), inUse: false, now: now), 'Vazia');
+    });
+
+    test('usada hoje, ontem ou há N dias, por dia de calendário', () {
+      String used(DateTime at) =>
+          listSummary(info(24, used: at), inUse: false, now: now);
+      expect(used(DateTime(2026, 11, 8, 9)), '24 itens · usada hoje');
+      expect(used(DateTime(2026, 11, 7, 23)), '24 itens · usada ontem');
+      expect(used(DateTime(2026, 10, 27, 18)), '24 itens · usada há 12 dias');
     });
   });
 
@@ -198,11 +248,61 @@ void main() {
 
       await repo.deleteItem(id, a);
       expect((await repo.items(id)).single.name, 'Banana prata');
-      await repo.setOrder(id, ListOrder.added);
-      expect((await repo.lists()).single.order, ListOrder.added);
+      await repo.setOrder(id, ListOrder.manual);
+      expect((await repo.lists()).single.order, ListOrder.manual);
       await repo.deleteList(id);
       expect(await repo.lists(), isEmpty);
       expect(await repo.items(id), isEmpty);
+    });
+
+    test('grava a ordem das categorias e a ordem manual dos itens', () async {
+      final id = await repo.createList('Mês');
+      final a = await repo.addItem(
+        id,
+        name: 'Tomate',
+        category: ItemCategory.hortifruti,
+      );
+      final b = await repo.addItem(
+        id,
+        name: 'Detergente',
+        category: ItemCategory.limpeza,
+      );
+      final c = await repo.addItem(
+        id,
+        name: 'Banana',
+        category: ItemCategory.hortifruti,
+      );
+      // Posição nova vai pro fim da lista inteira, não da categoria.
+      expect((await repo.items(id)).map((i) => i.position), [0, 1, 2]);
+
+      await repo.setCategoryOrder(id, [
+        ItemCategory.limpeza,
+        ItemCategory.hortifruti,
+      ]);
+      await repo.reorderItems(id, [c, a, b]);
+      final info = (await repo.lists()).single;
+      expect(info.categoryOrder, [
+        ItemCategory.limpeza,
+        ItemCategory.hortifruti,
+      ]);
+      final manual = arrangeList(await repo.items(id), ListOrder.manual);
+      expect([for (final i in manual.single.items) i.id], [c, a, b]);
+    });
+
+    test('última compra concluída com a lista', () async {
+      final id = await repo.createList('Mês');
+      expect((await repo.lists()).single.lastUsed, isNull);
+      final when = DateTime(2026, 11, 1, 18);
+      await db
+          .into(db.purchases)
+          .insert(
+            PurchasesCompanion.insert(
+              startedAt: when,
+              finishedAt: Value(when),
+              listId: Value(id),
+            ),
+          );
+      expect((await repo.lists()).single.lastUsed, when);
     });
 
     test('guarda a categoria aprendida pelo nome e pela 1ª palavra', () async {
@@ -276,40 +376,35 @@ void main() {
     expect(find.text('Nenhuma lista ainda'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('new-list')));
-    await tester.pumpAndSettle();
+    await settle();
     await tester.enterText(find.byType(TextField), 'Churrasco');
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Criar lista'));
+    await tester.tap(find.byKey(const ValueKey('list-name-save')));
     await settle();
     expect(find.text('Churrasco'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('add-list-item')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Produto'),
-      'Picanha',
+    // Só o nome pelo campo do topo; a categoria vem da sugestão.
+    final add = find.descendant(
+      of: find.byKey(const ValueKey('add-list-item')),
+      matching: find.byType(TextField),
     );
-    await tester.pump();
-    expect(find.text('Carnes e peixes'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Adicionar'));
+    await tester.enterText(add, 'Picanha');
+    await tester.tap(find.byKey(const ValueKey('add-list-item-button')));
     await settle();
-    // O painel continua aberto para o próximo item.
-    await tester.enterText(find.widgetWithText(TextField, 'Produto'), 'Carvão');
-    await tester.pump();
-    expect(find.text('Outros'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Adicionar'));
-    await settle();
-    Navigator.of(tester.element(find.text('Novo item'))).pop();
+    await tester.enterText(add, 'Carvão');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await settle();
 
     expect(find.text('Picanha'), findsOneWidget);
     expect(find.text('Carnes e peixes'), findsOneWidget);
-    expect(find.text('0 de 2 marcados · por categoria'), findsOneWidget);
+    expect(find.text('Carvão'), findsOneWidget);
+    expect(find.text('Outros'), findsOneWidget);
 
+    // Marcado fica na categoria, com "No carrinho".
+    expect(find.text('No carrinho'), findsNothing);
     await tester.tap(find.text('Picanha'));
     await settle();
-    expect(find.text('Marcados (1)'), findsOneWidget);
-    final style = tester.widget<Text>(find.text('Picanha')).style!;
-    expect(style.decoration, TextDecoration.lineThrough);
+    expect(find.text('No carrinho'), findsOneWidget);
+    expect(find.text('Carnes e peixes'), findsOneWidget);
   });
 }

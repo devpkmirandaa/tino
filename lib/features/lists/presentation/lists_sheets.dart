@@ -3,278 +3,256 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
+import '../../../core/widgets/tino_widgets.dart';
 import '../application/lists_providers.dart';
 import '../domain/category_suggester.dart';
 import '../domain/shopping_list.dart';
 
-/// Quantidade inteira com − e +, sem teclado. Mínimo 1. Visual antigo das
-/// folhas de lista (etapa 7).
-class QuantityStepper extends StatelessWidget {
-  const QuantityStepper({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
-  final int value;
-  final ValueChanged<int> onChanged;
+/// Título 20/700 da folha + fechar, como Digitar preço e Orçamento.
+class SheetHeader extends StatelessWidget {
+  const SheetHeader(this.title, {super.key});
+  final String title;
 
   @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton.outlined(
-          tooltip: 'Diminuir',
-          constraints: const BoxConstraints.tightFor(width: 52, height: 52),
-          onPressed: value > 1 ? () => onChanged(value - 1) : null,
-          icon: const Icon(LucideIcons.minus, size: 20),
-        ),
-        SizedBox(
-          width: 44,
-          child: Semantics(
-            label: 'Quantidade',
-            value: '$value',
-            child: Text(
-              '$value',
-              textAlign: TextAlign.center,
-              style: text.titleLarge,
-            ),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Semantics(
+          header: true,
+          child: Text(
+            title,
+            style: TinoType.secao.withColor(context.tino.textPrimary),
           ),
         ),
-        IconButton.outlined(
-          tooltip: 'Aumentar',
-          constraints: const BoxConstraints.tightFor(width: 52, height: 52),
-          onPressed: value < 999 ? () => onChanged(value + 1) : null,
-          icon: const Icon(LucideIcons.plus, size: 20),
-        ),
-      ],
-    );
-  }
-}
-
-Future<T?> _sheet<T>(BuildContext context, Widget child) =>
-    showModalBottomSheet<T>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (context) => SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          0,
-          16,
-          16 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: child,
       ),
-    );
-
-/// Pede o nome de uma lista; devolve nulo se cancelado.
-Future<String?> showListNameSheet(
-  BuildContext context, {
-  required String title,
-  String initial = '',
-  String action = 'Salvar',
-}) => _sheet<String>(
-  context,
-  _NameSheet(title: title, initial: initial, action: action),
-);
-
-/// Adiciona (sem [item]) ou edita um item da lista.
-Future<void> showListItemSheet(
-  BuildContext context, {
-  required int listId,
-  ListItem? item,
-}) => _sheet<void>(context, _ItemSheet(listId: listId, item: item));
-
-class _NameSheet extends StatefulWidget {
-  const _NameSheet({
-    required this.title,
-    required this.initial,
-    required this.action,
-  });
-  final String title;
-  final String initial;
-  final String action;
-
-  @override
-  State<_NameSheet> createState() => _NameSheetState();
-}
-
-class _NameSheetState extends State<_NameSheet> {
-  late final _name = TextEditingController(text: widget.initial);
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    final name = _name.text.trim();
-    if (name.isNotEmpty) Navigator.pop(context, name);
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: TinoSpace.s16),
-      TextField(
-        controller: _name,
-        autofocus: true,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(
-          labelText: 'Nome da lista',
-          hintText: 'Ex.: Compra do mês',
-        ),
-        onSubmitted: (_) => _save(),
-      ),
-      const SizedBox(height: TinoSpace.s16),
-      ValueListenableBuilder(
-        valueListenable: _name,
-        builder: (context, value, _) => FilledButton(
-          onPressed: value.text.trim().isEmpty ? null : _save,
-          child: Text(widget.action),
+      Transform.translate(
+        offset: const Offset(TinoSpace.s12, 0),
+        child: TinoIconButton(
+          icon: LucideIcons.x,
+          semanticLabel: 'Fechar',
+          onPressed: () => Navigator.pop(context),
         ),
       ),
     ],
   );
 }
 
-class _ItemSheet extends ConsumerStatefulWidget {
-  const _ItemSheet({required this.listId, this.item});
-  final int listId;
-  final ListItem? item;
+/// Nome de uma lista (nova ou renomear); devolve nulo se cancelado.
+Future<String?> showListNameSheet(
+  BuildContext context, {
+  required String title,
+  String initial = '',
+  String action = 'Salvar',
+}) {
+  final name = TextEditingController(text: initial);
+  void save(BuildContext sheet) {
+    final text = name.text.trim();
+    if (text.isNotEmpty) Navigator.pop(sheet, text);
+  }
 
-  @override
-  ConsumerState<_ItemSheet> createState() => _ItemSheetState();
+  return showTinoSheet<String>(
+    context,
+    barrierLabel: 'Fechar ${title.toLowerCase()}',
+    onDisposed: name.dispose,
+    blocks: [
+      SheetHeader(title),
+      Builder(
+        builder: (sheet) => TinoInput(
+          key: const ValueKey('list-name'),
+          label: 'Nome da lista',
+          hint: 'Ex.: Compra do mês',
+          controller: name,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => save(sheet),
+        ),
+      ),
+      ListenableBuilder(
+        listenable: name,
+        builder: (sheet, _) => TinoButton.primary(
+          key: const ValueKey('list-name-save'),
+          label: action,
+          expand: true,
+          onPressed: name.text.trim().isEmpty ? null : () => save(sheet),
+        ),
+      ),
+    ],
+  );
 }
 
-class _ItemSheetState extends ConsumerState<_ItemSheet> {
-  late final _name = TextEditingController(text: widget.item?.name);
-  late var _quantity = widget.item?.quantity ?? 1;
-  late var _category = widget.item?.category ?? ItemCategory.outros;
+/// Edita um item da lista (toque e segure na Lista): nome, quantidade e
+/// categoria; "Tirar da lista" apaga.
+Future<void> showListItemSheet(
+  BuildContext context, {
+  required int listId,
+  required ListItem item,
+}) {
+  final draft = _ItemDraft(item);
+  return showTinoSheet<void>(
+    context,
+    barrierLabel: 'Fechar editar item',
+    onDisposed: draft.dispose,
+    blocks: [
+      const SheetHeader('Editar item'),
+      TinoInput(
+        key: const ValueKey('list-item-name'),
+        label: 'Produto',
+        controller: draft.name,
+        textCapitalization: TextCapitalization.sentences,
+        textInputAction: TextInputAction.done,
+      ),
+      _QuantityBlock(draft),
+      _CategoryBlock(draft),
+      _ItemActions(listId: listId, draft: draft),
+    ],
+  );
+}
 
-  /// A categoria acompanha o nome até o usuário escolher uma.
-  late var _chosen = widget.item != null;
+class _ItemDraft extends ChangeNotifier {
+  _ItemDraft(this.item) : quantity = item.quantity, category = item.category {
+    name.addListener(notifyListeners);
+  }
+
+  final ListItem item;
+  late final name = TextEditingController(text: item.name);
+  int quantity;
+  ItemCategory category;
+
+  void setQuantity(int value) {
+    quantity = value;
+    notifyListeners();
+  }
+
+  void setCategory(ItemCategory value) {
+    category = value;
+    notifyListeners();
+  }
 
   @override
   void dispose() {
-    _name.dispose();
+    name.dispose();
     super.dispose();
   }
+}
 
-  ItemCategory _suggest(String name) => suggestCategory(
-    name,
-    learned: ref.read(learnedCategoriesProvider).value ?? const {},
+class _QuantityBlock extends StatelessWidget {
+  const _QuantityBlock(this.draft);
+  final _ItemDraft draft;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: draft,
+    builder: (context, _) => Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Quantidade',
+            style: TinoType.label.withColor(context.tino.textPrimary),
+          ),
+        ),
+        TinoQuantityStepper(
+          key: const ValueKey('list-item-quantity'),
+          value: draft.quantity,
+          onChanged: draft.setQuantity,
+        ),
+      ],
+    ),
   );
+}
 
-  void _onName(String name) {
-    if (_chosen) return;
-    final next = _suggest(name);
-    if (next != _category) setState(() => _category = next);
-  }
+/// Categoria em chips; a escolhida com borda 2 `action`.
+class _CategoryBlock extends StatelessWidget {
+  const _CategoryBlock(this.draft);
+  final _ItemDraft draft;
 
-  Future<void> _save() async {
-    final name = _name.text.trim();
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: draft,
+    builder: (context, _) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Categoria',
+          style: TinoType.label.withColor(context.tino.textPrimary),
+        ),
+        const SizedBox(height: TinoSpace.s4),
+        Wrap(
+          spacing: TinoSpace.s8,
+          children: [
+            for (final c in ItemCategory.values)
+              TinoChip(
+                key: ValueKey('list-item-category-${c.name}'),
+                label: c.label,
+                selected: draft.category == c,
+                onPressed: () => draft.setCategory(c),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+class _ItemActions extends ConsumerWidget {
+  const _ItemActions({required this.listId, required this.draft});
+  final int listId;
+  final _ItemDraft draft;
+
+  Future<void> _save(BuildContext context, WidgetRef ref) async {
+    final name = draft.name.text.trim();
     if (name.isEmpty) return;
-    final repo = ref.read(listsActionsProvider);
-    // Categoria diferente da sugerida: aprende para as próximas vezes.
-    if (_category != _suggest(name)) await repo.learnCategory(name, _category);
-    final item = widget.item;
-    if (item == null) {
-      await repo.addItem(
-        widget.listId,
-        name: name,
-        category: _category,
-        quantity: _quantity,
-      );
-      if (!mounted) return;
-      // Continua aberto para o próximo item: listas se fazem em sequência.
-      setState(() {
-        _name.clear();
-        _quantity = 1;
-        _category = ItemCategory.outros;
-        _chosen = false;
-      });
-      return;
-    }
-    await repo.updateItem(
-      widget.listId,
-      item.id,
-      name: name,
-      category: _category,
-      quantity: _quantity,
+    final actions = ref.read(listsActionsProvider);
+    final suggested = suggestCategory(
+      name,
+      learned: ref.read(learnedCategoriesProvider).value ?? const {},
     );
-    if (mounted) Navigator.pop(context);
-  }
-
-  Future<void> _delete() async {
-    await ref
-        .read(listsActionsProvider)
-        .deleteItem(widget.listId, widget.item!.id);
-    if (mounted) Navigator.pop(context);
+    // Categoria diferente da sugerida: aprende para as próximas vezes.
+    if (draft.category != suggested) {
+      await actions.learnCategory(name, draft.category);
+    }
+    await actions.updateItem(
+      listId,
+      draft.item.id,
+      name: name,
+      category: draft.category,
+      quantity: draft.quantity,
+    );
+    if (context.mounted) Navigator.pop(context);
   }
 
   @override
-  Widget build(BuildContext context) {
-    // Carrega as categorias aprendidas antes de o usuário digitar.
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Carrega as categorias aprendidas para comparar com a escolhida.
     ref.watch(learnedCategoriesProvider);
-    final text = Theme.of(context).textTheme;
-    final editing = widget.item != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(editing ? 'Editar item' : 'Novo item', style: text.titleLarge),
-        const SizedBox(height: TinoSpace.s16),
-        TextField(
-          controller: _name,
-          autofocus: !editing,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(labelText: 'Produto'),
-          onChanged: _onName,
-          onSubmitted: (_) => _save(),
-        ),
-        const SizedBox(height: TinoSpace.s16),
-        Row(
-          children: [
-            Expanded(child: Text('Quantidade', style: text.bodyLarge)),
-            QuantityStepper(
-              value: _quantity,
-              onChanged: (q) => setState(() => _quantity = q),
-            ),
-          ],
-        ),
-        const SizedBox(height: TinoSpace.s16),
-        DropdownButtonFormField<ItemCategory>(
-          key: ValueKey(_category),
-          initialValue: _category,
-          decoration: const InputDecoration(labelText: 'Categoria'),
-          items: [
-            for (final c in ItemCategory.values)
-              DropdownMenuItem(value: c, child: Text(c.label)),
-          ],
-          onChanged: (c) => setState(() {
-            if (c != null) _category = c;
-            _chosen = true;
-          }),
-        ),
-        const SizedBox(height: TinoSpace.s24),
-        ValueListenableBuilder(
-          valueListenable: _name,
-          builder: (context, value, _) => FilledButton(
-            onPressed: value.text.trim().isEmpty ? null : _save,
-            child: Text(editing ? 'Salvar' : 'Adicionar'),
+    return ListenableBuilder(
+      listenable: draft,
+      builder: (context, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TinoButton.primary(
+            key: const ValueKey('list-item-save'),
+            label: 'Salvar',
+            expand: true,
+            onPressed: draft.name.text.trim().isEmpty
+                ? null
+                : () => _save(context, ref),
           ),
-        ),
-        if (editing) ...[
-          const SizedBox(height: TinoSpace.s8),
-          TextButton(onPressed: _delete, child: const Text('Remover')),
+          const SizedBox(height: TinoSpace.s4),
+          TinoButton.text(
+            key: const ValueKey('list-item-remove'),
+            label: 'Tirar da lista',
+            icon: LucideIcons.trash2,
+            muted: true,
+            onPressed: () async {
+              await ref
+                  .read(listsActionsProvider)
+                  .deleteItem(listId, draft.item.id);
+              if (context.mounted) Navigator.pop(context);
+            },
+          ),
         ],
-      ],
+      ),
     );
   }
 }

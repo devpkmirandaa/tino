@@ -8,6 +8,8 @@ import '../../../core/widgets/tino_widgets.dart';
 import '../../shopping/application/shopping_controller.dart';
 import '../application/lists_providers.dart';
 import '../domain/shopping_list.dart';
+import 'list_card.dart';
+import 'lists_sheets.dart';
 
 /// Em Comprar: faixa da lista ligada à compra (fundo `info`), com o que já
 /// está no carrinho e o que falta. Tocar abre a lista; o X desliga a lista
@@ -25,11 +27,16 @@ class ActiveListBand extends ConsumerWidget {
     final info = ref.watch(listProvider(listId)).value;
     if (info == null) return const SizedBox.shrink();
     final items = ref.watch(listItemsProvider(listId)).value ?? const [];
-    final pending = arrangeList(
-      items,
-      info.order,
-      categoryOrder: info.categoryOrder,
-    ).pending.expand((s) => s.items).map((i) => i.name).toList();
+    // O que falta, na ordem em que aparece na Lista.
+    final pending = [
+      for (final s in arrangeList(
+        items,
+        info.order,
+        categoryOrder: info.categoryOrder,
+      ))
+        for (final i in s.items)
+          if (!i.done) i.name,
+    ];
     final done = items.length - pending.length;
     final detail = items.isEmpty
         ? 'Lista sem itens'
@@ -105,63 +112,64 @@ class _StopButton extends StatelessWidget {
   );
 }
 
-/// Seletor "Usar uma lista": folha com as listas que ainda têm o que pegar.
+/// Seletor "Usar uma lista": folha com as listas que ainda têm o que pegar,
+/// nos mesmos cartões da aba Listas (design/telas/07).
 Future<void> chooseShoppingList(BuildContext context, WidgetRef ref) async {
   final c = context.tino;
   final open = [
-    for (final l in ref.read(listsProvider).value ?? const <ShoppingListInfo>[])
+    for (final l
+        in await ref
+            .read(listsProvider.future)
+            .catchError((_) => const <ShoppingListInfo>[]))
       if (l.doneCount < l.itemCount) l,
   ];
+  if (!context.mounted) return;
+  final now = DateTime.now();
   final id = await showTinoSheet<int>(
     context,
+    barrierLabel: 'Fechar usar uma lista',
     blocks: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(
-          TinoSpace.s16,
-          0,
-          TinoSpace.s16,
-          TinoSpace.s8,
-        ),
-        child: Text(
-          'Usar qual lista?',
-          style: TinoType.secao.withColor(c.textPrimary),
-        ),
-      ),
+      const SheetHeader('Usar qual lista?'),
       if (open.isEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: TinoSpace.s16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        Builder(
+          builder: (sheet) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 'Nenhuma lista com itens pra pegar.',
                 style: TinoType.secundario.withColor(c.textSecondary),
               ),
-              const SizedBox(height: TinoSpace.s8),
-              Builder(
-                builder: (sheet) => TinoButton.text(
-                  label: 'Ver listas',
-                  icon: LucideIcons.listChecks,
-                  onPressed: () {
-                    Navigator.pop(sheet);
-                    context.go('/listas');
-                  },
-                ),
+              const SizedBox(height: TinoSpace.s16),
+              TinoButton.primary(
+                key: const ValueKey('choose-list-see'),
+                label: 'Ver listas',
+                icon: LucideIcons.listChecks,
+                expand: true,
+                onPressed: () {
+                  Navigator.pop(sheet);
+                  context.go('/listas');
+                },
               ),
             ],
           ),
         )
-      else
+      else ...[
         for (final l in open)
           Builder(
-            builder: (sheet) => TinoItemRow(
+            builder: (sheet) => ListCard(
               key: ValueKey('choose-list-${l.id}'),
-              title: l.name,
-              subtitle: 'Faltam ${l.itemCount - l.doneCount} de ${l.itemCount}',
+              list: l,
+              inUse: false,
+              now: now,
               onPressed: () => Navigator.pop(sheet, l.id),
             ),
           ),
-      const SizedBox(height: TinoSpace.s8),
+        Text(
+          'Com uma lista ativa, cada item escaneado sai dela sozinho.',
+          textAlign: TextAlign.center,
+          style: TinoType.caption.withColor(c.textSecondary),
+        ),
+      ],
     ],
   );
   if (id != null) ref.read(shoppingProvider.notifier).setList(id);

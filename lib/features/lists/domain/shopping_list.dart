@@ -19,14 +19,15 @@ enum ItemCategory {
       values.where((c) => c.name == name).firstOrNull ?? outros;
 }
 
-/// Como a lista é exibida. [manual] fica reservado para o arrastar (L1.5).
+/// Como a lista é exibida (Organizar lista, telas/13). A antiga "ordem de
+/// adição" (`added` no banco) passa a ser lida como [category].
 enum ListOrder {
-  category('Por categoria'),
-  added('Ordem de adição'),
-  manual('Manual');
+  category('Por categoria', 'Agrupa como os corredores do mercado.'),
+  manual('Ordem manual', 'Você arrasta cada item pra onde quiser.');
 
-  const ListOrder(this.label);
+  const ListOrder(this.label, this.detail);
   final String label;
+  final String detail;
 
   static ListOrder parse(String? name) =>
       values.where((o) => o.name == name).firstOrNull ?? category;
@@ -65,6 +66,7 @@ final class ShoppingListInfo {
     this.categoryOrder = const [],
     this.itemCount = 0,
     this.doneCount = 0,
+    this.lastUsed,
   });
 
   final int id;
@@ -74,13 +76,25 @@ final class ShoppingListInfo {
   final List<ItemCategory> categoryOrder;
   final int itemCount;
   final int doneCount;
+
+  /// Última compra concluída com esta lista.
+  final DateTime? lastUsed;
 }
 
-/// Bloco da lista na tela: [category] nulo quando a ordem não agrupa.
+/// Bloco da lista na tela: [category] nulo na ordem manual (lista única).
 typedef ListSection = ({ItemCategory? category, List<ListItem> items});
 
-/// Pendentes em seções conforme [order]; marcados à parte, no fim.
-({List<ListSection> pending, List<ListItem> done}) arrangeList(
+/// Categorias na ordem escolhida, depois as restantes na ordem padrão.
+List<ItemCategory> categorySequence(List<ItemCategory> chosen) => [
+  ...chosen,
+  for (final c in ItemCategory.values)
+    if (!chosen.contains(c)) c,
+];
+
+/// Itens na tela (design/telas/08). Por categoria: seções na ordem do
+/// mercado, itens na ordem de adição. Manual: uma seção só, na posição
+/// arrastada. Marcados ficam no lugar (com "No carrinho"), não vão pro fim.
+List<ListSection> arrangeList(
   List<ListItem> items,
   ListOrder order, {
   List<ItemCategory> categoryOrder = const [],
@@ -90,37 +104,72 @@ typedef ListSection = ({ItemCategory? category, List<ListItem> items});
     return c != 0 ? c : a.id.compareTo(b.id);
   }
 
-  final pending = items.where((i) => !i.done).toList();
-  final done = items.where((i) => i.done).toList()..sort(byAdded);
-  if (order == ListOrder.added) {
-    pending.sort(byAdded);
-    return (
-      pending: [if (pending.isNotEmpty) (category: null, items: pending)],
-      done: done,
-    );
+  if (order == ListOrder.manual) {
+    final sorted = [...items]
+      ..sort((a, b) {
+        final p = a.position.compareTo(b.position);
+        return p != 0 ? p : byAdded(a, b);
+      });
+    return [if (sorted.isNotEmpty) (category: null, items: sorted)];
   }
-  // Por categoria (ou manual): categorias na ordem escolhida, depois as
-  // restantes na ordem padrão.
-  final sequence = [
-    ...categoryOrder,
-    for (final c in ItemCategory.values)
-      if (!categoryOrder.contains(c)) c,
+  return [
+    for (final c in categorySequence(categoryOrder))
+      if (items.where((i) => i.category == c).toList() case final list
+          when list.isNotEmpty)
+        (category: c, items: list..sort(byAdded)),
   ];
-  return (
-    pending: [
-      for (final c in sequence)
-        if (pending.where((i) => i.category == c).toList() case final list
-            when list.isNotEmpty)
-          (
-            category: c,
-            items: list
-              ..sort(
-                order == ListOrder.manual
-                    ? (a, b) => a.position.compareTo(b.position)
-                    : byAdded,
-              ),
-          ),
-    ],
-    done: done,
-  );
+}
+
+/// Categorias presentes na lista, na ordem em que aparecem (Organizar).
+List<ItemCategory> presentCategories(
+  List<ListItem> items,
+  List<ItemCategory> categoryOrder,
+) => [
+  for (final c in categorySequence(categoryOrder))
+    if (items.any((i) => i.category == c)) c,
+];
+
+/// Nova ordem completa a partir das categorias presentes reordenadas: as
+/// ausentes seguem depois, na ordem que já tinham.
+List<ItemCategory> mergeCategoryOrder(
+  List<ItemCategory> reordered,
+  List<ItemCategory> previous,
+) => [
+  ...reordered,
+  for (final c in categorySequence(previous))
+    if (!reordered.contains(c)) c,
+];
+
+/// Linha de apoio do cartão da lista (design/telas/07): "6 itens · em uso
+/// no carrinho", "24 itens · usada há 12 dias", "8 itens" ou "Vazia".
+String listSummary(
+  ShoppingListInfo list, {
+  required bool inUse,
+  required DateTime now,
+}) {
+  final count = switch (list.itemCount) {
+    0 => 'Vazia',
+    1 => '1 item',
+    final n => '$n itens',
+  };
+  final context = inUse ? 'em uso no carrinho' : _usedAgo(list.lastUsed, now);
+  return context == null ? count : '$count · $context';
+}
+
+String? _usedAgo(DateTime? used, DateTime now) {
+  if (used == null) return null;
+  // Dias de calendário; arredonda para não errar em dia com horário de verão.
+  final days =
+      (DateTime(
+                now.year,
+                now.month,
+                now.day,
+              ).difference(DateTime(used.year, used.month, used.day)).inHours /
+              24)
+          .round();
+  return switch (days) {
+    <= 0 => 'usada hoje',
+    1 => 'usada ontem',
+    final n => 'usada há $n dias',
+  };
 }
