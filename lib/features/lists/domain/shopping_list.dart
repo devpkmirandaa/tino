@@ -93,7 +93,8 @@ List<ItemCategory> categorySequence(List<ItemCategory> chosen) => [
 
 /// Itens na tela (design/telas/08). Por categoria: seções na ordem do
 /// mercado, itens na ordem de adição. Manual: uma seção só, na posição
-/// arrastada. Marcados ficam no lugar (com "No carrinho"), não vão pro fim.
+/// arrastada. Arruma o que recebe; a Lista passa os que faltam e, à parte,
+/// os do "No carrinho" ([splitDone]).
 List<ListSection> arrangeList(
   List<ListItem> items,
   ListOrder order, {
@@ -119,6 +120,28 @@ List<ListSection> arrangeList(
         (category: c, items: list..sort(byAdded)),
   ];
 }
+
+/// Itens que faltam e os já no carrinho, cada grupo na ordem recebida.
+({List<ListItem> pending, List<ListItem> done}) splitDone(
+  Iterable<ListItem> items,
+) => (
+  pending: [
+    for (final i in items)
+      if (!i.done) i,
+  ],
+  done: [
+    for (final i in items)
+      if (i.done) i,
+  ],
+);
+
+/// Linha de apoio do item (design/specs/lista-v2.md): só quando diz algo
+/// além de "1 unidade".
+String? itemDetail(ListItem item) => switch ((item.quantity, item.unit)) {
+  (1, 'un') => null,
+  (final q, 'un') => '$q unidades',
+  _ => item.amount,
+};
 
 /// Categorias presentes na lista, na ordem em que aparecem (Organizar).
 List<ItemCategory> presentCategories(

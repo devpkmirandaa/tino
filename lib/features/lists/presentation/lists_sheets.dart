@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
 import '../../../core/widgets/tino_widgets.dart';
+import '../../shopping/application/shopping_controller.dart';
 import '../application/lists_providers.dart';
 import '../domain/category_suggester.dart';
 import '../domain/shopping_list.dart';
@@ -81,7 +83,121 @@ Future<String?> showListNameSheet(
   );
 }
 
-/// Edita um item da lista (toque e segure na Lista): nome, quantidade e
+/// "Mais opções" (⋮) da Lista: renomear, apagar e, se a lista estiver na
+/// compra, "Tirar da compra" (design/specs/lista-v2.md).
+Future<void> showListOptionsSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required ShoppingListInfo list,
+}) async {
+  final linked = ref.read(shoppingProvider).value?.listId == list.id;
+  final choice = await showTinoSheet<_ListOption>(
+    context,
+    barrierLabel: 'Fechar opções da lista',
+    blocks: [
+      SheetHeader(list.name),
+      Builder(
+        builder: (sheet) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TinoButton.text(
+              key: const ValueKey('list-rename'),
+              label: 'Renomear',
+              icon: LucideIcons.pencil,
+              expand: true,
+              muted: true,
+              onPressed: () => Navigator.pop(sheet, _ListOption.rename),
+            ),
+            if (linked)
+              TinoButton.text(
+                key: const ValueKey('list-unlink'),
+                label: 'Tirar da compra',
+                icon: LucideIcons.unlink,
+                expand: true,
+                muted: true,
+                onPressed: () => Navigator.pop(sheet, _ListOption.unlink),
+              ),
+            TinoButton.text(
+              key: const ValueKey('list-delete'),
+              label: 'Apagar lista',
+              icon: LucideIcons.trash2,
+              expand: true,
+              muted: true,
+              onPressed: () => Navigator.pop(sheet, _ListOption.delete),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+  if (!context.mounted) return;
+  switch (choice) {
+    case _ListOption.rename:
+      final name = await showListNameSheet(
+        context,
+        title: 'Renomear lista',
+        initial: list.name,
+      );
+      if (name != null) {
+        await ref.read(listsActionsProvider).renameList(list.id, name);
+      }
+    case _ListOption.unlink:
+      ref.read(shoppingProvider.notifier).setList(null);
+    case _ListOption.delete:
+      await _deleteList(context, ref, list);
+    case null:
+      break;
+  }
+}
+
+enum _ListOption { rename, unlink, delete }
+
+Future<void> _deleteList(
+  BuildContext context,
+  WidgetRef ref,
+  ShoppingListInfo list,
+) async {
+  final ok = await showTinoSheet<bool>(
+    context,
+    barrierLabel: 'Fechar apagar lista',
+    blocks: [
+      const SheetHeader('Apagar lista?'),
+      Text(
+        '"${list.name}" e os itens dela saem do aparelho. Não dá pra '
+        'desfazer.',
+        style: TinoType.corpo.withColor(context.tino.textSecondary),
+      ),
+      Builder(
+        builder: (sheet) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TinoButton.primary(
+              key: const ValueKey('delete-list-confirm'),
+              label: 'Apagar lista',
+              expand: true,
+              onPressed: () => Navigator.pop(sheet, true),
+            ),
+            const SizedBox(height: TinoSpace.s4),
+            TinoButton.text(
+              label: 'Cancelar',
+              expand: true,
+              onPressed: () => Navigator.pop(sheet, false),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+  if (ok != true || !context.mounted) return;
+  // Lista em uso na compra: a compra segue sem lista.
+  if (ref.read(shoppingProvider).value?.listId == list.id) {
+    ref.read(shoppingProvider.notifier).setList(null);
+  }
+  GoRouter.of(context).go('/listas');
+  await ref.read(listsActionsProvider).deleteList(list.id);
+}
+
+/// Edita um item da lista (toque na linha da Lista): nome, quantidade e
 /// categoria; "Tirar da lista" apaga.
 Future<void> showListItemSheet(
   BuildContext context, {

@@ -150,6 +150,33 @@ void main() {
       );
     });
 
+    test('separa o que falta do que já está no carrinho', () {
+      final (:pending, :done) = splitDone(items);
+      expect(
+        [for (final i in pending) i.name],
+        ['Detergente', 'Tomate', 'Banana'],
+      );
+      expect(done.single.name, 'Leite');
+      // A Lista só arruma os que faltam: nenhum marcado nas seções.
+      final r = arrangeList(pending, ListOrder.category);
+      expect(r.expand((s) => s.items).any((i) => i.done), isFalse);
+    });
+
+    test('apoio da linha só quando diz algo além de 1 unidade', () {
+      ListItem withAmount(int q, String unit) => ListItem(
+        id: 1,
+        name: 'Arroz',
+        category: ItemCategory.mercearia,
+        position: 0,
+        createdAt: t0,
+        quantity: q,
+        unit: unit,
+      );
+      expect(itemDetail(withAmount(1, 'un')), isNull);
+      expect(itemDetail(withAmount(3, 'un')), '3 unidades');
+      expect(itemDetail(withAmount(2, 'kg')), '2 kg');
+    });
+
     test('"ordem de adição" antiga é lida como por categoria', () {
       expect(ListOrder.parse('added'), ListOrder.category);
       expect(ListOrder.parse('manual'), ListOrder.manual);
@@ -389,7 +416,7 @@ void main() {
       matching: find.byType(TextField),
     );
     await tester.enterText(add, 'Picanha');
-    await tester.tap(find.byKey(const ValueKey('add-list-item-button')));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await settle();
     await tester.enterText(add, 'Carvão');
     await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -400,11 +427,46 @@ void main() {
     expect(find.text('Carvão'), findsOneWidget);
     expect(find.text('Outros'), findsOneWidget);
 
-    // Marcado fica na categoria, com "No carrinho".
-    expect(find.text('No carrinho'), findsNothing);
-    await tester.tap(find.text('Picanha'));
+    expect(find.text('0 de 2 no carrinho'), findsOneWidget);
+    expect(find.text('Faltam 2'), findsOneWidget);
+
+    // Marcar tira o item da lista e manda pro "No carrinho", recolhido.
+    // Carnes vem antes de Outros: a primeira caixa é a da Picanha.
+    final firstCheck = tester
+        .widgetList(
+          find.byWidgetPredicate(
+            (w) => switch (w.key) {
+              ValueKey<String>(:final value) => value.startsWith('list-check-'),
+              _ => false,
+            },
+          ),
+        )
+        .first;
+    final picanha = (firstCheck.key! as ValueKey<String>).value.substring(
+      'list-check-'.length,
+    );
+    await tester.tap(find.byKey(ValueKey('list-check-$picanha')));
+    await tester.pump(const Duration(milliseconds: 400));
     await settle();
-    expect(find.text('No carrinho'), findsOneWidget);
+    expect(find.text('1 de 2 no carrinho'), findsOneWidget);
+    expect(find.text('Faltam 1'), findsOneWidget);
+    expect(find.text('Picanha'), findsNothing);
+    expect(find.text('Carnes e peixes'), findsNothing);
+    expect(find.text('No carrinho · 1'), findsOneWidget);
+
+    // Aberto, mostra o marcado; desmarcar devolve à categoria.
+    await tester.tap(find.byKey(const ValueKey('list-cart-toggle')));
+    await settle();
+    expect(find.text('Picanha'), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('list-check-$picanha')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await settle();
     expect(find.text('Carnes e peixes'), findsOneWidget);
+    expect(find.text('No carrinho · 1'), findsNothing);
+
+    // Tocar na linha edita.
+    await tester.tap(find.byKey(ValueKey('list-edit-$picanha')));
+    await settle();
+    expect(find.text('Editar item'), findsOneWidget);
   });
 }

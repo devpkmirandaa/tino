@@ -257,7 +257,7 @@ class _ScanButton extends StatelessWidget {
     icon: LucideIcons.scanLine,
     size: TinoButtonSize.scan,
     expand: true,
-    onPressed: loading ? null : () => _scan(context),
+    onPressed: loading ? null : () => scanPrice(context),
   );
 }
 
@@ -326,8 +326,9 @@ Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {
 }
 
 /// Abre o scanner e leva a leitura (ou um pedido para digitar) ao painel.
-/// O scanner cresce a partir do botão tocado ([context]) (M2).
-Future<void> _scan(BuildContext context) async {
+/// O scanner cresce a partir do botão tocado ([context]) (M2). Também usado
+/// pelo "Escanear preço" da Lista.
+Future<void> scanPrice(BuildContext context) async {
   if (context.findRenderObject() case final RenderBox box? when box.hasSize) {
     ScannerOrigin.rect = box.localToGlobal(Offset.zero) & box.size;
   }

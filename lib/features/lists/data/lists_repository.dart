@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/tino_database.dart';
 import '../domain/category_suggester.dart';
+import '../domain/frequent_items.dart';
 import '../domain/list_matcher.dart';
 import '../domain/shopping_list.dart';
 
@@ -67,6 +68,42 @@ class ListsRepository {
         ))
           id: at,
     };
+  }
+
+  /// Compras finalizadas para "Você costuma levar": produtos com o texto da
+  /// etiqueta e os itens atuais da lista usada (a lista é desmarcada ao
+  /// concluir, então vale o que ela tem hoje).
+  Future<List<PastPurchase>> pastPurchases() async {
+    final purchases = await (_db.select(
+      _db.purchases,
+    )..where((p) => p.finishedAt.isNotNull())).get();
+    if (purchases.isEmpty) return const [];
+    final products = <int, List<({String name, String? tagText})>>{};
+    for (final r in await (_db.select(
+      _db.purchaseItems,
+    )..where((i) => i.purchaseId.isIn(purchases.map((p) => p.id)))).get()) {
+      products.putIfAbsent(r.purchaseId, () => []).add((
+        name: r.name,
+        tagText: r.tagText,
+      ));
+    }
+    final listIds = {for (final p in purchases) ?p.listId};
+    final listItems = <int, List<String>>{};
+    if (listIds.isNotEmpty) {
+      for (final r in await (_db.select(
+        _db.listItems,
+      )..where((i) => i.listId.isIn(listIds))).get()) {
+        listItems.putIfAbsent(r.listId, () => []).add(r.name);
+      }
+    }
+    return [
+      for (final p in purchases)
+        (
+          finishedAt: p.finishedAt!,
+          products: products[p.id] ?? const [],
+          listItems: listItems[p.listId] ?? const [],
+        ),
+    ];
   }
 
   /// Ordem das categorias de "Por categoria" (Organizar lista).

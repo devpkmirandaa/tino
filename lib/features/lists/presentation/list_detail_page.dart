@@ -7,16 +7,18 @@ import '../../../core/motion/tino_springs.dart';
 import '../../../core/theme/tino_theme.dart';
 import '../../../core/widgets/tino_widgets.dart';
 import '../../shopping/application/shopping_controller.dart';
+import '../../shopping/presentation/shopping_page.dart';
 import '../application/lists_providers.dart';
 import '../domain/category_suggester.dart';
+import '../domain/frequent_items.dart';
 import '../domain/shopping_list.dart';
 import 'lists_sheets.dart';
 import 'organize_sheet.dart';
 
-/// Lista (design/telas/08): "Adicionar item" no topo, itens por categoria
-/// (ou numa lista só, na ordem manual, com alça de arrastar), marcar com
-/// M12. Toque e segure edita. "Comprar com esta lista" liga a lista à
-/// compra e volta ao Comprar.
+/// Lista v2 (design/specs/lista-v2.md, telas/08): progresso e itens que
+/// faltam em cima; o que se faz durante a compra fica no painel de baixo
+/// ("Adicionar item", "Você costuma levar" e "Escanear preço"). Marcar tira
+/// o item da lista e manda para "No carrinho"; tocar na linha edita.
 class ListDetailPage extends ConsumerStatefulWidget {
   const ListDetailPage({super.key, required this.id});
   final int id;
@@ -32,6 +34,9 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
   /// Ordem manual arrastada, até o banco devolver a mesma ordem.
   List<ListItem>? _dragged;
 
+  /// Seção "No carrinho" aberta (recolhida por padrão).
+  bool _cartOpen = false;
+
   int get _id => widget.id;
 
   @override
@@ -41,18 +46,23 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     super.dispose();
   }
 
-  /// Só o nome; a categoria vem da sugestão e a quantidade é 1.
-  Future<void> _addItem() async {
+  /// Categoria sugerida pelo nome e quantidade 1.
+  Future<void> _addNamed(String name) => ref
+      .read(listsActionsProvider)
+      .addItem(
+        _id,
+        name: name,
+        category: suggestCategory(
+          name,
+          learned: ref.read(learnedCategoriesProvider).value ?? const {},
+        ),
+      );
+
+  Future<void> _addFromField() async {
     final name = _add.text.trim();
     if (name.isEmpty) return;
     _add.clear();
-    final category = suggestCategory(
-      name,
-      learned: ref.read(learnedCategoriesProvider).value ?? const {},
-    );
-    await ref
-        .read(listsActionsProvider)
-        .addItem(_id, name: name, category: category);
+    await _addNamed(name);
     // Continua no campo: listas se fazem em sequência.
     if (mounted) _addFocus.requestFocus();
   }
@@ -60,8 +70,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
   /// [to] já descontado o item retirado (`onReorderItem`).
   Future<void> _reorder(List<ListItem> items, int from, int to) async {
     final next = [...items];
-    final moved = next.removeAt(from);
-    next.insert(to, moved);
+    next.insert(to, next.removeAt(from));
     setState(() => _dragged = next);
     await ref.read(listsActionsProvider).reorderItems(_id, [
       for (final i in next) i.id,
@@ -70,10 +79,14 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     if (mounted) setState(() => _dragged = null);
   }
 
-  Future<void> _shop() async {
-    await ref.read(shoppingProvider.future);
-    ref.read(shoppingProvider.notifier).setList(_id);
-    if (mounted) context.go('/');
+  /// Liga a lista à compra (se ainda não estiver) e abre o scanner a partir
+  /// do botão ([button]).
+  Future<void> _scan(BuildContext button) async {
+    final session = await ref.read(shoppingProvider.future);
+    if (session.listId != _id) {
+      ref.read(shoppingProvider.notifier).setList(_id);
+    }
+    if (button.mounted) await scanPrice(button);
   }
 
   @override
@@ -83,6 +96,8 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     final items = ref.watch(listItemsProvider(_id)).value ?? const [];
     // Carrega as categorias aprendidas antes de adicionar pelo campo.
     ref.watch(learnedCategoriesProvider);
+    final linked = ref.watch(shoppingProvider).value?.listId == _id;
+    final past = ref.watch(pastPurchasesProvider).value ?? const [];
     final info = list.value;
     if (info == null) {
       return Center(
@@ -94,12 +109,21 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
               ),
       );
     }
+    final (:pending, :done) = splitDone(items);
     final manual = info.order == ListOrder.manual;
     final sections = arrangeList(
-      items,
+      pending,
       info.order,
       categoryOrder: info.categoryOrder,
     );
+    final inCart = [
+      for (final s in arrangeList(
+        done,
+        info.order,
+        categoryOrder: info.categoryOrder,
+      ))
+        ...s.items,
+    ];
     final manualItems = _dragged ?? sections.firstOrNull?.items ?? const [];
     const gutter = EdgeInsets.symmetric(horizontal: TinoSpace.s16);
     return Column(
@@ -112,7 +136,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
                   TinoSpace.s16,
                   TinoSpace.s8,
                   TinoSpace.s16,
-                  TinoSpace.s16,
+                  TinoSpace.s12,
                 ),
                 sliver: SliverToBoxAdapter(
                   child: Column(
@@ -120,34 +144,38 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
                     children: [
                       _Header(
                         info: info,
+                        onMore: () =>
+                            showListOptionsSheet(context, ref, list: info),
+                      ),
+                      const SizedBox(height: TinoSpace.s12),
+                      _Progress(
+                        done: done.length,
+                        total: items.length,
+                        linked: linked,
+                      ),
+                      const SizedBox(height: TinoSpace.s12),
+                      _Toolbar(
+                        missing: pending.length,
+                        order: info.order,
                         onOrganize: () => showOrganizeSheet(
                           context,
                           list: info,
                           items: items,
                         ),
                       ),
-                      const SizedBox(height: TinoSpace.s16),
-                      TinoInput(
-                        key: const ValueKey('add-list-item'),
-                        hint: 'Adicionar item',
-                        controller: _add,
-                        focusNode: _addFocus,
-                        textCapitalization: TextCapitalization.sentences,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _addItem(),
-                        trailing: _AddButton(onPressed: _addItem),
-                      ),
                     ],
                   ),
                 ),
               ),
-              if (items.isEmpty)
+              if (items.isEmpty || pending.isEmpty)
                 SliverPadding(
                   padding: gutter,
                   sliver: SliverToBoxAdapter(
                     child: Text(
-                      'Escreva o primeiro item acima. A categoria é sugerida '
-                      'pelo nome.',
+                      items.isEmpty
+                          ? 'Escreva o primeiro item no campo de baixo. A '
+                                'categoria é sugerida pelo nome.'
+                          : 'Tudo no carrinho.',
                       style: TinoType.secundario.withColor(c.textSecondary),
                     ),
                   ),
@@ -190,40 +218,54 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
                     ],
                   ),
                 ),
-              if (items.isNotEmpty)
+              if (inCart.isNotEmpty)
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(
                     TinoSpace.s16,
                     TinoSpace.s16,
                     TinoSpace.s16,
-                    TinoSpace.s16,
+                    0,
                   ),
-                  sliver: SliverToBoxAdapter(
-                    child: Text(
-                      'Toque e segure um item pra editar.',
-                      textAlign: TextAlign.center,
-                      style: TinoType.caption.withColor(c.textSecondary),
-                    ),
+                  sliver: SliverList.list(
+                    children: [
+                      _CartToggle(
+                        count: inCart.length,
+                        open: _cartOpen,
+                        onPressed: () => setState(() => _cartOpen = !_cartOpen),
+                      ),
+                      if (_cartOpen) ...[
+                        const SizedBox(height: TinoSpace.s8),
+                        _Group(
+                          listId: _id,
+                          section: (category: null, items: inCart),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+              const SliverToBoxAdapter(child: SizedBox(height: TinoSpace.s16)),
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            TinoSpace.s16,
-            TinoSpace.s8,
-            TinoSpace.s16,
-            TinoSpace.s16,
+        _BottomPanel(
+          field: TinoInput(
+            key: const ValueKey('add-list-item'),
+            hint: 'Adicionar item',
+            height: 56,
+            controller: _add,
+            focusNode: _addFocus,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _addFromField(),
+            leading: Icon(
+              LucideIcons.plus,
+              size: TinoSize.iconCompact,
+              color: c.action,
+            ),
           ),
-          child: TinoButton.primary(
-            key: const ValueKey('shop-with-list'),
-            label: 'Comprar com esta lista',
-            icon: LucideIcons.shoppingCart,
-            size: TinoButtonSize.large,
-            expand: true,
-            onPressed: _shop,
-          ),
+          frequent: frequentItems(past, items),
+          onFrequent: _addNamed,
+          onScan: _scan,
         ),
       ],
     );
@@ -231,9 +273,9 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.info, required this.onOrganize});
+  const _Header({required this.info, required this.onMore});
   final ShoppingListInfo info;
-  final VoidCallback onOrganize;
+  final VoidCallback onMore;
 
   @override
   Widget build(BuildContext context) {
@@ -261,33 +303,148 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
+        Transform.translate(
+          offset: const Offset(TinoSpace.s12, 0),
+          child: TinoIconButton(
+            key: const ValueKey('list-more'),
+            icon: LucideIcons.ellipsisVertical,
+            semanticLabel: 'Mais opções da lista',
+            onPressed: onMore,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Cartão "N de M no carrinho" com a barra M9 de 6 e o selo "Na compra".
+class _Progress extends StatelessWidget {
+  const _Progress({
+    required this.done,
+    required this.total,
+    required this.linked,
+  });
+  final int done;
+  final int total;
+  final bool linked;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    return Container(
+      padding: const EdgeInsets.all(TinoSpace.s16),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(TinoRadius.card),
+        border: Border.all(color: c.border, width: TinoSize.borderWidth),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$done de $total no carrinho',
+                  style: TinoType.subtitulo
+                      .withColor(c.textPrimary)
+                      .copyWith(
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                ),
+              ),
+              if (linked) const _LinkedSeal(),
+            ],
+          ),
+          const SizedBox(height: TinoSpace.s12),
+          TinoProgressBar(
+            value: total == 0 ? 0 : done / total,
+            compact: true,
+            haptics: false,
+            semanticLabel: 'Itens no carrinho',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Na compra": corrente + rótulo 12/600 `action`, fundo `surface-soft`
+/// (no escuro, `jade-tint`).
+class _LinkedSeal extends StatelessWidget {
+  const _LinkedSeal();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    return Container(
+      key: const ValueKey('list-linked'),
+      height: 28,
+      padding: const EdgeInsets.only(left: TinoSpace.s8, right: 10),
+      decoration: BoxDecoration(
+        color: c.jadeTint ?? c.surfaceSoft,
+        borderRadius: BorderRadius.circular(TinoRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.link, size: 14, color: c.action),
+          const SizedBox(width: TinoSpace.s4),
+          Text(
+            'Na compra',
+            style: TinoType.caption.withColor(c.action).weight(FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Faltam N" à esquerda; chip da ordem à direita, que abre o Organizar.
+class _Toolbar extends StatelessWidget {
+  const _Toolbar({
+    required this.missing,
+    required this.order,
+    required this.onOrganize,
+  });
+  final int missing;
+  final ListOrder order;
+  final VoidCallback onOrganize;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Faltam $missing',
+            style: TinoType.label.withColor(c.textSecondary),
+          ),
+        ),
         TinoPressable(
           key: const ValueKey('list-organize'),
           onPressed: onOrganize,
-          semanticLabel: 'Organizar lista',
+          semanticLabel: 'Ordem: ${order.label.toLowerCase()}. Mudar',
           excludeSemantics: true,
           builder: (context, pressed) => Padding(
             padding: const EdgeInsets.symmetric(vertical: TinoSpace.s4),
             child: Container(
               height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: TinoSpace.s12),
+              padding: const EdgeInsets.only(left: 14, right: 10),
               decoration: BoxDecoration(
-                color: c.surfaceSoft,
                 borderRadius: BorderRadius.circular(TinoRadius.pill),
+                border: Border.all(
+                  color: c.borderStrong,
+                  width: TinoSize.borderWidth,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    LucideIcons.arrowDownUp,
-                    size: TinoSize.iconCompact,
-                    color: c.textPrimary,
-                  ),
-                  const SizedBox(width: TinoSpace.s4),
-                  Text(
-                    'Organizar',
-                    style: TinoType.label.withColor(c.textPrimary),
-                  ),
+                  Text(order.label, style: TinoType.label.withColor(c.action)),
+                  const SizedBox(width: 6),
+                  Icon(LucideIcons.chevronDown, size: 18, color: c.action),
                 ],
               ),
             ),
@@ -298,42 +455,8 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// + dentro do campo: 40, raio 8, `action`; área de toque 48.
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onPressed});
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.tino;
-    return TinoPressable(
-      key: const ValueKey('add-list-item-button'),
-      onPressed: onPressed,
-      semanticLabel: 'Adicionar',
-      excludeSemantics: true,
-      builder: (context, pressed) => SizedBox.square(
-        dimension: TinoSize.touchTarget,
-        child: Center(
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: pressed ? c.actionPressed : c.action,
-              borderRadius: BorderRadius.circular(TinoRadius.chip),
-            ),
-            child: Icon(
-              LucideIcons.plus,
-              size: TinoSize.iconCompact,
-              color: c.onAction,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Seção por categoria: rótulo 12/600 `text-secondary` + cartão raio 16.
+/// Seção: rótulo 12/600 `text-secondary` (se houver categoria) + cartão
+/// raio 16 com as linhas.
 class _Group extends StatelessWidget {
   const _Group({required this.listId, required this.section});
   final int listId;
@@ -448,9 +571,10 @@ class _Grip extends StatelessWidget {
   );
 }
 
-/// Linha de 52 com checkbox (M12): tocar marca e desmarca; segurar edita.
-/// Marcado: nome em `text-secondary` e "No carrinho" em `action`.
-class _ItemRow extends ConsumerWidget {
+/// Linha de 56: caixa de marcar numa área de 48 à esquerda; o resto da
+/// linha edita o item (nome 16/500, apoio 12/500, lápis 20). Marcar mostra
+/// o check (M12) e só então o item muda de seção.
+class _ItemRow extends ConsumerStatefulWidget {
   const _ItemRow({
     super.key,
     required this.listId,
@@ -461,50 +585,108 @@ class _ItemRow extends ConsumerWidget {
   final ListItem item;
   final Widget? handle;
 
-  static const _minHeight = 52.0;
-  static const _fade = Duration(milliseconds: 150);
+  @override
+  ConsumerState<_ItemRow> createState() => _ItemRowState();
+}
+
+class _ItemRowState extends ConsumerState<_ItemRow> {
+  /// Estado mostrado enquanto o check anima, antes de gravar.
+  bool? _shown;
+
+  static const _beforeMove = Duration(milliseconds: 300);
+
+  Future<void> _toggle() async {
+    if (_shown != null) return;
+    final next = !widget.item.done;
+    setState(() => _shown = next);
+    if (!TinoMotion.reduced(context)) await Future<void>.delayed(_beforeMove);
+    await ref
+        .read(listsActionsProvider)
+        .setDone(widget.listId, widget.item.id, next);
+    if (mounted) setState(() => _shown = null);
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final c = context.tino;
-    final done = item.done;
-    return Semantics(
-      checked: done,
-      label: done ? '${item.name}, no carrinho' : item.name,
-      onLongPressHint: 'editar',
-      excludeSemantics: handle == null,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () =>
-            ref.read(listsActionsProvider).setDone(listId, item.id, !done),
-        onLongPress: () =>
-            showListItemSheet(context, listId: listId, item: item),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: _minHeight),
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: TinoSpace.s16,
-              right: handle == null ? TinoSpace.s16 : TinoSpace.s4,
-            ),
-            child: Row(
-              children: [
-                _Check(done: done),
-                const SizedBox(width: TinoSpace.s12),
-                Expanded(
-                  child: AnimatedDefaultTextStyle(
-                    duration: _fade,
-                    style: TinoType.corpo
-                        .withColor(done ? c.textSecondary : c.textPrimary)
-                        .weight(FontWeight.w500),
-                    child: Text(item.name),
-                  ),
-                ),
-                _InCart(visible: done),
-                ?handle,
-              ],
+    final item = widget.item;
+    final done = _shown ?? item.done;
+    final detail = itemDetail(item);
+    return Padding(
+      padding: EdgeInsets.only(
+        left: TinoSpace.s4,
+        right: widget.handle == null ? 0 : TinoSpace.s4,
+      ),
+      child: Row(
+        children: [
+          Semantics(
+            checked: done,
+            label: '${item.name} no carrinho',
+            child: GestureDetector(
+              key: ValueKey('list-check-${item.id}'),
+              behavior: HitTestBehavior.opaque,
+              onTap: _toggle,
+              child: SizedBox.square(
+                dimension: TinoSize.touchTarget,
+                child: Center(child: _Check(done: done)),
+              ),
             ),
           ),
-        ),
+          Expanded(
+            child: TinoPressable(
+              key: ValueKey('list-edit-${item.id}'),
+              scale: TinoPressScale.surface,
+              semanticLabel: 'Editar ${item.name}',
+              excludeSemantics: true,
+              onPressed: () =>
+                  showListItemSheet(context, listId: widget.listId, item: item),
+              builder: (context, pressed) => ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 56),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: TinoSpace.s4,
+                    right: widget.handle == null ? TinoSpace.s16 : 0,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 150),
+                              style: TinoType.corpo
+                                  .withColor(
+                                    done ? c.textSecondary : c.textPrimary,
+                                  )
+                                  .weight(FontWeight.w500),
+                              child: Text(item.name),
+                            ),
+                            if (detail != null)
+                              Text(
+                                detail,
+                                style: TinoType.caption.withColor(
+                                  c.textSecondary,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: TinoSpace.s12),
+                      Icon(
+                        LucideIcons.pencil,
+                        size: TinoSize.iconCompact,
+                        color: c.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          ?widget.handle,
+        ],
       ),
     );
   }
@@ -572,36 +754,179 @@ class _CheckState extends State<_Check> with SingleTickerProviderStateMixin {
   }
 }
 
-/// "No carrinho" 12/600 `action`: entra com x 12 → 0 + opacidade (M12).
-class _InCart extends StatelessWidget {
-  const _InCart({required this.visible});
-  final bool visible;
+/// "No carrinho · N": botão 48 em `surface-soft`, "Ver"/"Esconder" + seta.
+class _CartToggle extends StatelessWidget {
+  const _CartToggle({
+    required this.count,
+    required this.open,
+    required this.onPressed,
+  });
+  final int count;
+  final bool open;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final reduced = TinoMotion.reduced(context);
-    return TweenAnimationBuilder<double>(
-      tween: Tween(end: visible ? 1 : 0),
-      duration: reduced
-          ? TinoMotion.reducedFade
-          : const Duration(milliseconds: 220),
-      curve: TinoCurves.easeOut,
-      builder: (context, t, child) => t == 0
-          ? const SizedBox.shrink()
-          : Opacity(
-              opacity: t,
-              child: Transform.translate(
-                offset: Offset(reduced ? 0 : 12 * (1 - t), 0),
-                child: child,
+    final c = context.tino;
+    return Semantics(
+      expanded: open,
+      child: TinoPressable(
+        key: const ValueKey('list-cart-toggle'),
+        scale: TinoPressScale.surface,
+        semanticLabel: 'No carrinho, $count',
+        excludeSemantics: true,
+        onPressed: onPressed,
+        builder: (context, pressed) => Container(
+          constraints: const BoxConstraints(minHeight: TinoSize.touchTarget),
+          padding: const EdgeInsets.only(
+            left: TinoSpace.s16,
+            right: TinoSpace.s12,
+          ),
+          decoration: BoxDecoration(
+            color: c.surfaceSoft,
+            borderRadius: BorderRadius.circular(TinoRadius.control),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'No carrinho · $count',
+                  style: TinoType.label.withColor(c.textPrimary),
+                ),
+              ),
+              Text(
+                open ? 'Esconder' : 'Ver',
+                style: TinoType.caption.withColor(c.textSecondary),
+              ),
+              const SizedBox(width: 10),
+              AnimatedRotation(
+                turns: open ? 0.5 : 0,
+                duration: TinoMotion.reduced(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                child: Icon(
+                  LucideIcons.chevronDown,
+                  size: TinoSize.iconCompact,
+                  color: c.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Painel fixo: fundo `surface`, raio superior 24, borda superior `border`.
+class _BottomPanel extends StatelessWidget {
+  const _BottomPanel({
+    required this.field,
+    required this.frequent,
+    required this.onFrequent,
+    required this.onScan,
+  });
+  final Widget field;
+  final List<String> frequent;
+  final ValueChanged<String> onFrequent;
+  final ValueChanged<BuildContext> onScan;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        TinoSpace.s16,
+        TinoSpace.s16,
+        TinoSpace.s16,
+        TinoSpace.s24,
+      ),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(TinoRadius.panel),
+        ),
+        border: Border(
+          top: BorderSide(color: c.border, width: TinoSize.borderWidth),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          field,
+          if (frequent.isNotEmpty) ...[
+            const SizedBox(height: TinoSpace.s8),
+            Semantics(
+              label: 'Você costuma levar',
+              container: true,
+              child: SingleChildScrollView(
+                key: const ValueKey('list-frequent'),
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                child: Row(
+                  children: [
+                    for (final (i, name) in frequent.indexed) ...[
+                      if (i > 0) const SizedBox(width: TinoSpace.s8),
+                      _FrequentChip(
+                        name: name,
+                        onPressed: () => onFrequent(name),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
-      child: Padding(
-        padding: const EdgeInsets.only(left: TinoSpace.s8),
-        child: Text(
-          'No carrinho',
-          style: TinoType.caption
-              .withColor(context.tino.action)
-              .weight(FontWeight.w600),
+            const SizedBox(height: TinoSpace.s4),
+          ] else
+            const SizedBox(height: TinoSpace.s12),
+          Builder(
+            builder: (button) => TinoButton.primary(
+              key: const ValueKey('list-scan'),
+              label: 'Escanear preço',
+              icon: LucideIcons.scanLine,
+              size: TinoButtonSize.large,
+              expand: true,
+              onPressed: () => onScan(button),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Chip de 40 (toque 48) em pílula `surface-soft`, + em `action`.
+class _FrequentChip extends StatelessWidget {
+  const _FrequentChip({required this.name, required this.onPressed});
+  final String name;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    return TinoPressable(
+      key: ValueKey('frequent-$name'),
+      onPressed: onPressed,
+      semanticLabel: 'Adicionar $name',
+      excludeSemantics: true,
+      builder: (context, pressed) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: TinoSpace.s4),
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.only(left: 10, right: 14),
+          decoration: BoxDecoration(
+            color: c.surfaceSoft,
+            borderRadius: BorderRadius.circular(TinoRadius.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.plus, size: 16, color: c.action),
+              const SizedBox(width: TinoSpace.s4),
+              Text(name, style: TinoType.label.withColor(c.textPrimary)),
+            ],
+          ),
         ),
       ),
     );

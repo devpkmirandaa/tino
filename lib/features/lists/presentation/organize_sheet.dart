@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/tino_theme.dart';
 import '../../../core/widgets/tino_widgets.dart';
-import '../../shopping/application/shopping_controller.dart';
 import '../application/lists_providers.dart';
 import '../domain/shopping_list.dart';
 import 'lists_sheets.dart';
 
 /// Organizar lista (design/telas/13): "Por categoria" ou "Ordem manual",
 /// ordem das categorias pela alça e "Pronto", que grava tudo. Fechar
-/// arrastando descarta. No fim, renomear e apagar a lista.
+/// arrastando descarta. Renomear e apagar ficam no ⋮ da Lista.
 Future<void> showOrganizeSheet(
   BuildContext context, {
   required ShoppingListInfo list,
@@ -28,7 +26,6 @@ Future<void> showOrganizeSheet(
       _OrderBlock(draft),
       _CategoriesBlock(draft),
       _DoneButton(draft),
-      _ListBlock(list),
     ],
   );
 }
@@ -314,99 +311,4 @@ class _DoneButton extends ConsumerWidget {
     expand: true,
     onPressed: () => _save(context, ref),
   );
-}
-
-/// Seção "Lista" no fim: renomear e apagar.
-class _ListBlock extends ConsumerWidget {
-  const _ListBlock(this.list);
-  final ShoppingListInfo list;
-
-  Future<void> _rename(BuildContext context, WidgetRef ref) async {
-    final name = await showListNameSheet(
-      context,
-      title: 'Renomear lista',
-      initial: list.name,
-    );
-    if (name != null) {
-      await ref.read(listsActionsProvider).renameList(list.id, name);
-    }
-  }
-
-  Future<void> _delete(BuildContext context, WidgetRef ref) async {
-    final ok = await showTinoSheet<bool>(
-      context,
-      barrierLabel: 'Fechar apagar lista',
-      blocks: [
-        const SheetHeader('Apagar lista?'),
-        Text(
-          '"${list.name}" e os itens dela saem do aparelho. Não dá pra '
-          'desfazer.',
-          style: TinoType.corpo.withColor(context.tino.textSecondary),
-        ),
-        Builder(
-          builder: (sheet) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TinoButton.primary(
-                key: const ValueKey('delete-list-confirm'),
-                label: 'Apagar lista',
-                expand: true,
-                onPressed: () => Navigator.pop(sheet, true),
-              ),
-              const SizedBox(height: TinoSpace.s4),
-              TinoButton.text(
-                label: 'Cancelar',
-                expand: true,
-                onPressed: () => Navigator.pop(sheet, false),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-    if (ok != true || !context.mounted) return;
-    // Lista em uso na compra: a compra segue sem lista.
-    final shopping = ref.read(shoppingProvider.notifier);
-    if (ref.read(shoppingProvider).value?.listId == list.id) {
-      shopping.setList(null);
-    }
-    final router = GoRouter.of(context);
-    Navigator.pop(context);
-    router.go('/listas');
-    await ref.read(listsActionsProvider).deleteList(list.id);
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.tino;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Divider(height: TinoSpace.s16, color: c.border),
-        Text(
-          'Lista',
-          style: TinoType.caption
-              .withColor(c.textSecondary)
-              .weight(FontWeight.w600),
-        ),
-        const SizedBox(height: TinoSpace.s4),
-        TinoButton.text(
-          key: const ValueKey('organize-rename'),
-          label: 'Renomear lista',
-          icon: LucideIcons.pencil,
-          expand: true,
-          muted: true,
-          onPressed: () => _rename(context, ref),
-        ),
-        TinoButton.text(
-          key: const ValueKey('organize-delete'),
-          label: 'Apagar lista',
-          icon: LucideIcons.trash2,
-          expand: true,
-          muted: true,
-          onPressed: () => _delete(context, ref),
-        ),
-      ],
-    );
-  }
 }

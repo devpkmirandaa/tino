@@ -16,8 +16,8 @@ enum TinoButtonSize {
   /// manual e aguarda aprovação de marca (design/README.md).
   scan,
 
-  /// 56, raio 16: ação principal no rodapé de uma página ("Comprar com
-  /// esta lista", telas/08).
+  /// 56, raio 16: ação principal no rodapé de uma página ("Escanear preço"
+  /// da Lista, telas/08).
   large,
 }
 

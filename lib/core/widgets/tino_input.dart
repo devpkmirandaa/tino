@@ -9,6 +9,7 @@ class TinoInput extends StatelessWidget {
   const TinoInput({
     super.key,
     this.label,
+    this.leading,
     this.trailing,
     this.textCapitalization = TextCapitalization.none,
     this.controller,
@@ -37,7 +38,10 @@ class TinoInput extends StatelessWidget {
   /// também para o leitor de tela (ex.: "Adicionar item" da Lista).
   final String? label;
 
-  /// Botão dentro do campo, à direita (ex.: + da Lista).
+  /// Ícone dentro do campo, à esquerda (ex.: + do "Adicionar item").
+  final Widget? leading;
+
+  /// Botão dentro do campo, à direita.
   final Widget? trailing;
   final TextCapitalization textCapitalization;
   final TextEditingController? controller;
@@ -92,6 +96,11 @@ class TinoInput extends StatelessWidget {
             hintStyle: TinoType.corpo.withColor(c.textSecondary),
             suffixText: suffix,
             suffixStyle: TinoType.secundario.withColor(c.textSecondary),
+            prefixIcon: leading,
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: TinoSize.touchTarget,
+              minHeight: TinoSize.touchTarget,
+            ),
             suffixIcon: trailing,
             suffixIconConstraints: const BoxConstraints(
               minWidth: TinoSize.touchTarget,

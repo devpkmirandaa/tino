@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/lists_repository.dart';
+import '../domain/frequent_items.dart';
 import '../domain/shopping_list.dart';
 
 /// Todas as listas, mais recente primeiro.
@@ -18,6 +19,12 @@ final listProvider = Provider.family<AsyncValue<ShoppingListInfo?>, int>(
 /// Itens de uma lista, sem ordem definida (a tela arruma).
 final listItemsProvider = FutureProvider.family<List<ListItem>, int>(
   (ref, id) => ref.watch(listsRepositoryProvider).items(id),
+);
+
+/// Compras finalizadas para os chips "Você costuma levar". Relida a cada
+/// vez que a Lista abre (pode ter havido compra nova).
+final pastPurchasesProvider = FutureProvider.autoDispose<List<PastPurchase>>(
+  (ref) => ref.watch(listsRepositoryProvider).pastPurchases(),
 );
 
 /// Categorias aprendidas com as trocas do usuário (nome → categoria).
