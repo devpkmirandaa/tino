@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Vibração direta (TinoHaptics); permissão normal, sem pedido. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Câmera do scanner; o permission_handler consulta e pede esta. -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <application
         android:label="tino"
         android:name="${applicationName}"

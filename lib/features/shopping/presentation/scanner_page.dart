@@ -17,6 +17,7 @@ import '../application/scan_reader.dart';
 import '../application/shopping_controller.dart';
 import '../domain/cart.dart';
 import '../domain/money.dart';
+import '../domain/no_read_clock.dart';
 import '../domain/scan_add.dart';
 import '../domain/tag_reader.dart';
 import '../../lists/application/list_shopping_link.dart';
@@ -44,6 +45,11 @@ final class ScanTypeInstead extends ScanResult {
 final class ScanEdit extends ScanResult {
   const ScanEdit(this.itemId);
   final String itemId;
+}
+
+/// O sistema negou a câmera: o Comprar mostra a folha 15.
+final class ScanCameraDenied extends ScanResult {
+  const ScanCameraDenied();
 }
 
 /// Preço escolhido em etiquetas com varejo e atacado. Cada etiqueta nova
@@ -110,6 +116,13 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   Timer? _topTimer;
   var _entered = false;
 
+  // 03c: tempo sem nenhum preço; a mensagem aparece no lugar da procura.
+  final _noRead = NoReadClock();
+  Timer? _noReadTick;
+  var _showNoRead = false;
+  var _hadCamera = false;
+  var _leaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -117,6 +130,25 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       labMode: ref.read(labModeProvider.future),
       onChanged: _onReading,
     )..addListener(_rebuild);
+    _noReadTick = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (!_showNoRead && _searching && _noRead.isDue(DateTime.now())) {
+        setState(() => _showNoRead = true);
+      }
+    });
+  }
+
+  /// Folha em "Procurando preço…" (ou no aviso depois de desfazer/manter):
+  /// só aí o 03c pode aparecer. Item adicionado ou conflito na tela, não.
+  bool get _searching =>
+      _reader.camera != null &&
+      _reader.error == null &&
+      _reader.stable == null &&
+      _scan == null;
+
+  /// Volta a contar os 8 s sem leitura e tira o 03c.
+  void _restartNoRead() {
+    _noRead.restart(DateTime.now());
+    _showNoRead = false;
   }
 
   @override
@@ -135,7 +167,25 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     });
   }
 
-  void _rebuild() => setState(() {});
+  void _rebuild() {
+    if (_reader.cameraDenied) {
+      if (_leaving) return;
+      _leaving = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.pop(const ScanCameraDenied());
+      });
+      return;
+    }
+    final camera = _reader.camera != null;
+    if (camera && !_hadCamera) _restartNoRead();
+    if (!camera) _noRead.stop();
+    _hadCamera = camera;
+    // Qualquer preço na tela, mesmo provisório, conta como leitura.
+    if (_reader.provisional != null || _reader.stable != null) {
+      _restartNoRead();
+    }
+    setState(() {});
+  }
 
   /// Leitura confirmada mudou; o rebuild vem logo depois, pelo ouvinte.
   void _onReading(TagReading? stable) {
@@ -252,6 +302,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     // Mesma etiqueta lida de novo logo em seguida: não duplica.
     if (_guard.blocks(item, now)) return setState(() {});
     _guard.record(item, now);
+    _restartNoRead();
     setState(() {
       _scan = ScanAdd(before: cart, item: item);
       _scanReading = r;
@@ -339,6 +390,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       }
     }
     _guard.clear();
+    _restartNoRead();
     if (ref.read(vibrateOnReadProvider).value ?? true) TinoHaptics.light();
     setState(() {
       _scan = null;
@@ -356,6 +408,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   @override
   void dispose() {
     _autoTimer?.cancel();
+    _noReadTick?.cancel();
     _topTimer?.cancel();
     _topY.dispose();
     _topFade.dispose();
@@ -387,6 +440,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
               camera: _reader.camera,
               locks: _locks,
               locked: found != null,
+              searching: _showNoRead && found == null && _scan == null,
             ),
           ),
           Positioned(
@@ -474,6 +528,14 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             null => null,
           },
           price: (applied.unitPrice * scan.item.quantity).format(),
+        ),
+      ),
+      // 03c: 8 s sem nenhum preço; some quando um preço aparece.
+      null when _showNoRead && scan == null => (
+        const ValueKey('no-read'),
+        const _Message(
+          title: 'Não deu pra ler o preço. Quer digitar?',
+          detail: 'Chegue mais perto, segure firme ou ligue a lanterna.',
         ),
       ),
       null when _notice != null => (
@@ -600,6 +662,25 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             icon: LucideIcons.pencil,
             semanticLabel: 'Corrigir item',
             onPressed: () => context.pop(ScanEdit(applied.lineId)),
+          ),
+        ],
+      ),
+      null when _showNoRead && scan == null => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TinoButton.primary(
+            key: const ValueKey('no-read-type'),
+            label: 'Digitar preço',
+            icon: LucideIcons.keyboard,
+            expand: true,
+            onPressed: () => context.pop(const ScanTypeInstead()),
+          ),
+          const SizedBox(height: TinoSpace.s4),
+          TinoButton.text(
+            key: const ValueKey('no-read-retry'),
+            label: 'Continuar tentando',
+            expand: true,
+            onPressed: () => setState(_restartNoRead),
           ),
         ],
       ),
@@ -1244,10 +1325,14 @@ class _CameraLayer extends StatelessWidget {
     required this.camera,
     required this.locks,
     required this.locked,
+    required this.searching,
   });
   final CameraController? camera;
   final int locks;
   final bool locked;
+
+  /// 03c: pílula "Procurando o preço" abaixo do visor, no lugar do selo.
+  final bool searching;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -1277,6 +1362,35 @@ class _CameraLayer extends StatelessWidget {
             ),
           Positioned.fill(
             child: _Viewfinder(rect: visor, locks: locks, locked: locked),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: visor.bottom + TinoSpace.s24,
+            child: IgnorePointer(
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: searching ? 1 : 0,
+                  duration: TinoMotion.reducedFade,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: TinoSpace.s12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.tino.surface,
+                      borderRadius: BorderRadius.circular(TinoRadius.pill),
+                    ),
+                    child: Text(
+                      'Procurando o preço',
+                      style: TinoType.secundario.withColor(
+                        context.tino.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       );

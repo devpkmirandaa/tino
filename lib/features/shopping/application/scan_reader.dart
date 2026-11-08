@@ -152,6 +152,10 @@ class ScanReader extends ChangeNotifier with WidgetsBindingObserver {
 
   CameraController? get camera => _camera;
   String? get error => _error;
+
+  /// O sistema negou a câmera ao abrir.
+  bool get cameraDenied => _cameraDenied;
+  var _cameraDenied = false;
   bool get torch => _torch;
 
   /// Leitura confirmada pela votação.
@@ -262,10 +266,9 @@ class ScanReader extends ChangeNotifier with WidgetsBindingObserver {
       _notify();
     } on CameraException catch (e) {
       if (_disposed) return;
-      _error = e.code.contains('AccessDenied')
-          ? 'Sem acesso à câmera. Permita o uso da câmera para o Tino nas '
-                'configurações do Android.'
-          : 'Não deu pra abrir a câmera.';
+      // Permissão negada: o scanner fecha e o Comprar mostra a folha 15.
+      _cameraDenied = e.code.contains('AccessDenied');
+      _error = _cameraDenied ? null : 'Não deu pra abrir a câmera.';
       _notify();
     }
   }

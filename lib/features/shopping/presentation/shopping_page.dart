@@ -12,7 +12,9 @@ import '../../settings/data/settings_preferences.dart';
 import '../application/shopping_controller.dart';
 import '../domain/budget.dart';
 import '../domain/cart.dart';
+import '../application/camera_access.dart';
 import 'budget_sheet.dart';
+import 'camera_sheets.dart';
 import 'cart_entrance.dart';
 import 'cart_item_row.dart';
 import 'cart_removal.dart';
@@ -330,9 +332,29 @@ Future<void> _scan(BuildContext context) async {
   if (context.findRenderObject() case final RenderBox box? when box.hasSize) {
     ScannerOrigin.rect = box.localToGlobal(Offset.zero) & box.size;
   }
+  final container = ProviderScope.containerOf(context, listen: false);
+  final access = container.read(cameraAccessProvider);
+  // Câmera nunca pedida: folha 14 antes do sistema; negada: folha 15.
+  switch (await access.step()) {
+    case CameraStep.scan:
+      break;
+    case CameraStep.ask:
+      if (!context.mounted) return;
+      final choice = await showCameraAskSheet(context);
+      if (!context.mounted) return;
+      if (choice == CameraAskChoice.type) return showTypePriceSheet(context);
+      if (choice != CameraAskChoice.allow) return;
+      if (!await access.request()) {
+        if (context.mounted) await _cameraDenied(context, access);
+        return;
+      }
+    case CameraStep.denied:
+      if (context.mounted) await _cameraDenied(context, access);
+      return;
+  }
+  if (!context.mounted) return;
   final result = await context.push<ScanResult>('/escanear');
   if (!context.mounted) return;
-  final container = ProviderScope.containerOf(context, listen: false);
   // Linhas que entraram pelo scanner fazem o M3c enquanto ele fecha.
   final entrance = container.read(cartEntranceProvider.notifier)..release();
   Timer(const Duration(seconds: 1), entrance.settle);
@@ -345,6 +367,22 @@ Future<void> _scan(BuildContext context) async {
       if (item != null) await showItemDetailSheet(context, item);
     case ScanTypeInstead():
       await showTypePriceSheet(context);
+    case ScanCameraDenied():
+      await _cameraDenied(context, container.read(cameraAccessProvider));
+    case null:
+      break;
+  }
+}
+
+/// Folha 15: digitar o preço ou abrir os ajustes do Tino no sistema.
+Future<void> _cameraDenied(BuildContext context, CameraAccess access) async {
+  if (!context.mounted) return;
+  final choice = await showCameraDeniedSheet(context);
+  switch (choice) {
+    case CameraDeniedChoice.type:
+      if (context.mounted) await showTypePriceSheet(context);
+    case CameraDeniedChoice.settings:
+      await access.openSettings();
     case null:
       break;
   }
