@@ -410,17 +410,32 @@ void main() {
     await settle();
     expect(find.text('Churrasco'), findsOneWidget);
 
-    // Só o nome pelo campo do topo; a categoria vem da sugestão.
+    // Só o nome pelo campo de baixo; a categoria vem da sugestão. Vazio:
+    // sem botão e sem categoria.
     final add = find.descendant(
       of: find.byKey(const ValueKey('add-list-item')),
       matching: find.byType(TextField),
     );
+    final category = find.byKey(const ValueKey('list-add-category'));
+    expect(find.text('Adicionar'), findsNothing);
+    expect(category, findsNothing);
+
+    // Digitando: "Adicionar" no campo e "Vai pra" com a categoria.
     await tester.enterText(add, 'Picanha');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('Vai pra Carnes e peixes'), findsOneWidget);
+    await tester.tap(find.text('Adicionar'));
     await settle();
+    expect(tester.widget<TextField>(add).controller!.text, isEmpty);
+    expect(find.text('Adicionar'), findsNothing);
+    expect(category, findsNothing);
+
+    // Tecla de confirmar: adiciona e o campo continua focado.
     await tester.enterText(add, 'Carvão');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await settle();
+    expect(tester.widget<TextField>(add).focusNode!.hasFocus, isTrue);
+    expect(tester.widget<TextField>(add).controller!.text, isEmpty);
 
     expect(find.text('Picanha'), findsOneWidget);
     expect(find.text('Carnes e peixes'), findsOneWidget);

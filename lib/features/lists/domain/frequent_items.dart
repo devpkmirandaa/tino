@@ -26,13 +26,16 @@ bool typedByPerson(String name, String? tagText) {
 /// não). Contam os itens das listas usadas e os produtos com nome da pessoa;
 /// cada nome conta uma vez por compra. Entra quem aparece em [minPurchases]
 /// compras ou mais, do mais frequente ao menos; no empate, o mais recente.
-/// O nome mostrado é a grafia mais recente.
+/// O nome mostrado é a grafia mais recente. Com [query] (o que está sendo
+/// digitado), só os que contêm o texto, sem diferença de acento e caixa.
 List<String> frequentItems(
   Iterable<PastPurchase> purchases,
   Iterable<ListItem> current, {
+  String query = '',
   int minPurchases = 2,
   int max = 8,
 }) {
+  final typed = categoryKey(query);
   final counts = <String, int>{};
   final last = <String, DateTime>{};
   final spelling = <String, String>{};
@@ -70,6 +73,7 @@ List<String> frequentItems(
       [
         for (final e in counts.entries)
           if (e.value >= minPurchases &&
+              e.key.contains(typed) &&
               bestMatch(spelling[e.key]!, onList) == null)
             e.key,
       ]..sort((a, b) {

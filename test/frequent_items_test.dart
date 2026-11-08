@@ -110,6 +110,21 @@ void main() {
       expect(r, ['Banana']);
     });
 
+    test('filtra pelo que está sendo digitado, sem acento e caixa', () {
+      final past = [
+        purchase(0, list: ['Arroz', 'Arroz integral', 'Açúcar', 'Pão francês']),
+        purchase(1, list: ['Arroz', 'Arroz integral', 'Açúcar', 'Pão francês']),
+      ];
+      expect(frequentItems(past, const [], query: 'ARR'), [
+        'Arroz',
+        'Arroz integral',
+      ]);
+      expect(frequentItems(past, const [], query: 'acu'), ['Açúcar']);
+      expect(frequentItems(past, const [], query: 'pao fr'), ['Pão francês']);
+      expect(frequentItems(past, const [], query: 'xyz'), isEmpty);
+      expect(frequentItems(past, const [], query: '  ').length, 4);
+    });
+
     test('no máximo 8', () {
       final names = [for (var i = 0; i < 10; i++) 'Item$i'];
       final r = frequentItems([

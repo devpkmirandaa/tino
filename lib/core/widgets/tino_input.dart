@@ -9,8 +9,8 @@ class TinoInput extends StatelessWidget {
   const TinoInput({
     super.key,
     this.label,
-    this.leading,
     this.trailing,
+    this.highlight,
     this.textCapitalization = TextCapitalization.none,
     this.controller,
     this.hint,
@@ -39,11 +39,13 @@ class TinoInput extends StatelessWidget {
   /// também para o leitor de tela (ex.: "Adicionar item" da Lista).
   final String? label;
 
-  /// Ícone dentro do campo, à esquerda (ex.: + do "Adicionar item").
-  final Widget? leading;
-
-  /// Botão dentro do campo, à direita.
+  /// Botão dentro do campo, à direita (ex.: "Adicionar" da Lista).
   final Widget? trailing;
+
+  /// Borda fixa no lugar da do foco: verdadeiro, `action` de 2; falso,
+  /// `border-strong` de 1 mesmo focado. Nulo: segue o foco ("Adicionar
+  /// item" só destaca quando há texto).
+  final bool? highlight;
   final TextCapitalization textCapitalization;
   final TextEditingController? controller;
   final String? hint;
@@ -102,14 +104,9 @@ class TinoInput extends StatelessWidget {
             hintStyle: TinoType.corpo.withColor(c.textSecondary),
             suffixText: suffix,
             suffixStyle: TinoType.secundario.withColor(c.textSecondary),
-            prefixIcon: leading,
-            prefixIconConstraints: const BoxConstraints(
-              minWidth: TinoSize.touchTarget,
-              minHeight: TinoSize.touchTarget,
-            ),
             suffixIcon: trailing,
+            // Largura livre: o botão some sem deixar espaço reservado.
             suffixIconConstraints: const BoxConstraints(
-              minWidth: TinoSize.touchTarget,
               minHeight: TinoSize.touchTarget,
             ),
             constraints: BoxConstraints(minHeight: height),
@@ -119,8 +116,12 @@ class TinoInput extends StatelessWidget {
               vertical: (height - type.lineHeight) / 2,
             ),
             border: border(c.borderStrong, TinoSize.borderWidth),
-            enabledBorder: border(c.borderStrong, TinoSize.borderWidth),
-            focusedBorder: border(c.action, 2),
+            enabledBorder: highlight == true
+                ? border(c.action, 2)
+                : border(c.borderStrong, TinoSize.borderWidth),
+            focusedBorder: highlight == false
+                ? border(c.borderStrong, TinoSize.borderWidth)
+                : border(c.action, 2),
           ),
         ),
       ],

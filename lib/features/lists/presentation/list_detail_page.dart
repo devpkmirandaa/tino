@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -58,12 +59,29 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
         ),
       );
 
+  /// Tecla de confirmar ou botão "Adicionar": adiciona, limpa o campo e o
+  /// teclado continua aberto para o próximo item.
   Future<void> _addFromField() async {
     final name = _add.text.trim();
+    _keepKeyboard();
     if (name.isEmpty) return;
     _add.clear();
-    // O campo não perde o foco (onEditingComplete): o teclado fica aberto
-    // para o próximo item.
+    await _addNamed(name);
+    _keepKeyboard();
+  }
+
+  /// O campo não perde o foco na tecla de confirmar (onEditingComplete),
+  /// mas há teclados que se fecham sozinhos nela (Moto G54): o campo pede o
+  /// foco de volta e reabre o teclado.
+  void _keepKeyboard() {
+    if (!mounted) return;
+    if (!_addFocus.hasFocus) _addFocus.requestFocus();
+    SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+  }
+
+  /// Chip "Você costuma levar": adiciona e limpa o que estava digitado.
+  Future<void> _addFrequent(String name) async {
+    _add.clear();
     await _addNamed(name);
   }
 
@@ -247,25 +265,37 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
             ],
           ),
         ),
-        _BottomPanel(
-          field: TinoInput(
-            key: const ValueKey('add-list-item'),
-            hint: 'Adicionar item',
-            height: 56,
-            controller: _add,
-            focusNode: _addFocus,
-            textCapitalization: TextCapitalization.sentences,
-            textInputAction: TextInputAction.done,
-            onEditingComplete: _addFromField,
-            leading: Icon(
-              LucideIcons.plus,
-              size: TinoSize.iconCompact,
-              color: c.action,
-            ),
-          ),
-          frequent: frequentItems(past, items),
-          onFrequent: _addNamed,
-          onScan: _scan,
+        // Só o painel acompanha o que é digitado.
+        ValueListenableBuilder(
+          valueListenable: _add,
+          builder: (context, value, _) {
+            final typed = value.text.trim();
+            final typing = typed.isNotEmpty;
+            return _BottomPanel(
+              field: TinoInput(
+                key: const ValueKey('add-list-item'),
+                hint: 'Adicionar item',
+                height: 56,
+                controller: _add,
+                focusNode: _addFocus,
+                highlight: typing,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.done,
+                onEditingComplete: _addFromField,
+                trailing: _AddPill(visible: typing, onPressed: _addFromField),
+              ),
+              category: typing
+                  ? suggestCategory(
+                      typed,
+                      learned:
+                          ref.read(learnedCategoriesProvider).value ?? const {},
+                    )
+                  : null,
+              frequent: frequentItems(past, items, query: typed),
+              onFrequent: _addFrequent,
+              onScan: _scan,
+            );
+          },
         ),
       ],
     );
@@ -822,11 +852,15 @@ class _CartToggle extends StatelessWidget {
 class _BottomPanel extends StatelessWidget {
   const _BottomPanel({
     required this.field,
+    required this.category,
     required this.frequent,
     required this.onFrequent,
     required this.onScan,
   });
   final Widget field;
+
+  /// Categoria sugerida enquanto há texto ("Vai pra Mercearia").
+  final ItemCategory? category;
   final List<String> frequent;
   final ValueChanged<String> onFrequent;
   final ValueChanged<BuildContext> onScan;
@@ -855,6 +889,17 @@ class _BottomPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           field,
+          if (category case final category?) ...[
+            const SizedBox(height: TinoSpace.s8),
+            Padding(
+              padding: const EdgeInsets.only(left: TinoSpace.s4),
+              child: Text(
+                'Vai pra ${category.label}',
+                key: const ValueKey('list-add-category'),
+                style: TinoType.caption.withColor(c.textSecondary),
+              ),
+            ),
+          ],
           if (frequent.isNotEmpty) ...[
             const SizedBox(height: TinoSpace.s8),
             Semantics(
@@ -892,6 +937,109 @@ class _BottomPanel extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "Adicionar" dentro do campo (telas/08a): pílula de 40 (toque 48) em
+/// `action`, check 18 + rótulo 14/600 `on-action`. Entra e sai com
+/// opacidade (150 ms) e escala 0,8 → 1 na mola `selecao`; sem texto, some.
+class _AddPill extends StatefulWidget {
+  const _AddPill({required this.visible, required this.onPressed});
+  final bool visible;
+  final VoidCallback onPressed;
+
+  @override
+  State<_AddPill> createState() => _AddPillState();
+}
+
+class _AddPillState extends State<_AddPill> with TickerProviderStateMixin {
+  static const _hidden = 0.8;
+
+  late final _scale = AnimationController.unbounded(
+    vsync: this,
+    value: widget.visible ? 1 : _hidden,
+  );
+  late final _fade = AnimationController(
+    vsync: this,
+    duration: TinoMotion.reducedFade,
+    value: widget.visible ? 1 : 0,
+  );
+
+  @override
+  void didUpdateWidget(_AddPill old) {
+    super.didUpdateWidget(old);
+    if (widget.visible == old.visible) return;
+    final to = widget.visible ? 1.0 : _hidden;
+    if (widget.visible) {
+      _fade.forward();
+    } else {
+      _fade.reverse();
+    }
+    if (TinoMotion.reduced(context)) {
+      _scale.value = to;
+    } else {
+      _scale.animateWith(
+        TinoMotion.spring(
+          TinoSprings.selecao,
+          _scale.value,
+          to,
+          _scale.velocity,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _scale.dispose();
+    _fade.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.tino;
+    final pill = TinoPressable(
+      key: const ValueKey('add-list-item-button'),
+      onPressed: widget.visible ? widget.onPressed : null,
+      semanticLabel: 'Adicionar',
+      excludeSemantics: true,
+      builder: (context, pressed) => Padding(
+        padding: const EdgeInsets.only(
+          left: TinoSpace.s8,
+          right: 6,
+          top: TinoSpace.s4,
+          bottom: TinoSpace.s4,
+        ),
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.only(left: 10, right: 14),
+          decoration: BoxDecoration(
+            color: pressed ? c.actionPressed : c.action,
+            borderRadius: BorderRadius.circular(TinoRadius.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.check, size: 18, color: c.onAction),
+              const SizedBox(width: 6),
+              Text('Adicionar', style: TinoType.label.withColor(c.onAction)),
+            ],
+          ),
+        ),
+      ),
+    );
+    return AnimatedBuilder(
+      animation: Listenable.merge([_scale, _fade]),
+      child: pill,
+      builder: (context, child) {
+        if (_fade.value == 0) return const SizedBox.shrink();
+        return Opacity(
+          opacity: TinoCurves.easeOut.transform(_fade.value),
+          child: Transform.scale(scale: _scale.value, child: child),
+        );
+      },
     );
   }
 }
