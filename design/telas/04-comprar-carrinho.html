@@ -2,24 +2,25 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tino · Comprar, com itens</title>
+<title>Comprar, com itens</title>
+
+</head>
+<body>
+
+
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
 <style>
 body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#16221F}
 a{color:#246B55}a:hover{color:#1C5946}
 </style>
-<style>html{background:#D6E1DB}body{display:flex;justify-content:center;padding:24px 0}</style>
-</head>
-<body>
-<!-- Referência visual. Valores vêm de tokens/tokens.json; ver specs/telas.md. -->
+
 <div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F7F6; display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #16221F;">
 
   <div style="flex-grow: 1; min-height: 0; display: flex; flex-direction: column; padding: 48px 16px 16px; gap: 16px;">
 
     <div style="display: flex; align-items: center; justify-content: space-between;">
       <h1 style="margin: 0; font-size: 24px; line-height: 32px; font-weight: 700;">Comprar</h1>
-      <a href="10-ajustes.html" aria-label="Ajustes" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #52655E;">
+      <a href="#" aria-label="Ajustes" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #52655E;">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"></path><path d="M14 17H5"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg>
       </a>
     </div>
@@ -31,18 +32,21 @@ a{color:#246B55}a:hover{color:#1C5946}
           <span style="font-size: 40px; line-height: 48px; font-weight: 700; font-variant-numeric: tabular-nums;">R$ 25,50</span>
         </div>
       </div>
-      <div style="display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; flex-direction: column; gap: 10px;">
         <div role="progressbar" aria-label="Orçamento usado" aria-valuenow="17" aria-valuemin="0" aria-valuemax="100" style="height: 8px; border-radius: 999px; background: #EAF1EE; overflow: hidden;">
           <div style="width: 17%; height: 8px; border-radius: 999px; background: #246B55;"></div>
         </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E;">Orçamento R$ 150,00</span>
-          <span style="font-size: 12px; line-height: 16px; font-weight: 600; font-variant-numeric: tabular-nums;">Faltam R$ 124,50</span>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-size: 14px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums;">Faltam R$ 124,50</span>
+            <span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E; font-variant-numeric: tabular-nums;">de R$ 150,00</span>
+          </div>
+          <button type="button" aria-label="Mudar orçamento" style="height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #7D9189; background: transparent; color: #246B55; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif; display: flex; align-items: center; gap: 6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"></path></svg>Mudar</button>
         </div>
       </div>
     </div>
 
-    <a href="08-lista.html" style="min-height: 56px; box-sizing: border-box; padding: 8px 12px 8px 16px; border-radius: 16px; background: #C8E1ED; color: #16221F; text-decoration: none; display: flex; align-items: center; gap: 12px;">
+    <a href="#" style="min-height: 56px; box-sizing: border-box; padding: 8px 12px 8px 16px; border-radius: 16px; background: #C8E1ED; color: #16221F; text-decoration: none; display: flex; align-items: center; gap: 12px;">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path></svg>
       <div style="flex-grow: 1; display: flex; flex-direction: column;">
         <span style="font-size: 14px; line-height: 20px; font-weight: 600;">Compras de hoje</span>
@@ -52,21 +56,21 @@ a{color:#246B55}a:hover{color:#1C5946}
     </a>
 
     <div style="border-radius: 20px; background: #FFFFFF; border: 1px solid #D6E1DB; display: flex; flex-direction: column; overflow: hidden;">
-      <a href="05-detalhe-item.html" style="min-height: 64px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #16221F; border-bottom: 1px solid #D6E1DB;">
+      <a href="#" style="min-height: 64px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #16221F; border-bottom: 1px solid #D6E1DB;">
         <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
           <span style="font-size: 16px; line-height: 24px; font-weight: 600;">Pão francês</span>
           <span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E; font-variant-numeric: tabular-nums;">0,250 kg · R$ 12,00/kg</span>
         </div>
         <span style="font-size: 16px; line-height: 24px; font-weight: 700; font-variant-numeric: tabular-nums;">R$ 3,00</span>
       </a>
-      <a href="05-detalhe-item.html" style="min-height: 64px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #16221F; border-bottom: 1px solid #D6E1DB;">
+      <a href="#" style="min-height: 64px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #16221F; border-bottom: 1px solid #D6E1DB;">
         <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
           <span style="font-size: 16px; line-height: 24px; font-weight: 600;">Molho de tomate</span>
           <span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E;">Quero · 240 g</span>
         </div>
         <span style="font-size: 16px; line-height: 24px; font-weight: 700; font-variant-numeric: tabular-nums;">R$ 3,00</span>
       </a>
-      <a href="05-detalhe-item.html" style="min-height: 64px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #16221F;">
+      <a href="#" style="min-height: 64px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #16221F;">
         <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
           <span style="font-size: 16px; line-height: 24px; font-weight: 600;">Frango</span>
           <span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E;">Bandeja</span>
@@ -75,13 +79,13 @@ a{color:#246B55}a:hover{color:#1C5946}
       </a>
     </div>
 
-    <a href="06-finalizar.html" style="height: 48px; border-radius: 12px; border: 1px solid #7D9189; color: #246B55; font-size: 14px; line-height: 20px; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none;">Finalizar compra</a>
+    <a href="#" style="height: 48px; border-radius: 12px; border: 1px solid #7D9189; color: #246B55; font-size: 14px; line-height: 20px; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none;">Finalizar compra</a>
 
     <div style="margin-top: auto; display: flex; gap: 8px;">
       <button type="button" aria-label="Digitar preço" style="width: 64px; height: 64px; flex-shrink: 0; border-radius: 16px; border: 1px solid #7D9189; background: #FFFFFF; color: #246B55; display: flex; align-items: center; justify-content: center;">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"></path></svg>
       </button>
-      <a href="03-scanner.html" style="flex-grow: 1; height: 64px; border-radius: 16px; background: #246B55; color: #FFFFFF; font-size: 18px; line-height: 26px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none;">
+      <a href="#" style="flex-grow: 1; height: 64px; border-radius: 16px; background: #246B55; color: #FFFFFF; font-size: 18px; line-height: 26px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none;">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M7 12h10"></path></svg>
         Escanear preço
       </a>
@@ -89,19 +93,20 @@ a{color:#246B55}a:hover{color:#1C5946}
   </div>
 
   <nav aria-label="Navegação principal" style="height: 76px; box-sizing: border-box; border-top: 1px solid #D6E1DB; background: #FFFFFF; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px 8px 16px;">
-    <a href="04-comprar-carrinho.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #246B55; text-decoration: none; font-size: 12px; line-height: 16px; font-weight: 600;">
+    <a href="#" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #246B55; text-decoration: none; font-size: 12px; line-height: 16px; font-weight: 600;">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M7 12h10"></path></svg>
       Comprar
     </a>
-    <a href="07-listas.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #52655E; text-decoration: none; font-size: 12px; line-height: 16px; font-weight: 500;">
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #52655E; text-decoration: none; font-size: 12px; line-height: 16px; font-weight: 500;">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path></svg>
       Listas
     </a>
-    <a href="09-historico.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #52655E; text-decoration: none; font-size: 12px; line-height: 16px; font-weight: 500;">
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #52655E; text-decoration: none; font-size: 12px; line-height: 16px; font-weight: 500;">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
       Histórico
     </a>
   </nav>
 </div>
+
 </body>
 </html>
