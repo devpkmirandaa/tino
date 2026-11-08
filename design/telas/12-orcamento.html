@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Orçamento</title>
+
+</head>
+<body>
+
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#16221F}
+a{color:#246B55}a:hover{color:#1C5946}
+</style>
+
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #8A9692; display: flex; flex-direction: column; justify-content: flex-end; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #16221F;">
+  <div role="dialog" aria-label="Orçamento" style="background: #FFFFFF; border-radius: 24px 24px 0 0; padding: 12px 16px 28px; display: flex; flex-direction: column; gap: 16px;">
+    <div aria-hidden="true" style="width: 40px; height: 4px; border-radius: 999px; background: #D6E1DB; align-self: center;"></div>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <h2 style="margin: 0; font-size: 20px; line-height: 28px; font-weight: 700;">Orçamento</h2>
+      <a href="#" aria-label="Fechar" style="width: 48px; height: 48px; margin-right: -12px; display: flex; align-items: center; justify-content: center; color: #52655E;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></a>
+    </div>
+    <span style="font-size: 14px; line-height: 20px; font-weight: 500; color: #52655E;">Quanto você quer gastar nesta compra?</span>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <label for="valor" style="font-size: 14px; line-height: 20px; font-weight: 600;">Valor</label>
+      <input id="valor" value="R$ 150,00" inputmode="decimal" style="height: 64px; box-sizing: border-box; padding: 0 16px; border-radius: 12px; border: 2px solid #246B55; background: #FFFFFF; color: #16221F; font: 700 28px/36px 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums;">
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px;"><button type="button" aria-pressed="false" style="height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #7D9189; background: #FFFFFF; color: #16221F; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums;">R$ 100</button><button type="button" aria-pressed="true" style="height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #246B55; background: #FFFFFF; color: #16221F; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums;">R$ 150</button><button type="button" aria-pressed="false" style="height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #7D9189; background: #FFFFFF; color: #16221F; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums;">R$ 200</button><button type="button" aria-pressed="false" style="height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #7D9189; background: #FFFFFF; color: #16221F; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums;">R$ 300</button></div>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: 16px; background: #EAF1EE;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 16px; line-height: 24px; font-weight: 600;">Avisar quando faltar pouco</span>
+        <span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #52655E;">Avisa e vibra quando passar de 90% do valor.</span>
+      </div>
+      <button type="button" role="switch" aria-checked="true" aria-label="Avisar quando faltar pouco" style="width: 52px; height: 32px; flex-shrink: 0; border: 0; border-radius: 999px; background: #246B55; padding: 4px; display: flex; justify-content: flex-end;"><span style="width: 24px; height: 24px; border-radius: 999px; background: #FFFFFF;"></span></button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">
+      <a href="#" style="height: 52px; border-radius: 12px; background: #246B55; color: #FFFFFF; font-size: 16px; line-height: 24px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">Usar R$ 150,00</a>
+      <button type="button" style="height: 48px; border: 0; background: transparent; color: #52655E; font: 600 14px/20px 'Plus Jakarta Sans', system-ui, sans-serif;">Compra sem orçamento</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
