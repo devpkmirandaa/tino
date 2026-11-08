@@ -73,6 +73,17 @@ class $PurchasesTable extends Purchases
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _listNameMeta = const VerificationMeta(
+    'listName',
+  );
+  @override
+  late final GeneratedColumn<String> listName = GeneratedColumn<String>(
+    'list_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -81,6 +92,7 @@ class $PurchasesTable extends Purchases
     budgetCents,
     listId,
     place,
+    listName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -132,6 +144,12 @@ class $PurchasesTable extends Purchases
         place.isAcceptableOrUnknown(data['place']!, _placeMeta),
       );
     }
+    if (data.containsKey('list_name')) {
+      context.handle(
+        _listNameMeta,
+        listName.isAcceptableOrUnknown(data['list_name']!, _listNameMeta),
+      );
+    }
     return context;
   }
 
@@ -165,6 +183,10 @@ class $PurchasesTable extends Purchases
         DriftSqlType.string,
         data['${effectivePrefix}place'],
       ),
+      listName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}list_name'],
+      ),
     );
   }
 
@@ -185,6 +207,10 @@ class Purchase extends DataClass implements Insertable<Purchase> {
 
   /// "Onde foi a compra?", digitado ao finalizar (opcional).
   final String? place;
+
+  /// Nome da lista usada, guardado ao concluir: renomear ou apagar a lista
+  /// depois não muda o Histórico.
+  final String? listName;
   const Purchase({
     required this.id,
     required this.startedAt,
@@ -192,6 +218,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     this.budgetCents,
     this.listId,
     this.place,
+    this.listName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -209,6 +236,9 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     }
     if (!nullToAbsent || place != null) {
       map['place'] = Variable<String>(place);
+    }
+    if (!nullToAbsent || listName != null) {
+      map['list_name'] = Variable<String>(listName);
     }
     return map;
   }
@@ -229,6 +259,9 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       place: place == null && nullToAbsent
           ? const Value.absent()
           : Value(place),
+      listName: listName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(listName),
     );
   }
 
@@ -244,6 +277,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       budgetCents: serializer.fromJson<int?>(json['budgetCents']),
       listId: serializer.fromJson<int?>(json['listId']),
       place: serializer.fromJson<String?>(json['place']),
+      listName: serializer.fromJson<String?>(json['listName']),
     );
   }
   @override
@@ -256,6 +290,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
       'budgetCents': serializer.toJson<int?>(budgetCents),
       'listId': serializer.toJson<int?>(listId),
       'place': serializer.toJson<String?>(place),
+      'listName': serializer.toJson<String?>(listName),
     };
   }
 
@@ -266,6 +301,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     Value<int?> budgetCents = const Value.absent(),
     Value<int?> listId = const Value.absent(),
     Value<String?> place = const Value.absent(),
+    Value<String?> listName = const Value.absent(),
   }) => Purchase(
     id: id ?? this.id,
     startedAt: startedAt ?? this.startedAt,
@@ -273,6 +309,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
     budgetCents: budgetCents.present ? budgetCents.value : this.budgetCents,
     listId: listId.present ? listId.value : this.listId,
     place: place.present ? place.value : this.place,
+    listName: listName.present ? listName.value : this.listName,
   );
   Purchase copyWithCompanion(PurchasesCompanion data) {
     return Purchase(
@@ -286,6 +323,7 @@ class Purchase extends DataClass implements Insertable<Purchase> {
           : this.budgetCents,
       listId: data.listId.present ? data.listId.value : this.listId,
       place: data.place.present ? data.place.value : this.place,
+      listName: data.listName.present ? data.listName.value : this.listName,
     );
   }
 
@@ -297,14 +335,22 @@ class Purchase extends DataClass implements Insertable<Purchase> {
           ..write('finishedAt: $finishedAt, ')
           ..write('budgetCents: $budgetCents, ')
           ..write('listId: $listId, ')
-          ..write('place: $place')
+          ..write('place: $place, ')
+          ..write('listName: $listName')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, startedAt, finishedAt, budgetCents, listId, place);
+  int get hashCode => Object.hash(
+    id,
+    startedAt,
+    finishedAt,
+    budgetCents,
+    listId,
+    place,
+    listName,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -314,7 +360,8 @@ class Purchase extends DataClass implements Insertable<Purchase> {
           other.finishedAt == this.finishedAt &&
           other.budgetCents == this.budgetCents &&
           other.listId == this.listId &&
-          other.place == this.place);
+          other.place == this.place &&
+          other.listName == this.listName);
 }
 
 class PurchasesCompanion extends UpdateCompanion<Purchase> {
@@ -324,6 +371,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
   final Value<int?> budgetCents;
   final Value<int?> listId;
   final Value<String?> place;
+  final Value<String?> listName;
   const PurchasesCompanion({
     this.id = const Value.absent(),
     this.startedAt = const Value.absent(),
@@ -331,6 +379,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     this.budgetCents = const Value.absent(),
     this.listId = const Value.absent(),
     this.place = const Value.absent(),
+    this.listName = const Value.absent(),
   });
   PurchasesCompanion.insert({
     this.id = const Value.absent(),
@@ -339,6 +388,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     this.budgetCents = const Value.absent(),
     this.listId = const Value.absent(),
     this.place = const Value.absent(),
+    this.listName = const Value.absent(),
   }) : startedAt = Value(startedAt);
   static Insertable<Purchase> custom({
     Expression<int>? id,
@@ -347,6 +397,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     Expression<int>? budgetCents,
     Expression<int>? listId,
     Expression<String>? place,
+    Expression<String>? listName,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -355,6 +406,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
       if (budgetCents != null) 'budget_cents': budgetCents,
       if (listId != null) 'list_id': listId,
       if (place != null) 'place': place,
+      if (listName != null) 'list_name': listName,
     });
   }
 
@@ -365,6 +417,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     Value<int?>? budgetCents,
     Value<int?>? listId,
     Value<String?>? place,
+    Value<String?>? listName,
   }) {
     return PurchasesCompanion(
       id: id ?? this.id,
@@ -373,6 +426,7 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
       budgetCents: budgetCents ?? this.budgetCents,
       listId: listId ?? this.listId,
       place: place ?? this.place,
+      listName: listName ?? this.listName,
     );
   }
 
@@ -397,6 +451,9 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
     if (place.present) {
       map['place'] = Variable<String>(place.value);
     }
+    if (listName.present) {
+      map['list_name'] = Variable<String>(listName.value);
+    }
     return map;
   }
 
@@ -408,7 +465,8 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
           ..write('finishedAt: $finishedAt, ')
           ..write('budgetCents: $budgetCents, ')
           ..write('listId: $listId, ')
-          ..write('place: $place')
+          ..write('place: $place, ')
+          ..write('listName: $listName')
           ..write(')'))
         .toString();
   }
@@ -2348,6 +2406,7 @@ typedef $$PurchasesTableCreateCompanionBuilder = PurchasesCompanion Function({
   Value<int?> budgetCents,
   Value<int?> listId,
   Value<String?> place,
+  Value<String?> listName,
 });
 typedef $$PurchasesTableUpdateCompanionBuilder = PurchasesCompanion Function({
   Value<int> id,
@@ -2356,6 +2415,7 @@ typedef $$PurchasesTableUpdateCompanionBuilder = PurchasesCompanion Function({
   Value<int?> budgetCents,
   Value<int?> listId,
   Value<String?> place,
+  Value<String?> listName,
 });
 
 final class $$PurchasesTableReferences
@@ -2417,6 +2477,11 @@ class $$PurchasesTableFilterComposer
 
   ColumnFilters<String> get place => $composableBuilder(
     column: $table.place,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get listName => $composableBuilder(
+    column: $table.listName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2484,6 +2549,11 @@ class $$PurchasesTableOrderingComposer
     column: $table.place,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get listName => $composableBuilder(
+    column: $table.listName,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PurchasesTableAnnotationComposer
@@ -2516,6 +2586,9 @@ class $$PurchasesTableAnnotationComposer
 
   GeneratedColumn<String> get place =>
       $composableBuilder(column: $table.place, builder: (column) => column);
+
+  GeneratedColumn<String> get listName =>
+      $composableBuilder(column: $table.listName, builder: (column) => column);
 
   Expression<T> purchaseItemsRefs<T extends Object>(
     Expression<T> Function($$PurchaseItemsTableAnnotationComposer a) f,
@@ -2577,6 +2650,7 @@ class $$PurchasesTableTableManager
                 Value<int?> budgetCents = const Value.absent(),
                 Value<int?> listId = const Value.absent(),
                 Value<String?> place = const Value.absent(),
+                Value<String?> listName = const Value.absent(),
               }) => PurchasesCompanion(
                 id: id,
                 startedAt: startedAt,
@@ -2584,6 +2658,7 @@ class $$PurchasesTableTableManager
                 budgetCents: budgetCents,
                 listId: listId,
                 place: place,
+                listName: listName,
               ),
           createCompanionCallback:
               ({
@@ -2593,6 +2668,7 @@ class $$PurchasesTableTableManager
                 Value<int?> budgetCents = const Value.absent(),
                 Value<int?> listId = const Value.absent(),
                 Value<String?> place = const Value.absent(),
+                Value<String?> listName = const Value.absent(),
               }) => PurchasesCompanion.insert(
                 id: id,
                 startedAt: startedAt,
@@ -2600,6 +2676,7 @@ class $$PurchasesTableTableManager
                 budgetCents: budgetCents,
                 listId: listId,
                 place: place,
+                listName: listName,
               ),
           withReferenceMapper: (p0) => p0
               .map(

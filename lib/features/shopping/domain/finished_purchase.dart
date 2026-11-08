@@ -10,6 +10,7 @@ final class FinishedPurchase {
     required this.cart,
     this.budget,
     this.place,
+    this.listName,
   });
 
   final int id;
@@ -19,6 +20,9 @@ final class FinishedPurchase {
 
   /// "Onde foi a compra?", se a pessoa disse.
   final String? place;
+
+  /// Lista usada, com o nome que tinha ao concluir.
+  final String? listName;
 
   BudgetStatus get status => budgetStatus(cart.total, budget);
 }

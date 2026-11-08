@@ -13,6 +13,7 @@ import '../../lists/application/lists_providers.dart';
 import '../application/shopping_controller.dart';
 import '../domain/finished_purchase.dart';
 import '../domain/money.dart';
+import 'budget_seal_chip.dart';
 
 /// Finalizar (design/telas/06-finalizar.html): fora das abas. Mostra quanto
 /// vai pagar, o que ficou fora da lista e o mercado; "Concluir e guardar"
@@ -207,38 +208,9 @@ class _PayCard extends StatelessWidget {
           ),
           if (seal != null) ...[
             const SizedBox(height: TinoSpace.s12),
-            Container(
+            BudgetSealChip(
               key: ValueKey(seal.over ? 'finish-seal-over' : 'finish-seal'),
-              padding: const EdgeInsets.symmetric(
-                horizontal: TinoSpace.s12,
-                vertical: 6,
-              ),
-              decoration: BoxDecoration(
-                color: seal.over ? c.textPrimary : c.surfaceSoft,
-                borderRadius: BorderRadius.circular(TinoRadius.pill),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    seal.over ? LucideIcons.triangleAlert : LucideIcons.check,
-                    size: 16,
-                    color: seal.over ? c.canvas : c.action,
-                  ),
-                  const SizedBox(width: TinoSpace.s4),
-                  Flexible(
-                    child: Text(
-                      seal.text,
-                      style: TinoType.caption
-                          .withColor(seal.over ? c.canvas : c.action)
-                          .weight(FontWeight.w600)
-                          .copyWith(
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                    ),
-                  ),
-                ],
-              ),
+              seal: seal,
             ),
           ],
         ],

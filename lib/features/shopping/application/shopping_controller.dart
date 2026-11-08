@@ -33,6 +33,18 @@ final historyProvider = FutureProvider<List<FinishedPurchase>>(
   (ref) => ref.watch(shoppingRepositoryProvider).history(),
 );
 
+/// Compra recém-concluída, até o Histórico tocar a entrada dela (M3c).
+final freshPurchaseProvider = NotifierProvider<FreshPurchase, int?>(
+  FreshPurchase.new,
+);
+
+class FreshPurchase extends Notifier<int?> {
+  @override
+  int? build() => null;
+
+  void set(int? id) => state = id;
+}
+
 /// Carrega a compra ativa do banco; cada alteração aparece na hora e é
 /// gravada em seguida, em ordem.
 class ShoppingController extends AsyncNotifier<ShoppingSession> {
@@ -78,10 +90,12 @@ class ShoppingController extends AsyncNotifier<ShoppingSession> {
   Future<void> finish({String? place}) async {
     await _saving;
     final listId = _session.listId;
-    await ref
+    final id = await ref
         .read(shoppingRepositoryProvider)
         .finishActive(place: cleanPlace(place));
     state = const AsyncData(ShoppingSession());
+    // A compra nova entra no topo do Histórico com M3c.
+    ref.read(freshPurchaseProvider.notifier).set(id);
     ref.invalidate(historyProvider);
     if (listId != null) await ref.read(listsActionsProvider).uncheckAll(listId);
   }

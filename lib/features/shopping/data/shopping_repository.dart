@@ -59,14 +59,31 @@ class ShoppingRepository {
     );
   });
 
-  /// Marca a compra ativa como finalizada agora, com o mercado, se houver.
-  Future<void> finishActive({String? place}) =>
-      (_db.update(_db.purchases)..where((p) => p.finishedAt.isNull())).write(
-        PurchasesCompanion(
-          finishedAt: Value(DateTime.now()),
-          place: Value(place),
-        ),
-      );
+  /// Marca a compra ativa como finalizada agora, com o mercado, se houver,
+  /// e o nome atual da lista usada. Devolve o id da compra (nulo se não
+  /// havia compra ativa).
+  Future<int?> finishActive({String? place}) => _db.transaction(() async {
+    final active = await _active();
+    if (active == null) return null;
+    final listName = switch (active.listId) {
+      null => null,
+      final id => await _listName(id),
+    };
+    await (_db.update(
+      _db.purchases,
+    )..where((p) => p.id.equals(active.id))).write(
+      PurchasesCompanion(
+        finishedAt: Value(DateTime.now()),
+        place: Value(place),
+        listName: Value(listName),
+      ),
+    );
+    return active.id;
+  });
+
+  Future<String?> _listName(int id) async => (await (_db.select(
+    _db.shoppingLists,
+  )..where((l) => l.id.equals(id))).getSingleOrNull())?.name;
 
   /// Compras finalizadas, da mais recente para a mais antiga.
   Future<List<FinishedPurchase>> history() async {
@@ -88,6 +105,11 @@ class ShoppingRepository {
     for (final r in rows) {
       items.putIfAbsent(r.purchaseId, () => []).add(_toItem(r));
     }
+    // Compras de antes da versão 8 não guardaram o nome: usa o atual, se a
+    // lista ainda existir.
+    final names = {
+      for (final l in await _db.select(_db.shoppingLists).get()) l.id: l.name,
+    };
     return [
       for (final p in purchases)
         FinishedPurchase(
@@ -96,6 +118,7 @@ class ShoppingRepository {
           cart: Cart(items[p.id] ?? const []),
           budget: _budget(p.budgetCents),
           place: p.place,
+          listName: p.listName ?? names[p.listId],
         ),
     ];
   }
