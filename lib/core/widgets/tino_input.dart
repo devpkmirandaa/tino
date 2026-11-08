@@ -20,6 +20,7 @@ class TinoInput extends StatelessWidget {
     this.inputFormatters,
     this.onChanged,
     this.onSubmitted,
+    this.onEditingComplete,
     this.autofocus = false,
     this.money = false,
     this.valueStyle,
@@ -54,6 +55,10 @@ class TinoInput extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+
+  /// Tecla de confirmar sem tirar o foco: o teclado continua aberto (ex.:
+  /// "Adicionar item", um item atrás do outro).
+  final VoidCallback? onEditingComplete;
   final bool autofocus;
 
   /// Valor em dinheiro: 700 e numerais tabulares.
@@ -86,6 +91,7 @@ class TinoInput extends StatelessWidget {
           inputFormatters: inputFormatters,
           onChanged: onChanged,
           onSubmitted: onSubmitted,
+          onEditingComplete: onEditingComplete,
           cursorColor: c.action,
           style: money ? text.money : text,
           decoration: InputDecoration(

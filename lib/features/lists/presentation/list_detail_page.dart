@@ -62,9 +62,9 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
     final name = _add.text.trim();
     if (name.isEmpty) return;
     _add.clear();
+    // O campo não perde o foco (onEditingComplete): o teclado fica aberto
+    // para o próximo item.
     await _addNamed(name);
-    // Continua no campo: listas se fazem em sequência.
-    if (mounted) _addFocus.requestFocus();
   }
 
   /// [to] já descontado o item retirado (`onReorderItem`).
@@ -256,7 +256,7 @@ class _ListDetailPageState extends ConsumerState<ListDetailPage> {
             focusNode: _addFocus,
             textCapitalization: TextCapitalization.sentences,
             textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _addFromField(),
+            onEditingComplete: _addFromField,
             leading: Icon(
               LucideIcons.plus,
               size: TinoSize.iconCompact,
