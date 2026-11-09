@@ -1,14 +1,19 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/motion/tino_springs.dart';
 import '../../../core/theme/tino_theme.dart';
+import '../../../core/widgets/tino_button.dart';
+import '../../../core/widgets/tino_cascade_block.dart';
 import '../../../core/widgets/tino_wordmark.dart';
 import '../data/onboarding_preference.dart';
+import 'welcome_illustration.dart';
 
+/// Boas-vindas (design/telas/01), com entrada M10. Na primeira abertura,
+/// "Começar" grava a preferência e vai pro Comprar. Em [review] (Ajustes →
+/// Rever apresentação), "Começar" e o Voltar só voltam pra Ajustes.
 class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key, this.review = false});
   final bool review;
@@ -17,71 +22,20 @@ class OnboardingPage extends ConsumerStatefulWidget {
   ConsumerState<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends ConsumerState<OnboardingPage>
-    with SingleTickerProviderStateMixin {
-  final _pages = PageController();
-  late final _entry = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 220),
-  );
-  late final _entryCurve = CurvedAnimation(
-    parent: _entry,
-    curve: Curves.easeOutCubic,
-  );
-  bool _entryStarted = false;
-  int _step = 0;
-  bool _hasAdvanced = false;
-  bool _saving = false;
-  String? _error;
+class _OnboardingPageState extends ConsumerState<OnboardingPage> {
+  /// M10: cada bloco sobe deste deslocamento (px).
+  static const _entryOffset = 32.0;
+  static const _wordmarkHeight = 32.0;
+  static const _maxWidth = 560.0;
 
-  static const _steps = [
-    (
-      title: 'Comprar bem começa antes.',
-      support: 'Acompanhe quanto vai gastar antes de chegar ao caixa.',
-    ),
-    (
-      title: 'Aponte. Confira. Adicione.',
-      support: 'Leia a etiqueta com a câmera e confirme o produto para somar à compra.',
-    ),
-    (
-      title: 'Seu limite, sempre à vista.',
-      support: 'Defina um orçamento e acompanhe o que ainda pode gastar.',
-    ),
+  static const _benefits = [
+    'Grátis e sem anúncios',
+    'Lê o preço no próprio celular',
+    'Avisa quanto falta do orçamento',
   ];
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _entry.value = 1;
-      _entryStarted = true;
-    } else if (!_entryStarted) {
-      _entryStarted = true;
-      _entry.forward();
-    }
-  }
-
-  @override
-  void dispose() {
-    _entryCurve.dispose();
-    _entry.dispose();
-    _pages.dispose();
-    super.dispose();
-  }
-
-  void _goTo(int page) {
-    if (_saving) return;
-    _entry.value = 1;
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _pages.jumpToPage(page);
-    } else {
-      _pages.animateToPage(
-        page,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
+  bool _saving = false;
+  String? _error;
 
   void _exitReview() {
     if (_saving) return;
@@ -117,327 +71,165 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !_saving && (_step == 0 || widget.review),
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && !_saving && _step > 0) _goTo(_step - 1);
-      },
-      child: Scaffold(
-        body: SafeArea(
-          child: ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(
-              overscroll: false,
-              physics: const ClampingScrollPhysics(),
+    final c = context.tino;
+    final reduced = TinoMotion.reduced(context);
+    // Sem wordmark no escuro: o SVG negativo usa <style>, que o flutter_svg
+    // ignora (sairia preto). Volta quando o arquivo for corrigido.
+    final showWordmark = c.brightness == Brightness.light;
+
+    Widget block(int index, Widget child, {double fromScale = 1}) =>
+        TinoCascadeBlock(
+          index: index,
+          reduced: reduced,
+          offset: _entryOffset,
+          fromScale: fromScale,
+          child: child,
+        );
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showWordmark) ...[
+          block(
+            0,
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: TinoWordmark(
+                width: _wordmarkHeight * TinoWordmark.aspectRatio,
+              ),
             ),
-            child: LayoutBuilder(
-              builder: (context, viewport) {
-                final margin = viewport.maxWidth < 320 ? 16.0 : 24.0;
-                return Column(
+          ),
+          const SizedBox(height: TinoSpace.s32),
+        ],
+        block(
+          1,
+          WelcomeIllustration(sealIndex: 5, reduced: reduced),
+          fromScale: 0.9,
+        ),
+        const SizedBox(height: TinoSpace.s32),
+        block(
+          2,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  'Comprar bem começa antes.',
+                  style: TinoType.display.withColor(c.textPrimary),
+                ),
+              ),
+              const SizedBox(height: TinoSpace.s8),
+              Text(
+                'Aponte a câmera para a etiqueta. O Tino lê o preço e soma '
+                'tudo pra você.',
+                style: TinoType.corpo.withColor(c.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: TinoSpace.s32),
+        block(
+          3,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < _benefits.length; i++) ...[
+                if (i > 0) const SizedBox(height: TinoSpace.s12),
+                Row(
                   children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: margin),
-                      child: SizedBox(
-                        height: 56,
-                        child: Row(
-                          children: [
-                            if (widget.review)
-                              IconButton(
-                                onPressed: _saving ? null : _exitReview,
-                                tooltip: 'Fechar apresentação',
-                                icon: const Icon(LucideIcons.x),
-                              ),
-                            const Spacer(),
-                            _AnimatedVisibility(
-                              visible: _step < 2,
-                              collapse: false,
-                              child: TextButton(
-                                onPressed: _saving ? null : _finish,
-                                child: const Text('Pular'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    Icon(
+                      LucideIcons.check,
+                      size: TinoSize.iconCompact,
+                      color: c.action,
                     ),
+                    const SizedBox(width: TinoSpace.s12),
                     Expanded(
-                      child: Listener(
-                        onPointerDown: (_) {
-                          // O dedo assume o movimento: não somar entrada ao arraste.
-                          if (!_entry.isCompleted) _entry.value = 1;
-                        },
-                        child: FadeTransition(
-                          key: const ValueKey('intro-entry'),
-                          opacity: _entryCurve,
-                          child: AnimatedBuilder(
-                            animation: _entryCurve,
-                            builder: (context, child) => Transform.translate(
-                              offset: Offset(0, 10 * (1 - _entryCurve.value)),
-                              child: child,
-                            ),
-                            child: PageView.builder(
-                              controller: _pages,
-                              allowImplicitScrolling: true,
-                              physics: _saving
-                                  ? const NeverScrollableScrollPhysics()
-                                  : const _TutorialSnapPhysics(),
-                              itemCount: _steps.length,
-                              onPageChanged: (page) => setState(() {
-                                _step = page;
-                                if (page > 0) _hasAdvanced = true;
-                              }),
-                              itemBuilder: (context, index) => ExcludeSemantics(
-                                excluding: index != _step,
-                                child: LayoutBuilder(
-                                  builder: (context, page) {
-                                    final text = Theme.of(context).textTheme;
-                                    return SingleChildScrollView(
-                                      key: PageStorageKey(
-                                        'intro-content-$index',
-                                      ),
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: margin,
-                                        vertical: 24,
-                                      ),
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          minHeight: math.max(
-                                            0,
-                                            page.maxHeight - 48,
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: ConstrainedBox(
-                                            constraints: const BoxConstraints(
-                                              maxWidth: 560,
-                                            ),
-                                            child: SizedBox(
-                                              width: double.infinity,
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  // Sem wordmark no escuro até o SVG negativo ser corrigido.
-                                                  if (index == 0 &&
-                                                      context.tino.brightness ==
-                                                          Brightness.light) ...[
-                                                    const TinoWordmark(
-                                                      width: 96,
-                                                    ),
-                                                    const SizedBox(height: 40),
-                                                  ],
-                                                  Semantics(
-                                                    header: true,
-                                                    child: Text(
-                                                      _steps[index].title,
-                                                      style: text.headlineMedium
-                                                          ?.weight(
-                                                            FontWeight.w600,
-                                                          )
-                                                          .copyWith(
-                                                            fontSize: 28,
-                                                            height: 1.25,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 16),
-                                                  Text(
-                                                    _steps[index].support,
-                                                    style: text.bodyLarge
-                                                        ?.weight(
-                                                          FontWeight.w400,
-                                                        )
-                                                        .copyWith(
-                                                          fontSize: 16,
-                                                          height: 1.5,
-                                                        ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: math.min(180, viewport.maxHeight * .35),
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: SingleChildScrollView(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: margin,
-                            vertical: 16,
-                          ),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 560),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _AnimatedVisibility(
-                                  visible: !_hasAdvanced && _step == 0,
-                                  child: Text(
-                                    'Deslize para continuar',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall,
-                                  ),
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    for (
-                                      var index = 0;
-                                      index < _steps.length;
-                                      index++
-                                    )
-                                      MergeSemantics(
-                                        child: Semantics(
-                                          label:
-                                              'Página ${index + 1} de ${_steps.length}',
-                                          selected: index == _step,
-                                          child: SizedBox(
-                                            width: 48,
-                                            height: 48,
-                                            child: TextButton(
-                                              key: ValueKey(
-                                                'intro-indicator-$index',
-                                              ),
-                                              onPressed: _saving
-                                                  ? null
-                                                  : () => _goTo(index),
-                                              style: TextButton.styleFrom(
-                                                padding: EdgeInsets.zero,
-                                              ),
-                                              child: ExcludeSemantics(
-                                                child: AnimatedBuilder(
-                                                  animation: _pages,
-                                                  builder: (context, child) {
-                                                    final page =
-                                                        _pages.hasClients
-                                                        ? (_pages.page ??
-                                                              _step.toDouble())
-                                                        : _step.toDouble();
-                                                    final weight =
-                                                        (1 -
-                                                                (page - index)
-                                                                    .abs())
-                                                            .clamp(0.0, 1.0);
-                                                    return Container(
-                                                      key: ValueKey(
-                                                        'intro-dot-$index',
-                                                      ),
-                                                      width: 8 + 16 * weight,
-                                                      height: 8,
-                                                      decoration: BoxDecoration(
-                                                        color: Color.lerp(
-                                                          context.tino.border,
-                                                          context.tino.action,
-                                                          weight,
-                                                        ),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              4,
-                                                            ),
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                if (_error != null) ...[
-                                  const SizedBox(height: 12),
-                                  Semantics(
-                                    liveRegion: true,
-                                    child: Text(_error!),
-                                  ),
-                                ],
-                                _AnimatedVisibility(
-                                  visible: _step == 2,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(top: 12),
-                                    child: SizedBox(
-                                      width: double.infinity,
-                                      child: OutlinedButton(
-                                        onPressed: _saving ? null : _finish,
-                                        child: Text(
-                                          _saving ? 'Salvando…' : 'Começar',
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                      child: Text(
+                        _benefits[i],
+                        style: TinoType.secundario.withColor(c.textPrimary),
                       ),
                     ),
                   ],
-                );
-              },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final actions = block(
+      4,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_error != null) ...[
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TinoType.secundario.withColor(c.textPrimary),
+              ),
             ),
+            const SizedBox(height: TinoSpace.s12),
+          ],
+          TinoButton.primary(
+            label: _saving && !widget.review ? 'Salvando…' : 'Começar',
+            onPressed: _saving ? null : _finish,
+            expand: true,
+          ),
+          const SizedBox(height: TinoSpace.s12),
+          Text(
+            'A câmera só é pedida quando você escanear pela primeira vez.',
+            textAlign: TextAlign.center,
+            style: TinoType.caption.withColor(c.textSecondary),
+          ),
+        ],
+      ),
+    );
+
+    Widget limit(Widget child) => Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _maxWidth),
+        child: child,
+      ),
+    );
+
+    return PopScope(
+      // Primeira abertura: Voltar sai do app sem marcar como vista.
+      // Revisão: volta pra Ajustes, sem gravar nada.
+      canPop: !_saving,
+      child: Scaffold(
+        backgroundColor: c.canvas,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                    TinoSpace.s16,
+                    TinoSpace.s32,
+                    TinoSpace.s16,
+                    TinoSpace.s24,
+                  ),
+                  child: limit(content),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  TinoSpace.s16,
+                  0,
+                  TinoSpace.s16,
+                  TinoSpace.s32,
+                ),
+                child: limit(actions),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
-
-/// Clamping nas bordas e encaixe amortecido, sem efeito elástico.
-class _TutorialSnapPhysics extends ClampingScrollPhysics {
-  const _TutorialSnapPhysics({super.parent});
-
-  @override
-  _TutorialSnapPhysics applyTo(ScrollPhysics? ancestor) =>
-      _TutorialSnapPhysics(parent: buildParent(ancestor));
-
-  @override
-  SpringDescription get spring =>
-      SpringDescription.withDampingRatio(mass: 1, stiffness: 360, ratio: 1.1);
-}
-
-/// Anima só controles pequenos; sem atrasar o toque ou expor ações ocultas.
-class _AnimatedVisibility extends StatelessWidget {
-  const _AnimatedVisibility({
-    required this.visible,
-    required this.child,
-    this.collapse = true,
-  });
-  final bool visible;
-  final Widget child;
-  final bool collapse;
-
-  @override
-  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-    tween: Tween(begin: visible ? 1 : 0, end: visible ? 1 : 0),
-    duration: MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : const Duration(milliseconds: 180),
-    curve: Curves.easeOutCubic,
-    child: IgnorePointer(
-      ignoring: !visible,
-      child: ExcludeSemantics(excluding: !visible, child: child),
-    ),
-    builder: (context, value, child) {
-      final faded = Opacity(opacity: value, child: child);
-      return collapse
-          ? ClipRect(
-              child: Align(heightFactor: value, child: faded),
-            )
-          : faded;
-    },
-  );
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../motion/tino_springs.dart';
 import '../theme/tino_theme.dart';
+import 'tino_cascade_block.dart';
 import 'tino_sheet_scope.dart';
 
 /// Regras do M5 (design/motion/motion.md).
@@ -299,9 +300,10 @@ class _TinoSheetFrameState extends State<_TinoSheetFrame> {
                   children: [
                     for (var i = 0; i < route.blocks.length; i++) ...[
                       if (i > 0) const SizedBox(height: TinoSpace.s16),
-                      _CascadeBlock(
+                      TinoCascadeBlock(
                         index: i,
                         reduced: reduced,
+                        offset: TinoSheetMotion.blockOffset,
                         child: route.blocks[i],
                       ),
                     ],
@@ -382,67 +384,4 @@ class _SheetContentPhysics extends ClampingScrollPhysics {
 
   @override
   bool get allowImplicitScrolling => true;
-}
-
-/// Bloco da cascata: y 24 → 0 com `cartao` e opacidade com ease-out,
-/// começando [index] × 60 ms depois. Movimento reduzido: só opacidade 150 ms.
-class _CascadeBlock extends StatefulWidget {
-  const _CascadeBlock({
-    required this.index,
-    required this.reduced,
-    required this.child,
-  });
-
-  final int index;
-  final bool reduced;
-  final Widget child;
-
-  @override
-  State<_CascadeBlock> createState() => _CascadeBlockState();
-}
-
-class _CascadeBlockState extends State<_CascadeBlock>
-    with TickerProviderStateMixin {
-  static const _fadeDuration = Duration(milliseconds: 200);
-
-  late final _rise = AnimationController.unbounded(vsync: this, value: 0);
-  late final _fade = AnimationController(
-    vsync: this,
-    duration: widget.reduced ? TinoMotion.reducedFade : _fadeDuration,
-  );
-  Timer? _start;
-
-  @override
-  void initState() {
-    super.initState();
-    _start = Timer(TinoMotion.stagger * widget.index, () {
-      _fade.forward();
-      if (widget.reduced) {
-        _rise.value = 1;
-      } else {
-        _rise.animateWith(TinoMotion.spring(TinoSprings.cartao, 0, 1, 0));
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _start?.cancel();
-    _rise.dispose();
-    _fade.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: CurvedAnimation(parent: _fade, curve: TinoCurves.easeOut),
-    child: AnimatedBuilder(
-      animation: _rise,
-      child: widget.child,
-      builder: (context, child) => Transform.translate(
-        offset: Offset(0, TinoSheetMotion.blockOffset * (1 - _rise.value)),
-        child: child,
-      ),
-    ),
-  );
 }

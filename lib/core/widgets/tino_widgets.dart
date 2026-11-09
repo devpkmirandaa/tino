@@ -3,6 +3,7 @@ library;
 
 export 'tino_button.dart';
 export 'tino_card.dart';
+export 'tino_cascade_block.dart';
 export 'tino_chip.dart';
 export 'tino_input.dart';
 export 'tino_item_row.dart';

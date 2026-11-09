@@ -1,5 +1,11 @@
 # Etapa 2 — apresentação e primeiro acesso (concluída)
 
+> **Substituída pela etapa 9 (telas complementares).** As três páginas de
+> deslize, o "Pular" e os indicadores deram lugar à tela única de boas-vindas
+> (`design/telas/01-boas-vindas.html`, entrada M10). Continuam valendo a
+> preferência local, a espera pela gravação e o modo de revisão pelos Ajustes,
+> agora sem botão de fechar ("Começar" e Voltar retornam aos Ajustes).
+
 Escopo: apresentação inicial e uma preferência local. Sem banco de compras,
 câmera, permissões ou login.
 
